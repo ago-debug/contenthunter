@@ -1,9 +1,10 @@
-const { createServer } = require('http');
-const { parse } = require('url');
 const next = require('next');
+const { createServer } = require('http');
 
-const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev, dir: __dirname });
+// Forziamo production per evitare script di sviluppo/websocket
+process.env.NODE_ENV = 'production';
+
+const app = next({ dev: false, dir: __dirname });
 const handle = app.getRequestHandler();
 
 const port = process.env.PORT || 3000;
