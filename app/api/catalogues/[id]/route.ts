@@ -29,8 +29,15 @@ export async function GET(
 
         return NextResponse.json(catalogue);
     } catch (err: any) {
-        console.error("Fetch catalogue error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("Fetch catalogue error details:", {
+            message: err.message,
+            stack: err.stack
+        });
+        return NextResponse.json({
+            error: "Fetch failed",
+            details: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }, { status: 500 });
     }
 }
 

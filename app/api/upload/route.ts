@@ -26,14 +26,14 @@ export async function POST(req: NextRequest) {
         const catalog = await prisma.catalog.create({
             data: {
                 name: file.name,
-                filePath: `/public/uploads/${fileName}`,
+                filePath: `/uploads/${fileName}`,
             },
         });
 
         return NextResponse.json({
             success: true,
             catalogId: catalog.id,
-            filePath: `/public/uploads/${fileName}`
+            filePath: `/uploads/${fileName}`
         });
     } catch (err: any) {
         console.error("Upload error:", err);
