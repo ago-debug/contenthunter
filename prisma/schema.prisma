@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Catalog {
+  id            Int            @id @default(autoincrement())
+  name          String
+  filePath      String
+  webhookUrl    String?
+  templateId    Int?
+  createdAt     DateTime       @default(now())
+  template      Template?      @relation(fields: [templateId], references: [id])
+  products      Product[]
+  searchSources SearchSource[]
+
+  @@index([templateId], map: "Catalog_templateId_fkey")
+}
+
+model SearchSource {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  url       String   @db.LongText
+  label     String?
+  createdAt DateTime @default(now())
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId], map: "SearchSource_catalogId_fkey")
+}
+
+model Template {
+  id        Int       @id @default(autoincrement())
+  name      String
+  createdAt DateTime  @default(now())
+  catalogs  Catalog[]
+  rules     Rule[]
+}
+
+model Rule {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  fieldName  String
+  regex      String?
+  zoneX      Float?
+  zoneY      Float?
+  zoneWidth  Float?
+  zoneHeight Float?
+  createdAt  DateTime @default(now())
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId], map: "Rule_templateId_fkey")
+}
+
+model Product {
+  id           Int            @id @default(autoincrement())
+  catalogId    Int
+  sku          String         @unique
+  name         String?
+  description  String?        @db.Text
+  price        String?
+  category     String?
+  brand        String?
+  dimensions   String?
+  weight       String?
+  material     String?
+  bulletPoints String?        @db.Text
+  otherFields  String?        @db.LongText
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  catalog      Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  images       ProductImage[]
+
+  @@index([sku])
+  @@index([catalogId], map: "Product_catalogId_fkey")
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  imageUrl  String   @db.LongText
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId], map: "ProductImage_productId_fkey")
+}
