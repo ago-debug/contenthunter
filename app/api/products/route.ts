@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
                 material,
                 bulletPoints,
                 otherFields: body.extraFields ? JSON.stringify(body.extraFields) : null,
-                catalogId: catalogId || 1, // Fallback to first if not provided
+                catalogId: catalogId || 1,
             },
             create: {
                 sku: sku.toString(),
@@ -47,30 +47,32 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Handle images: delete old ones and add new ones (or sync them)
+        // Handle images
         if (images && Array.isArray(images)) {
-            // Clear existing images for this product
             await prisma.productImage.deleteMany({
                 where: { productId: product.id }
             });
 
-            // Add new images
             await prisma.productImage.createMany({
                 data: images.map((img: any) => ({
                     productId: product.id,
-                    imageUrl: img.url // This will be the dataURI or local path
+                    imageUrl: img.url
                 }))
             });
         }
 
         return NextResponse.json({ success: true, productId: product.id });
     } catch (err: any) {
-        console.error("Product save error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("Product save error details:", err);
+        return NextResponse.json({
+            error: "Save failed",
+            details: err.message,
+            hint: err.message.includes("otherFields") ? "Run 'db-push' on Plesk to update the database schema." : undefined
+        }, { status: 500 });
     }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         const products = await prisma.product.findMany({
             include: {
@@ -84,7 +86,6 @@ export async function GET() {
             orderBy: { createdAt: 'desc' }
         });
 
-        // Map otherFields to extraFields
         const mapped = products.map(p => ({
             ...p,
             extraFields: p.otherFields ? JSON.parse(p.otherFields) : {}
@@ -93,7 +94,10 @@ export async function GET() {
         return NextResponse.json(mapped);
     } catch (err: any) {
         console.error("Fetch products error details:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({
+            error: "Fetch failed",
+            details: err.message
+        }, { status: 500 });
     }
 }
 

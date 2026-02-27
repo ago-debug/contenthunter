@@ -80,8 +80,13 @@ export default function WorkspaceClient() {
                 }))
             })));
             await extractFromPdf(catalogue.filePath);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Error loading catalogue", err);
+            const msg = err.response?.data?.details || err.message;
+            toast.error(`Errore caricamento: ${msg}`);
+            if (msg.includes("otherFields")) {
+                toast.warning("DATABASE ALERT: Esaurire lo script 'db-push' su Plesk per sincronizzare le tabelle.");
+            }
         } finally {
             setIsProcessing(false);
         }
@@ -402,9 +407,16 @@ export default function WorkspaceClient() {
 
     const extractFromPdf = async (url: string) => {
         setIsProcessing(true);
-        setCurrentPdfUrl(url);
+        // Normalize URL if it's missing prefixes or has wrong ones
+        let normalizedUrl = url;
+        if (!url.startsWith('http') && !url.startsWith('/')) {
+            normalizedUrl = '/' + url;
+        }
+
+        // Adaptive check: if it gives 404, we might need /public prefix
+        setCurrentPdfUrl(normalizedUrl);
         try {
-            const loadingTask = pdfjsLib.getDocument(url);
+            const loadingTask = pdfjsLib.getDocument(normalizedUrl);
             const pdf = await loadingTask.promise;
             const pages: PageData[] = [];
 
@@ -502,8 +514,13 @@ export default function WorkspaceClient() {
             setTimeout(() => {
                 autoIdentifyRecords(pages);
             }, 1000);
-        } catch (err) {
+        } catch (err: any) {
             console.error("PDF processing error:", err);
+            if (err.name === 'MissingPDFException' && !normalizedUrl.includes('/public/')) {
+                console.log("Retrying with /public prefix...");
+                extractFromPdf('/public' + normalizedUrl);
+                return;
+            }
         } finally {
             setIsProcessing(false);
         }
@@ -519,12 +536,16 @@ export default function WorkspaceClient() {
 
             // Wait slightly for resources to resolve if needed
             let imgObj = null;
-            try {
-                imgObj = await page.objs.get(imgRef);
-            } catch (e) {
-                console.warn("Retrying image resolution...");
-                await new Promise(r => setTimeout(r, 500));
-                imgObj = await page.objs.get(imgRef);
+            let retries = 0;
+            while (retries < 5) {
+                try {
+                    imgObj = await page.objs.get(imgRef);
+                    if (imgObj) break;
+                } catch (e) {
+                    console.warn(`Retry ${retries + 1} for image ${imgRef}...`);
+                    await new Promise(r => setTimeout(r, 800));
+                    retries++;
+                }
             }
 
             if (imgObj) {
