@@ -1,5 +1,6 @@
 const next = require('next');
 const { createServer } = require('http');
+const { parse } = require('url');
 
 // Forziamo production per evitare script di sviluppo/websocket
 process.env.NODE_ENV = 'production';
