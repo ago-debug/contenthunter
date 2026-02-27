@@ -516,7 +516,16 @@ export default function WorkspaceClient() {
             const loadingTask = pdfjsLib.getDocument(currentPdfUrl);
             const pdf = await loadingTask.promise;
             const page = await pdf.getPage(pageIdx + 1);
-            const imgObj = await page.objs.get(imgRef);
+
+            // Wait slightly for resources to resolve if needed
+            let imgObj = null;
+            try {
+                imgObj = await page.objs.get(imgRef);
+            } catch (e) {
+                console.warn("Retrying image resolution...");
+                await new Promise(r => setTimeout(r, 500));
+                imgObj = await page.objs.get(imgRef);
+            }
 
             if (imgObj) {
                 const imgCanvas = document.createElement("canvas");
