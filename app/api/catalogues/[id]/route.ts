@@ -5,8 +5,10 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    let idParam = "unknown";
     try {
-        const { id: idParam } = await params;
+        const resolvedParams = await params;
+        idParam = resolvedParams.id;
         const id = parseInt(idParam);
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -27,11 +29,21 @@ export async function GET(
             return NextResponse.json({ error: "Catalogue not found" }, { status: 404 });
         }
 
-        return NextResponse.json(catalogue);
+        // Map back otherFields to extraFields for the frontend
+        const mappedProducts = catalogue.products.map(p => ({
+            ...p,
+            extraFields: p.otherFields ? JSON.parse(p.otherFields) : {}
+        }));
+
+        return NextResponse.json({
+            ...catalogue,
+            products: mappedProducts
+        });
     } catch (err: any) {
         console.error("Fetch catalogue error details:", {
             message: err.message,
-            stack: err.stack
+            stack: err.stack,
+            id: idParam
         });
         return NextResponse.json({
             error: "Fetch failed",

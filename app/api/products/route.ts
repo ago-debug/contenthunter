@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
                 weight,
                 material,
                 bulletPoints,
+                otherFields: body.extraFields ? JSON.stringify(body.extraFields) : null,
                 catalogId: catalogId || 1, // Fallback to first if not provided
             },
             create: {
@@ -41,12 +42,12 @@ export async function POST(req: NextRequest) {
                 weight,
                 material,
                 bulletPoints,
+                otherFields: body.extraFields ? JSON.stringify(body.extraFields) : null,
                 catalogId: catalogId || 1,
             },
         });
 
         // Handle images: delete old ones and add new ones (or sync them)
-        // For simplicity, we'll just add new ones or clear and re-add if multiple are allowed
         if (images && Array.isArray(images)) {
             // Clear existing images for this product
             await prisma.productImage.deleteMany({
@@ -72,24 +73,24 @@ export async function POST(req: NextRequest) {
 export async function GET() {
     try {
         const products = await prisma.product.findMany({
-            select: {
-                id: true,
-                sku: true,
-                title: true,
-                docDescription: true,
-                price: true,
-                category: true,
-                updatedAt: true,
+            include: {
                 images: {
                     select: {
                         imageUrl: true
                     },
-                    take: 1 // Only need one preview image for the list
+                    take: 1
                 }
             },
             orderBy: { createdAt: 'desc' }
         });
-        return NextResponse.json(products);
+
+        // Map otherFields to extraFields
+        const mapped = products.map(p => ({
+            ...p,
+            extraFields: p.otherFields ? JSON.parse(p.otherFields) : {}
+        }));
+
+        return NextResponse.json(mapped);
     } catch (err: any) {
         console.error("Fetch products error details:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });
