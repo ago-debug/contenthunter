@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import fs from "fs";
+import path from "path";
 
 export async function GET() {
     try {
@@ -13,6 +15,17 @@ export async function GET() {
         const catalogCount = await prisma.catalog.count();
         const productCount = await prisma.product.count();
 
+        // 4. Check Filesystem
+        const pubUploadsDir = path.join(process.cwd(), "public/uploads");
+        const uploadsDir = path.join(process.cwd(), "uploads");
+
+        const disk = {
+            publicUploadsExists: fs.existsSync(pubUploadsDir),
+            uploadsExists: fs.existsSync(uploadsDir),
+            cwd: process.cwd(),
+            publicUploadsContent: fs.existsSync(pubUploadsDir) ? fs.readdirSync(pubUploadsDir).slice(0, 10) : []
+        };
+
         return NextResponse.json({
             status: "SUCCESS",
             databaseUrl: dbUrl,
@@ -20,7 +33,8 @@ export async function GET() {
             stats: {
                 catalogs: catalogCount,
                 products: productCount
-            }
+            },
+            disk
         });
     } catch (err: any) {
         return NextResponse.json({
