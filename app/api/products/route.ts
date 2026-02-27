@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const {
-            sku, name, description, price, category, brand,
+            sku, title, description, docDescription, price, category, brand,
             dimensions, weight, material, bulletPoints, images, catalogId
         } = body;
 
@@ -17,8 +17,9 @@ export async function POST(req: NextRequest) {
         const product = await prisma.product.upsert({
             where: { sku: sku.toString() },
             update: {
-                name,
+                title,
                 description,
+                docDescription,
                 price,
                 category,
                 brand,
@@ -30,8 +31,9 @@ export async function POST(req: NextRequest) {
             },
             create: {
                 sku: sku.toString(),
-                name,
+                title,
                 description,
+                docDescription,
                 price,
                 category,
                 brand,
@@ -73,7 +75,8 @@ export async function GET() {
             select: {
                 id: true,
                 sku: true,
-                name: true,
+                title: true,
+                docDescription: true,
                 price: true,
                 category: true,
                 updatedAt: true,

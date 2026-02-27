@@ -7,7 +7,8 @@ export async function GET() {
         const products = await prisma.product.findMany({
             select: {
                 sku: true,
-                name: true,
+                title: true,
+                docDescription: true,
                 category: true,
                 price: true,
                 brand: true,
@@ -26,7 +27,8 @@ export async function GET() {
 
         const data = products.map((p: any) => ({
             SKU: p.sku,
-            Name: p.name || "",
+            Title: p.title || "",
+            DocDescription: p.docDescription || "",
             Category: p.category || "",
             Price: p.price || "",
             Brand: p.brand || "",

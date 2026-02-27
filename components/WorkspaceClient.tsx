@@ -9,6 +9,11 @@ import { toast } from "react-toastify";
 import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
 
+// Configure PDF.js worker for production
+if (typeof window !== "undefined") {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
+
 interface ProductImage {
     id: string;
     url: string;
@@ -271,9 +276,10 @@ export default function WorkspaceClient() {
             const resp = await axios.post("/api/upload", formData);
             setCatalogId(resp.data.catalogId);
             await extractFromPdf(resp.data.filePath);
-        } catch (err) {
-            toast.error("System Error: Failed to initialize PDF stream.");
-            console.error(err);
+        } catch (err: any) {
+            const errorMsg = err.response?.data?.error || err.message;
+            toast.error(`System Error: ${errorMsg}`);
+            console.error("Critical Upload Error:", err);
         } finally {
             setIsProcessing(false);
         }

@@ -56,21 +56,22 @@ model Rule {
 }
 
 model Product {
-  id           Int            @id @default(autoincrement())
-  catalogId    Int
-  sku          String         @unique
-  name         String?
-  description  String?        @db.Text
-  price        String?
-  category     String?
-  brand        String?
-  dimensions   String?
-  weight       String?
-  material     String?
-  bulletPoints String?        @db.Text
-  otherFields  String?        @db.LongText
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id             Int            @id @default(autoincrement())
+  catalogId      Int
+  sku            String         @unique
+  title          String?
+  description    String?        @db.Text
+  docDescription String?        @db.Text
+  price          String?
+  category       String?
+  brand          String?
+  dimensions     String?
+  weight         String?
+  material       String?
+  bulletPoints   String?        @db.Text
+  otherFields    String?        @db.LongText
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
   catalog      Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
   images       ProductImage[]
 
