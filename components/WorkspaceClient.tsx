@@ -376,9 +376,11 @@ export default function WorkspaceClient() {
         }
 
         const newProducts = products.map(p => {
-            const match = csvMasterList.find(row =>
-                String((row as any)[skuMappedField] || "").toLowerCase() === p.sku.toLowerCase()
-            ) as any;
+            const match = csvMasterList.find(row => {
+                const itemSku = String((row as any)[skuMappedField] || "").replace(/\s+/g, ' ').trim().toLowerCase();
+                const productSku = String(p.sku || "").replace(/\s+/g, ' ').trim().toLowerCase();
+                return itemSku === productSku;
+            }) as any;
 
             if (match) {
                 const updated = { ...p };
@@ -1422,26 +1424,58 @@ export default function WorkspaceClient() {
                                                                                     </div>
                                                                                 )))}
 
-                                                                            {pickerSourceMode === 'file' && csvMasterList
-                                                                                .filter(item => String(item[csvMapping.sku] || "").toLowerCase() === p.sku.toLowerCase())
-                                                                                .map((item, fIdx) => (
+                                                                            {pickerSourceMode === 'file' && (() => {
+                                                                                const filtered = csvMasterList.filter(item => {
+                                                                                    const itemSku = String(item[csvMapping.sku] || "").replace(/\s+/g, ' ').trim().toLowerCase();
+                                                                                    const productSku = String(p.sku || "").replace(/\s+/g, ' ').trim().toLowerCase();
+
+                                                                                    if (pickerSearch) {
+                                                                                        // If user is searching, filter by ANY mapped column
+                                                                                        return Object.values(csvMapping).some(h =>
+                                                                                            String(item[h] || "").toLowerCase().includes(pickerSearch.toLowerCase())
+                                                                                        );
+                                                                                    }
+                                                                                    return itemSku === productSku;
+                                                                                });
+
+                                                                                if (filtered.length === 0) {
+                                                                                    return (
+                                                                                        <div className="p-6 text-center space-y-2 border-2 border-dashed border-gray-50 rounded-2xl">
+                                                                                            <Search className="w-5 h-5 text-gray-200 mx-auto" />
+                                                                                            <p className="text-[10px] text-gray-400 font-bold leading-tight">
+                                                                                                Nessun dato trovato per "{p.sku}"<br />
+                                                                                                nel listino caricato.
+                                                                                            </p>
+                                                                                            <p className="text-[8px] text-gray-300">Prova a cercare una parte del codice nel box sopra</p>
+                                                                                        </div>
+                                                                                    );
+                                                                                }
+
+                                                                                return filtered.slice(0, 5).map((item, fIdx) => (
                                                                                     <div
                                                                                         key={`file-${fIdx}`}
                                                                                         onClick={() => {
                                                                                             const val = item[csvMapping[activePicker.field]];
-                                                                                            if (val) {
-                                                                                                const newProducts = [...products];
-                                                                                                (newProducts[idx] as any)[activePicker.field] = String(val);
-                                                                                                setProducts(newProducts);
-                                                                                            }
+                                                                                            const newProducts = [...products];
+                                                                                            (newProducts[idx] as any)[activePicker.field] = String(val || "");
+                                                                                            setProducts(newProducts);
                                                                                             setActivePicker(null);
+                                                                                            setPickerSearch("");
                                                                                         }}
-                                                                                        className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-all cursor-pointer"
+                                                                                        className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-all cursor-pointer group"
                                                                                     >
-                                                                                        <p className="text-[10px] font-bold text-blue-900 mb-1">Valore nel file per SKU {p.sku}</p>
-                                                                                        <p className="text-xs font-black text-blue-600">{String(item[csvMapping[activePicker.field]] || "N/A")}</p>
+                                                                                        <div className="flex justify-between items-start mb-1">
+                                                                                            <p className="text-[9px] font-bold text-blue-900 overflow-hidden text-ellipsis whitespace-nowrap max-w-[120px]">
+                                                                                                {String(item[csvMapping.sku] || "N/A")}
+                                                                                            </p>
+                                                                                            <span className="text-[8px] bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded uppercase font-black">Match Listino</span>
+                                                                                        </div>
+                                                                                        <p className="text-xs font-black text-blue-600 line-clamp-2">
+                                                                                            {String(item[csvMapping[activePicker.field]] || "Valore vuoto")}
+                                                                                        </p>
                                                                                     </div>
-                                                                                ))}
+                                                                                ));
+                                                                            })()}
 
                                                                             {pickerSourceMode === 'web' && (
                                                                                 <div className="p-4 text-center space-y-3">
