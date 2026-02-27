@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -135,6 +135,7 @@ export default function WorkspaceClient() {
     const [pickerPageIdx, setPickerPageIdx] = useState(0);
     const [webResults, setWebResults] = useState<any[]>([]);
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+    const [skuToPageMap, setSkuToPageMap] = useState<{ [sku: string]: number }>({});
 
     // New ERP and Search States
     const [searchSources, setSearchSources] = useState<any[]>([]);
@@ -142,6 +143,30 @@ export default function WorkspaceClient() {
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
     const [erpSearchQuery, setErpSearchQuery] = useState("");
     const [pickerSearchQuery, setPickerSearchQuery] = useState("");
+
+    // Smart Positioning Effect
+    useEffect(() => {
+        if (activePicker?.type === 'image' && pdfPages.length > 0) {
+            const product = products[activePicker.row];
+            if (product?.sku) {
+                // If we already indexed this SKU, use it
+                if (skuToPageMap[product.sku] !== undefined) {
+                    setPickerPageIdx(skuToPageMap[product.sku]);
+                } else {
+                    // One-time search if not indexed
+                    const pageIdx = pdfPages.findIndex(page =>
+                        page.textBlocks.some(block =>
+                            block.str.toLowerCase().includes(product.sku.toLowerCase())
+                        )
+                    );
+                    if (pageIdx !== -1) {
+                        setPickerPageIdx(pageIdx);
+                        setSkuToPageMap(prev => ({ ...prev, [product.sku]: pageIdx }));
+                    }
+                }
+            }
+        }
+    }, [activePicker, pdfPages, products, skuToPageMap]);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const csvInputRef = useRef<HTMLInputElement>(null);
@@ -333,6 +358,48 @@ export default function WorkspaceClient() {
         reader.readAsBinaryString(file);
     };
 
+    const applyCvsMapping = () => {
+        if (!csvMasterList.length) {
+            toast.warning("Matrix Error: No CSV Master List detected.");
+            return;
+        }
+
+        const skuMappedField = csvMapping.sku;
+        if (!skuMappedField) {
+            toast.warning("Mapping Error: SKU column must be identified.");
+            return;
+        }
+
+        const newProducts = products.map(p => {
+            const match = csvMasterList.find(row =>
+                String((row as any)[skuMappedField] || "").toLowerCase() === p.sku.toLowerCase()
+            ) as any;
+
+            if (match) {
+                const updated = { ...p };
+                // Map system fields
+                ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints'].forEach(field => {
+                    const h = csvMapping[field];
+                    if (h && match[h]) {
+                        (updated as any)[field] = String(match[h]);
+                    }
+                });
+                // Map extras
+                extraColumns.forEach(ex => {
+                    const h = csvMapping[ex];
+                    if (h && match[h]) {
+                        updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
+                    }
+                });
+                return updated;
+            }
+            return p;
+        });
+
+        setProducts(newProducts);
+        toast.success(`Data Sync: ${newProducts.length} records processed against listino.`);
+    };
+
     const extractFromPdf = async (url: string) => {
         setIsProcessing(true);
         setCurrentPdfUrl(url);
@@ -340,6 +407,9 @@ export default function WorkspaceClient() {
             const loadingTask = pdfjsLib.getDocument(url);
             const pdf = await loadingTask.promise;
             const pages: PageData[] = [];
+
+            // Temporary map to build during extraction
+            const tempSkuMap: { [sku: string]: number } = {};
 
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
@@ -413,8 +483,20 @@ export default function WorkspaceClient() {
                     textBlocks,
                     subImages
                 });
+
+                // Index SKUs on this page for smart positioning
+                textBlocks.forEach(block => {
+                    const text = block.str.trim();
+                    const skuPattern = /[A-Z0-9\-]{6,20}/;
+                    if (skuPattern.test(text) && text.length >= 6 && !text.includes(" ")) {
+                        if (tempSkuMap[text] === undefined) {
+                            tempSkuMap[text] = i - 1;
+                        }
+                    }
+                });
             }
             setPdfPages(pages);
+            setSkuToPageMap(tempSkuMap);
 
             // Trigger Automatic Identification Brain
             setTimeout(() => {
@@ -744,12 +826,24 @@ export default function WorkspaceClient() {
                                         <p className="text-sm text-gray-500 font-medium">Associa le colonne del tuo file ai campi del sistema.</p>
                                     </div>
                                 </div>
-                                <button
-                                    onClick={() => setShowMapping(false)}
-                                    className="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all"
-                                >
-                                    Conferma Mapping
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={applyCvsMapping}
+                                        className="px-6 py-2 bg-white border border-orange-200 text-orange-600 rounded-xl font-bold text-sm hover:bg-orange-50 transition-all flex items-center gap-2"
+                                    >
+                                        <RefreshCw className="w-4 h-4" />
+                                        Applica Mapping a Righe
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            applyCvsMapping();
+                                            setShowMapping(false);
+                                        }}
+                                        className="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-200"
+                                    >
+                                        Conferma e Applica Mapping
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
