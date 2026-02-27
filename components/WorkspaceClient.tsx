@@ -1425,18 +1425,28 @@ export default function WorkspaceClient() {
                                                                                 )))}
 
                                                                             {pickerSourceMode === 'file' && (() => {
-                                                                                const filtered = csvMasterList.filter(item => {
-                                                                                    const itemSku = String(item[csvMapping.sku] || "").replace(/\s+/g, ' ').trim().toLowerCase();
-                                                                                    const productSku = String(p.sku || "").replace(/\s+/g, ' ').trim().toLowerCase();
+                                                                                const filtered = (csvMasterList || []).filter(item => {
+                                                                                    const itemSku = String(item[csvMapping.sku] || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                                                                                    const productSku = String(p.sku || "").replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
                                                                                     if (pickerSearch) {
-                                                                                        // If user is searching, filter by ANY mapped column
+                                                                                        const search = pickerSearch.toLowerCase();
                                                                                         return Object.values(csvMapping).some(h =>
-                                                                                            String(item[h] || "").toLowerCase().includes(pickerSearch.toLowerCase())
+                                                                                            String(item[h] || "").toLowerCase().includes(search)
                                                                                         );
                                                                                     }
-                                                                                    return itemSku === productSku;
+                                                                                    // If no search, show direct matches
+                                                                                    return itemSku === productSku && productSku !== "";
                                                                                 });
+
+                                                                                if (!csvMasterList || csvMasterList.length === 0) {
+                                                                                    return (
+                                                                                        <div className="p-4 text-center border border-dashed border-red-100 rounded-xl bg-red-50/30">
+                                                                                            <p className="text-[10px] text-red-400 font-bold">Nessun listino caricato.</p>
+                                                                                            <p className="text-[8px] text-red-300">Carica un file Excel/CSV prima.</p>
+                                                                                        </div>
+                                                                                    );
+                                                                                }
 
                                                                                 if (filtered.length === 0) {
                                                                                     return (
@@ -1444,9 +1454,9 @@ export default function WorkspaceClient() {
                                                                                             <Search className="w-5 h-5 text-gray-200 mx-auto" />
                                                                                             <p className="text-[10px] text-gray-400 font-bold leading-tight">
                                                                                                 Nessun dato trovato per "{p.sku}"<br />
-                                                                                                nel listino caricato.
+                                                                                                nel listino ({csvMasterList?.length} righe).
                                                                                             </p>
-                                                                                            <p className="text-[8px] text-gray-300">Prova a cercare una parte del codice nel box sopra</p>
+                                                                                            <p className="text-[8px] text-gray-300">Usa la ricerca sopra per trovare il dato manualmente</p>
                                                                                         </div>
                                                                                     );
                                                                                 }
