@@ -275,12 +275,20 @@ export default function WorkspaceClient() {
         return url;
     };
 
-    const systemFieldsToSync = ['brand', 'dimensions', 'weight', 'material', 'category'];
+    const systemFieldsToSync = ['brand', 'dimensions', 'weight', 'material', 'category', 'bulletPoints', 'description'];
     const activeMappedFields = systemFieldsToSync.filter(f => csvMapping[f] && csvHeaders.includes(csvMapping[f]));
 
     const allDynamicColumns = [
         ...activeMappedFields.map(f => {
-            const labels: any = { brand: 'Marca', dimensions: 'Dimensioni', weight: 'Peso', material: 'Materiale', category: 'Categoria' };
+            const labels: any = {
+                brand: 'Marca',
+                dimensions: 'Dimensioni',
+                weight: 'Peso',
+                material: 'Materiale',
+                category: 'Categoria',
+                bulletPoints: 'Descrizione Note',
+                description: 'Analisi AI'
+            };
             return { key: f, label: labels[f] || f, isSystem: true };
         }),
         ...extraColumns.map(col => ({ key: col, label: col, isSystem: false }))
