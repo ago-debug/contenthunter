@@ -145,6 +145,9 @@ export default function WorkspaceClient() {
     // New ERP and Search States
     const [searchSources, setSearchSources] = useState<any[]>([]);
     const [showSettings, setShowSettings] = useState(false);
+    const [assetBaseUrl, setAssetBaseUrl] = useState("");
+    const [assetExtension, setAssetExtension] = useState(".jpg");
+    const [isMatchingAssets, setIsMatchingAssets] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
     const [erpSearchQuery, setErpSearchQuery] = useState("");
     const [pickerSearchQuery, setPickerSearchQuery] = useState("");
@@ -405,6 +408,50 @@ export default function WorkspaceClient() {
 
         setProducts(newProducts);
         toast.success(`Data Sync: ${newProducts.length} records processed against listino.`);
+    };
+
+    const bulkMatchSkuAssets = async () => {
+        if (!assetBaseUrl) {
+            toast.warning("Configurazione Mancante: Imposta un indirizzo base (URL o Percorso) nelle impostazioni.");
+            setShowSettings(true);
+            return;
+        }
+
+        setIsMatchingAssets(true);
+        toast.info(`Asset Linker: Generazione link per ${products.length} prodotti...`);
+
+        const newProducts = products.map(p => {
+            if (!p.sku) return p;
+
+            // Clean SKU for filename
+            const cleanSku = p.sku.replace(/[^a-zA-Z0-9]/g, '');
+            const assetUrl = assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/';
+            const fullUrl = `${assetUrl}${cleanSku}${assetExtension}`;
+
+            const updated = { ...p };
+            const newImages = [...p.images];
+
+            // Check if slot 0 is empty or keep it? User wants to "write the link"
+            // We overwrite or add to slot 0 if empty
+            if (newImages.length === 0 || !newImages[0].url) {
+                newImages[0] = { id: `asset-${Date.now()}-${p.sku}`, url: fullUrl };
+            } else {
+                // If already has images, maybe add as a new slot if not already present
+                const exists = newImages.some(img => img.url === fullUrl);
+                if (!exists) {
+                    newImages.push({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
+                }
+            }
+
+            updated.images = newImages;
+            return updated;
+        });
+
+        setTimeout(() => {
+            setProducts(newProducts);
+            setIsMatchingAssets(false);
+            toast.success("Asset SKU collegati con successo! Verifica le anteprime.");
+        }, 1500);
     };
 
     const extractFromPdf = async (url: string) => {
@@ -833,100 +880,120 @@ export default function WorkspaceClient() {
                             </button>
                         </div>
                     )}
-                    <input type="file" ref={fileInputRef} onChange={handleUpload} accept=".pdf" className="hidden" />
-                    <input type="file" ref={csvInputRef} onChange={handleCSVUpload} accept=".csv,.xlsx,.xls" className="hidden" />
+
+                    {assetBaseUrl && pdfPages.length > 0 && (
+                        <div className="flex items-center gap-3 border-l border-gray-100 pl-4">
+                            <button
+                                onClick={bulkMatchSkuAssets}
+                                disabled={isMatchingAssets}
+                                className={`px-6 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 transition-all shadow-lg ${isMatchingAssets ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-900/10'}`}
+                            >
+                                {isMatchingAssets ? (
+                                    <RefreshCw className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <HardDrive className="w-5 h-5" />
+                                )}
+                                Associa Asset SKU
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            <input type="file" ref={fileInputRef} onChange={handleUpload} accept=".pdf" className="hidden" />
+            <input type="file" ref={csvInputRef} onChange={handleCSVUpload} accept=".csv,.xlsx,.xls" className="hidden" />
+
             {/* CSV Mapping Interface */}
             <AnimatePresence>
-                {showMapping && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="main-card overflow-hidden bg-orange-50/30 border-orange-100"
-                    >
-                        <div className="p-8 space-y-6">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-orange-100 rounded-xl">
-                                        <Layers className="w-6 h-6 text-orange-600" />
+                {
+                    showMapping && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="main-card overflow-hidden bg-orange-50/30 border-orange-100"
+                        >
+                            <div className="p-8 space-y-6">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-orange-100 rounded-xl">
+                                            <Layers className="w-6 h-6 text-orange-600" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-[#111827]">Configura Mapping Listino</h3>
+                                            <p className="text-sm text-gray-500 font-medium">Associa le colonne del tuo file ai campi del sistema.</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-[#111827]">Configura Mapping Listino</h3>
-                                        <p className="text-sm text-gray-500 font-medium">Associa le colonne del tuo file ai campi del sistema.</p>
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={applyCvsMapping}
+                                            className="px-6 py-2 bg-white border border-orange-200 text-orange-600 rounded-xl font-bold text-sm hover:bg-orange-50 transition-all flex items-center gap-2"
+                                        >
+                                            <RefreshCw className="w-4 h-4" />
+                                            Applica Mapping a Righe
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                applyCvsMapping();
+                                                setShowMapping(false);
+                                            }}
+                                            className="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-200"
+                                        >
+                                            Conferma e Applica Mapping
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        onClick={applyCvsMapping}
-                                        className="px-6 py-2 bg-white border border-orange-200 text-orange-600 rounded-xl font-bold text-sm hover:bg-orange-50 transition-all flex items-center gap-2"
-                                    >
-                                        <RefreshCw className="w-4 h-4" />
-                                        Applica Mapping a Righe
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            applyCvsMapping();
-                                            setShowMapping(false);
-                                        }}
-                                        className="px-6 py-2 bg-orange-600 text-white rounded-xl font-bold text-sm hover:bg-orange-700 transition-all shadow-lg shadow-orange-200"
-                                    >
-                                        Conferma e Applica Mapping
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {Object.keys(csvMapping).filter(k => !extraColumns.includes(k)).map((field) => (
-                                    <div key={field} className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">
-                                            Campo: {field.charAt(0).toUpperCase() + field.slice(1)}
-                                        </label>
-                                        <select
-                                            value={csvMapping[field]}
-                                            onChange={(e) => setCsvMapping({ ...csvMapping, [field]: e.target.value })}
-                                            className="w-full bg-white border border-orange-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all font-bold text-gray-700"
-                                        >
-                                            <option value="">Nessun Mapping</option>
-                                            {csvHeaders.map(h => (
-                                                <option key={h} value={h}>{h}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ))}
-                                {extraColumns.map((col) => (
-                                    <div key={col} className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-orange-400 block ml-1 flex items-center gap-2">
-                                            Campo Extra: {col}
-                                            <button
-                                                onClick={() => setExtraColumns(extraColumns.filter(c => c !== col))}
-                                                className="text-red-400 hover:text-red-600 transition-colors"
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {Object.keys(csvMapping).filter(k => !extraColumns.includes(k)).map((field) => (
+                                        <div key={field} className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">
+                                                Campo: {field.charAt(0).toUpperCase() + field.slice(1)}
+                                            </label>
+                                            <select
+                                                value={csvMapping[field]}
+                                                onChange={(e) => setCsvMapping({ ...csvMapping, [field]: e.target.value })}
+                                                className="w-full bg-white border border-orange-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all font-bold text-gray-700"
                                             >
-                                                <Trash2 className="w-3 h-3" />
-                                            </button>
-                                        </label>
-                                        <select
-                                            value={csvMapping[col] || ""}
-                                            onChange={(e) => setCsvMapping({ ...csvMapping, [col]: e.target.value })}
-                                            className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all font-bold text-orange-800"
-                                        >
-                                            <option value="">Nessun Mapping</option>
-                                            {csvHeaders.map(h => (
-                                                <option key={h} value={h}>{h}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ))}
+                                                <option value="">Nessun Mapping</option>
+                                                {csvHeaders.map(h => (
+                                                    <option key={h} value={h}>{h}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ))}
+                                    {extraColumns.map((col) => (
+                                        <div key={col} className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-orange-400 block ml-1 flex items-center gap-2">
+                                                Campo Extra: {col}
+                                                <button
+                                                    onClick={() => setExtraColumns(extraColumns.filter(c => c !== col))}
+                                                    className="text-red-400 hover:text-red-600 transition-colors"
+                                                >
+                                                    <Trash2 className="w-3 h-3" />
+                                                </button>
+                                            </label>
+                                            <select
+                                                value={csvMapping[col] || ""}
+                                                onChange={(e) => setCsvMapping({ ...csvMapping, [col]: e.target.value })}
+                                                className="w-full bg-white border border-orange-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all font-bold text-orange-800"
+                                            >
+                                                <option value="">Nessun Mapping</option>
+                                                {csvHeaders.map(h => (
+                                                    <option key={h} value={h}>{h}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                        </motion.div>
+                    )
+                }
+            </AnimatePresence >
 
             {/* ERP Navigation Tabs */}
-            <div className="flex items-center gap-4 p-1 bg-gray-100/30 w-fit rounded-2xl border border-gray-100">
+            < div className="flex items-center gap-4 p-1 bg-gray-100/30 w-fit rounded-2xl border border-gray-100" >
                 <button
                     onClick={() => setCurrentView('workspace')}
                     className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'workspace' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
@@ -941,7 +1008,7 @@ export default function WorkspaceClient() {
                     <Database className="w-4 h-4" />
                     Gestione ERP
                 </button>
-            </div>
+            </div >
 
             <AnimatePresence mode="wait">
                 {currentView === 'workspace' ? (
@@ -2043,50 +2110,101 @@ export default function WorkspaceClient() {
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
-                            <div className="p-10 space-y-8">
+                            <div className="p-10 space-y-10 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                {/* Web Sources Section */}
                                 <div className="space-y-4">
-                                    {searchSources.map((source, sIdx) => (
-                                        <div key={sIdx} className="flex items-center gap-4 p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group transition-all hover:bg-white hover:shadow-md">
-                                            <div className="flex-1 space-y-1">
-                                                <input
-                                                    value={source.label}
-                                                    placeholder="Label (es: Sito Ufficiale)"
-                                                    onChange={(e) => {
-                                                        const newSources = [...searchSources];
-                                                        newSources[sIdx].label = e.target.value;
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Globe className="w-4 h-4 text-orange-400" />
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-[#111827]">Web Intelligence Sources</h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {searchSources.map((source, sIdx) => (
+                                            <div key={sIdx} className="flex items-center gap-4 p-4 bg-gray-50/50 rounded-2xl border border-gray-100 group transition-all hover:bg-white hover:shadow-md">
+                                                <div className="flex-1 space-y-1">
+                                                    <input
+                                                        value={source.label}
+                                                        placeholder="Label (es: Sito Ufficiale)"
+                                                        onChange={(e) => {
+                                                            const newSources = [...searchSources];
+                                                            newSources[sIdx].label = e.target.value;
+                                                            setSearchSources(newSources);
+                                                        }}
+                                                        className="w-full bg-transparent text-xs font-black uppercase tracking-widest text-[#111827] outline-none"
+                                                    />
+                                                    <input
+                                                        value={source.url}
+                                                        placeholder="https://..."
+                                                        onChange={(e) => {
+                                                            const newSources = [...searchSources];
+                                                            newSources[sIdx].url = e.target.value;
+                                                            setSearchSources(newSources);
+                                                        }}
+                                                        className="w-full bg-transparent text-sm font-medium text-gray-500 outline-none"
+                                                    />
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const newSources = searchSources.filter((_, i) => i !== sIdx);
                                                         setSearchSources(newSources);
                                                     }}
-                                                    className="w-full bg-transparent text-xs font-black uppercase tracking-widest text-[#111827] outline-none"
-                                                />
-                                                <input
-                                                    value={source.url}
-                                                    placeholder="https://..."
-                                                    onChange={(e) => {
-                                                        const newSources = [...searchSources];
-                                                        newSources[sIdx].url = e.target.value;
-                                                        setSearchSources(newSources);
-                                                    }}
-                                                    className="w-full bg-transparent text-sm font-medium text-gray-500 outline-none"
-                                                />
+                                                    className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
                                             </div>
-                                            <button
-                                                onClick={() => {
-                                                    const newSources = searchSources.filter((_, i) => i !== sIdx);
-                                                    setSearchSources(newSources);
-                                                }}
-                                                className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => setSearchSources([...searchSources, { label: '', url: '' }])}
+                                            className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:border-orange-200 hover:text-orange-500 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            Aggiungi Sorgente
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-gray-100" />
+
+                                {/* External Assets Section */}
+                                <div className="space-y-6">
+                                    <div className="flex items-center gap-2">
+                                        <HardDrive className="w-4 h-4 text-blue-400" />
+                                        <h3 className="text-sm font-black uppercase tracking-widest text-[#111827]">Assets Esterni (Immagini per SKU)</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-blue-50/30 rounded-[28px] border border-blue-100/50">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 ml-1">Indirizzo Base (URL, Drive, Locale)</label>
+                                            <input
+                                                value={assetBaseUrl}
+                                                onChange={(e) => setAssetBaseUrl(e.target.value)}
+                                                placeholder="https://mio-sito.it/foto/ o /public/assets/"
+                                                className="w-full px-5 py-3.5 bg-white border border-blue-100 rounded-2xl text-sm font-bold text-blue-900 outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                            />
+                                            <p className="text-[8px] text-blue-300 font-medium px-1">Tip: Usa "https://drive.google.com/uc?id=" per Drive (servono ID diretti).</p>
                                         </div>
-                                    ))}
-                                    <button
-                                        onClick={() => setSearchSources([...searchSources, { label: '', url: '' }])}
-                                        className="w-full py-4 border-2 border-dashed border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-400 hover:border-orange-200 hover:text-orange-500 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        Aggiungi Sorgente
-                                    </button>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 ml-1">Estensione File</label>
+                                            <select
+                                                value={assetExtension}
+                                                onChange={(e) => setAssetExtension(e.target.value)}
+                                                className="w-full px-5 py-3.5 bg-white border border-blue-100 rounded-2xl text-sm font-bold text-blue-900 outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                            >
+                                                <option value=".jpg">JPG (.jpg)</option>
+                                                <option value=".jpeg">JPEG (.jpeg)</option>
+                                                <option value=".png">PNG (.png)</option>
+                                                <option value=".webp">WEBP (.webp)</option>
+                                                <option value=".pdf">PDF (.pdf)</option>
+                                            </select>
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <div className="p-4 bg-white/60 rounded-2xl border border-blue-100">
+                                                <p className="text-[10px] text-blue-500 font-bold leading-relaxed">
+                                                    Questa funzione cercherà automaticamente di collegare immagini chiamate come lo SKU.<br />
+                                                    Esempio: SKU "ART123" → <span className="text-blue-700 font-black">{assetBaseUrl || '[URL]'}{"ART123"}{assetExtension}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex justify-end">
