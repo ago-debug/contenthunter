@@ -2435,32 +2435,56 @@ export default function WorkspaceClient() {
                                                                                     )}
                                                                                 </>
                                                                             ) : (
-                                                                                <div className="col-span-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                                                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Sorgente Cartella / Drive</p>
-                                                                                    <div
-                                                                                        onClick={() => {
-                                                                                            const fullUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
-                                                                                            if (!fullUrl) return;
-                                                                                            const newProducts = [...products];
-                                                                                            const newImages = [...p.images];
-                                                                                            newImages[slot] = { id: Math.random().toString(), url: fullUrl };
-                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
-                                                                                            setProducts(newProducts);
-                                                                                            setActivePicker(null);
-                                                                                        }}
-                                                                                        className="aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center p-2 hover:border-green-400 hover:bg-green-50/20 cursor-pointer group transition-all"
-                                                                                    >
-                                                                                        {assetBaseUrl ? (
-                                                                                            <img
-                                                                                                src={resolveAssetUrl(assetBaseUrl, p.sku, assetExtension)}
-                                                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                                                                className="w-full h-1/2 object-contain mb-2"
+                                                                                <div className="col-span-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                                                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Sorgente Cartella / Drive</p>
+
+                                                                                    <div className="flex flex-col gap-3">
+                                                                                        <div className="relative">
+                                                                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                                                                                            <input
+                                                                                                type="text"
+                                                                                                placeholder={`Cerca file o SKU (es. ${p.sku})...`}
+                                                                                                value={pickerSearchQuery}
+                                                                                                onChange={(e) => setPickerSearchQuery(e.target.value)}
+                                                                                                className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-7 py-1.5 text-[10px] font-bold focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all"
                                                                                             />
-                                                                                        ) : null}
-                                                                                        <HardDrive className="w-6 h-6 text-gray-300 group-hover:text-green-500 mb-1" />
-                                                                                        <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2 break-all">
-                                                                                            {assetBaseUrl ? resolveAssetUrl(assetBaseUrl, p.sku, assetExtension) : 'Percorso non configurato'}
-                                                                                        </span>
+                                                                                            {pickerSearchQuery && (
+                                                                                                <button
+                                                                                                    onClick={(e) => { e.stopPropagation(); setPickerSearchQuery(""); }}
+                                                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                                                                                                >
+                                                                                                    <X className="w-3 h-3" />
+                                                                                                </button>
+                                                                                            )}
+                                                                                        </div>
+
+                                                                                        <div
+                                                                                            onClick={() => {
+                                                                                                const targetSku = pickerSearchQuery.trim() || p.sku;
+                                                                                                const fullUrl = resolveAssetUrl(assetBaseUrl, targetSku, assetExtension);
+                                                                                                if (!fullUrl) return;
+                                                                                                const newProducts = [...products];
+                                                                                                const newImages = [...p.images];
+                                                                                                newImages[slot] = { id: Math.random().toString(), url: fullUrl };
+                                                                                                newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                setProducts(newProducts);
+                                                                                                setActivePicker(null);
+                                                                                                setPickerSearchQuery("");
+                                                                                            }}
+                                                                                            className="aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center p-2 hover:border-green-400 hover:bg-green-50/20 cursor-pointer group transition-all"
+                                                                                        >
+                                                                                            {assetBaseUrl ? (
+                                                                                                <img
+                                                                                                    src={resolveAssetUrl(assetBaseUrl, pickerSearchQuery.trim() || p.sku, assetExtension)}
+                                                                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                                                    className="w-full h-1/2 object-contain mb-2"
+                                                                                                />
+                                                                                            ) : null}
+                                                                                            <HardDrive className="w-6 h-6 text-gray-300 group-hover:text-green-500 mb-1" />
+                                                                                            <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2 break-all">
+                                                                                                {assetBaseUrl ? resolveAssetUrl(assetBaseUrl, pickerSearchQuery.trim() || p.sku, assetExtension) : 'Percorso non configurato'}
+                                                                                            </span>
+                                                                                        </div>
                                                                                     </div>
                                                                                 </div>
                                                                             )}
