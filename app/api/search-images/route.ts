@@ -17,6 +17,11 @@ interface ScrapedImage {
     url: string;
     title?: string;
     source?: string;
+    productData?: {
+        price?: string;
+        description?: string;
+        title?: string;
+    };
 }
 
 /**
@@ -157,9 +162,17 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
             title: title || sku,
             source: origin,
             // @ts-ignore - temporary score field for sorting
-            score: score
+            score: score,
+            productData: {
+                title: title || sku
+            }
         });
     }
+
+    // Product metadata storage
+    let extractedPrice = "";
+    let extractedDescription = "";
+    let extractedTitle = "";
 
     // ECOMMERCE RULE 1: Standard Schema JSON-LD Product
     $('script[type="application/ld+json"]').each((_, el) => {
@@ -170,7 +183,15 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
             }
             const json = JSON.parse(jsonText);
 
-            const findImages = (obj: any) => {
+            const findDataInJson = (obj: any) => {
+                if (obj.description && !extractedDescription) extractedDescription = obj.description;
+                if (obj.name && !extractedTitle) extractedTitle = obj.name;
+                if (obj.offers) {
+                    const price = obj.offers.price || (Array.isArray(obj.offers) && obj.offers[0]?.price);
+                    const currency = obj.offers.priceCurrency || (Array.isArray(obj.offers) && obj.offers[0]?.priceCurrency) || '€';
+                    if (price && !extractedPrice) extractedPrice = `${price} ${currency}`;
+                }
+
                 if (obj.image) {
                     if (Array.isArray(obj.image)) {
                         obj.image.forEach((img: any) => {
@@ -183,10 +204,10 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
                     }
                 }
                 if (obj['@graph'] && Array.isArray(obj['@graph'])) {
-                    obj['@graph'].forEach(findImages);
+                    obj['@graph'].forEach(findDataInJson);
                 }
             };
-            findImages(json);
+            findDataInJson(json);
         } catch { }
     });
 
@@ -202,6 +223,19 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
             addImage(content, sku, 'Meta', isEcommerce); // Se è ecommerce, vale come schema
         }
     });
+
+    // Fallback extract description and price from meta
+    if (!extractedDescription) {
+        extractedDescription = $('meta[property="og:description"]').attr('content') || $('meta[name="description"]').attr('content') || '';
+    }
+    if (!extractedTitle) {
+        extractedTitle = $('meta[property="og:title"]').attr('content') || $('title').text() || '';
+    }
+    if (!extractedPrice) {
+        const pAmount = $('meta[property="product:price:amount"]').attr('content');
+        const pCur = $('meta[property="product:price:currency"]').attr('content') || '€';
+        if (pAmount) extractedPrice = `${pAmount} ${pCur}`;
+    }
 
     // GENERIC RULE 3: Match from DOM tags
     // Se è un sito e-commerce ma ha un layout anomalo, oppure non è ecommerce e dobbiamo basarci sullo SKU
@@ -225,6 +259,15 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
         if (isEcommerce && !isSkuMatch) return;
 
         addImage(src, alt || title || sku, 'IMG', false);
+    });
+
+    // Populate extracted productData on all images to provide autocomplete info
+    images.forEach(img => {
+        img.productData = {
+            title: img.productData?.title || extractedTitle,
+            description: extractedDescription,
+            price: extractedPrice
+        };
     });
 
     // @ts-ignore

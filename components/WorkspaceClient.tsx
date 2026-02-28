@@ -213,6 +213,53 @@ export default function WorkspaceClient() {
         }
     };
 
+    const handleAutoFillData = async (product: any, idx: number) => {
+        const loadingId = toast.loading(`Ricerca dati per ${product.sku}...`);
+        try {
+            const sourcesQuery = searchSources.map(s => s.url).join(',');
+            // Enable shopping forcefully if useGoogleShopping is true globally
+            const response = await axios.get(`/api/search-images?q=${encodeURIComponent(product.sku)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${useGoogleShopping}`);
+            const images = response.data.images || [];
+
+            let updatedProduct = { ...product };
+            let updatedFields = 0;
+
+            // Find the best data from all image results
+            const bestPrice = images.find((i: any) => i.productData?.price)?.productData?.price;
+            const bestDesc = images.find((i: any) => i.productData?.description)?.productData?.description;
+            const bestTitle = images.find((i: any) => i.productData?.title)?.productData?.title;
+
+            if (bestPrice && (!updatedProduct.price || updatedProduct.price === '€ 0.00' || updatedProduct.price.trim() === '')) {
+                updatedProduct.price = bestPrice;
+                updatedFields++;
+            }
+            if (bestDesc && (!updatedProduct.description || updatedProduct.description.trim() === '')) {
+                updatedProduct.description = bestDesc;
+                updatedFields++;
+            }
+            if (bestTitle && (!updatedProduct.title || updatedProduct.title.trim() === '')) {
+                updatedProduct.title = bestTitle;
+                updatedFields++;
+            }
+
+            if (updatedFields > 0) {
+                const newProducts = [...products];
+                newProducts[idx] = updatedProduct;
+                setProducts(newProducts);
+                toast.dismiss(loadingId);
+                toast.success(`Aggiornati ${updatedFields} campi per ${product.sku}!`);
+            } else {
+                toast.dismiss(loadingId);
+                toast.error(`Nessun nuovo dato trovato per ${product.sku}`);
+            }
+
+        } catch (error) {
+            console.error("Auto fill failed:", error);
+            toast.dismiss(loadingId);
+            toast.error("Errore nel recupero dati");
+        }
+    };
+
     const loadERPData = async () => {
         setIsLoadingERP(true);
         try {
@@ -1494,7 +1541,17 @@ export default function WorkspaceClient() {
                                         {products.slice(0, displayLimit).map((p, idx) => (
                                             <tr key={idx} className="hover:bg-gray-50/80 transition-colors">
                                                 <td className="px-8 py-6">
-                                                    <span className="font-mono font-bold text-[#E6D3C1] bg-black px-3 py-1.5 rounded-lg text-sm">{p.sku}</span>
+                                                    <div className="flex flex-col items-start gap-2">
+                                                        <span className="font-mono font-bold text-[#E6D3C1] bg-black px-3 py-1.5 rounded-lg text-sm whitespace-nowrap">{p.sku}</span>
+                                                        <button
+                                                            onClick={() => handleAutoFillData(p, idx)}
+                                                            className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-100"
+                                                            title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
+                                                        >
+                                                            <Sparkles className="w-3 h-3" />
+                                                            Auto-Compila
+                                                        </button>
+                                                    </div>
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className="flex flex-col gap-2 relative">
@@ -2288,7 +2345,17 @@ export default function WorkspaceClient() {
                                             return (
                                                 <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
                                                     <td className="px-8 py-6">
-                                                        <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg">{p.sku}</span>
+                                                        <div className="flex flex-col items-start gap-2">
+                                                            <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg whitespace-nowrap">{p.sku}</span>
+                                                            <button
+                                                                onClick={() => handleAutoFillData(p, idx)}
+                                                                className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-100"
+                                                                title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
+                                                            >
+                                                                <Sparkles className="w-3 h-3" />
+                                                                Auto-Compila
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                     <td className="px-8 py-6">
                                                         {isMatched ? (
