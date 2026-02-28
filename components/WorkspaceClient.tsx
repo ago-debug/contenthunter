@@ -790,10 +790,33 @@ export default function WorkspaceClient() {
             });
         });
 
-        // Filter duplicates and low-confidence hits
-        const uniqueFindings = Array.from(new Map([...products, ...findings].map(item => [item.sku, item])).values());
-        setProducts(uniqueFindings);
-        toast.success(`AI Scan: Identificati ${uniqueFindings.length} asset totali.`);
+        // Merge findings with existing products. User edits/CSV mapping ALWAYS wins.
+        // Images from Drive/Folder (already in products) WIN over PDF images (placed at the end).
+        const existingMap = new Map(products.map(p => [p.sku.toLowerCase(), p]));
+        const finalProducts = [...products];
+
+        findings.forEach(finding => {
+            const lowerSku = finding.sku.toLowerCase();
+            if (existingMap.has(lowerSku)) {
+                const existing = existingMap.get(lowerSku)!;
+                const newImages = [...existing.images];
+                finding.images.forEach(fImg => {
+                    if (!newImages.some(img => img.url === fImg.url)) {
+                        newImages.push(fImg);
+                    }
+                });
+                const idx = finalProducts.findIndex(p => p.sku.toLowerCase() === lowerSku);
+                if (idx !== -1) {
+                    finalProducts[idx] = { ...existing, images: newImages };
+                }
+            } else {
+                finalProducts.push(finding);
+                existingMap.set(lowerSku, finding);
+            }
+        });
+
+        setProducts(finalProducts);
+        toast.success(`AI Scan: Identificati ${finalProducts.length} asset totali.`);
     };
 
     const syncToDatabase = async () => {
