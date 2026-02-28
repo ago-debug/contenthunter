@@ -330,13 +330,14 @@ export default function WorkspaceClient() {
         if (!file) return;
 
         setIsProcessing(true);
-        const formData = new FormData();
-        formData.append("file", file);
 
         try {
-            const resp = await fetch("/api/upload", {
+            const resp = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
                 method: "POST",
-                body: formData
+                headers: {
+                    "Content-Type": file.type || "application/octet-stream"
+                },
+                body: file
             });
 
             if (!resp.ok) {

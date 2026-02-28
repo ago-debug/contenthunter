@@ -5,15 +5,18 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
     try {
-        const formData = await req.formData();
-        const file = formData.get("file") as File;
-
-        if (!file) {
-            return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+        const name = req.nextUrl.searchParams.get("name");
+        if (!name) {
+            return NextResponse.json({ error: "Missing filename in query" }, { status: 400 });
         }
 
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const fileName = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+        const arrayBuffer = await req.arrayBuffer();
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+            return NextResponse.json({ error: "No file content uploaded" }, { status: 400 });
+        }
+
+        const buffer = Buffer.from(arrayBuffer);
+        const fileName = `${Date.now()}-${name.replace(/\s+/g, "_")}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");
 
         // Ensure upload directory exists
@@ -25,7 +28,7 @@ export async function POST(req: NextRequest) {
         // Create catalogue record
         const catalog = await prisma.catalog.create({
             data: {
-                name: file.name,
+                name: name,
                 filePath: `/uploads/${fileName}`,
             },
         });
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
             filePath: `/uploads/${fileName}`
         });
     } catch (err: any) {
-        console.error("Upload error:", err);
+        console.error("Upload stream error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
