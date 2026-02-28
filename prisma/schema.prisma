@@ -59,9 +59,7 @@ model Product {
   id             Int            @id @default(autoincrement())
   catalogId      Int
   sku            String         @unique
-  title          String?
   description    String?        @db.Text
-  docDescription String?        @db.Text
   price          String?
   category       String?
   brand          String?
@@ -72,8 +70,10 @@ model Product {
   otherFields    String?        @db.LongText
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  catalog      Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-  images       ProductImage[]
+  docDescription String?        @db.Text
+  title          String?
+  catalog        Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  images         ProductImage[]
 
   @@index([sku])
   @@index([catalogId], map: "Product_catalogId_fkey")
