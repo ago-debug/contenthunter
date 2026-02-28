@@ -21,6 +21,11 @@ interface ScrapedImage {
         price?: string;
         description?: string;
         title?: string;
+        brand?: string;
+        category?: string;
+        weight?: string;
+        dimensions?: string;
+        material?: string;
     };
 }
 
@@ -173,6 +178,11 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
     let extractedPrice = "";
     let extractedDescription = "";
     let extractedTitle = "";
+    let extractedBrand = "";
+    let extractedCategory = "";
+    let extractedWeight = "";
+    let extractedDimensions = "";
+    let extractedMaterial = "";
 
     // ECOMMERCE RULE 1: Standard Schema JSON-LD Product
     $('script[type="application/ld+json"]').each((_, el) => {
@@ -186,6 +196,25 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
             const findDataInJson = (obj: any) => {
                 if (obj.description && !extractedDescription) extractedDescription = obj.description;
                 if (obj.name && !extractedTitle) extractedTitle = obj.name;
+                if (obj.brand) {
+                    extractedBrand = typeof obj.brand === 'string' ? obj.brand : (obj.brand.name || '');
+                }
+                if (obj.category && !extractedCategory) {
+                    extractedCategory = typeof obj.category === 'string' ? obj.category : (obj.category.name || '');
+                }
+                if (obj.weight) {
+                    extractedWeight = typeof obj.weight === 'string' ? obj.weight : `${obj.weight.value || ''} ${obj.weight.unitText || obj.weight.unitCode || ''}`.trim();
+                }
+                if (obj.material && !extractedMaterial) {
+                    extractedMaterial = typeof obj.material === 'string' ? obj.material : (obj.material.name || '');
+                }
+                if ((obj.width || obj.height || obj.depth) && !extractedDimensions) {
+                    const w = obj.width ? (typeof obj.width === 'string' ? obj.width : `${obj.width.value || ''} ${obj.width.unitText || ''}`) : '';
+                    const h = obj.height ? (typeof obj.height === 'string' ? obj.height : `${obj.height.value || ''} ${obj.height.unitText || ''}`) : '';
+                    const d = obj.depth ? (typeof obj.depth === 'string' ? obj.depth : `${obj.depth.value || ''} ${obj.depth.unitText || ''}`) : '';
+                    extractedDimensions = [w, h, d].filter(Boolean).join(' x ');
+                }
+
                 if (obj.offers) {
                     const price = obj.offers.price || (Array.isArray(obj.offers) && obj.offers[0]?.price);
                     const currency = obj.offers.priceCurrency || (Array.isArray(obj.offers) && obj.offers[0]?.priceCurrency) || '€';
@@ -236,6 +265,15 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
         const pCur = $('meta[property="product:price:currency"]').attr('content') || '€';
         if (pAmount) extractedPrice = `${pAmount} ${pCur}`;
     }
+    if (!extractedBrand) {
+        extractedBrand = $('meta[property="product:brand"]').attr('content') || $('meta[name="brand"]').attr('content') || '';
+    }
+    if (!extractedCategory) {
+        extractedCategory = $('meta[property="product:category"]').attr('content') || '';
+    }
+    if (!extractedMaterial) {
+        extractedMaterial = $('meta[property="product:material"]').attr('content') || '';
+    }
 
     // GENERIC RULE 3: Match from DOM tags
     // Se è un sito e-commerce ma ha un layout anomalo, oppure non è ecommerce e dobbiamo basarci sullo SKU
@@ -266,7 +304,12 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
         img.productData = {
             title: img.productData?.title || extractedTitle,
             description: extractedDescription,
-            price: extractedPrice
+            price: extractedPrice,
+            brand: extractedBrand,
+            category: extractedCategory,
+            weight: extractedWeight,
+            dimensions: extractedDimensions,
+            material: extractedMaterial
         };
     });
 

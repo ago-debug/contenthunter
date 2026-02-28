@@ -225,22 +225,37 @@ export default function WorkspaceClient() {
             let updatedFields = 0;
 
             // Find the best data from all image results
-            const bestPrice = images.find((i: any) => i.productData?.price)?.productData?.price;
-            const bestDesc = images.find((i: any) => i.productData?.description)?.productData?.description;
-            const bestTitle = images.find((i: any) => i.productData?.title)?.productData?.title;
+            const bestData = images.reduce((acc: any, img: any) => {
+                if (img.productData) {
+                    Object.keys(img.productData).forEach(key => {
+                        if (img.productData[key] && !acc[key]) {
+                            acc[key] = img.productData[key];
+                        }
+                    });
+                }
+                return acc;
+            }, {});
 
-            if (bestPrice && (!updatedProduct.price || updatedProduct.price === '€ 0.00' || updatedProduct.price.trim() === '')) {
-                updatedProduct.price = bestPrice;
+            if (bestData.price && (!updatedProduct.price || updatedProduct.price === '€ 0.00' || updatedProduct.price.trim() === '')) {
+                updatedProduct.price = bestData.price;
                 updatedFields++;
             }
-            if (bestDesc && (!updatedProduct.description || updatedProduct.description.trim() === '')) {
-                updatedProduct.description = bestDesc;
+            if (bestData.description && (!updatedProduct.description || updatedProduct.description.trim() === '')) {
+                updatedProduct.description = bestData.description;
                 updatedFields++;
             }
-            if (bestTitle && (!updatedProduct.title || updatedProduct.title.trim() === '')) {
-                updatedProduct.title = bestTitle;
+            if (bestData.title && (!updatedProduct.title || updatedProduct.title.trim() === '')) {
+                updatedProduct.title = bestData.title;
                 updatedFields++;
             }
+
+            // Sync other advanced fields dynamically
+            ['brand', 'category', 'weight', 'dimensions', 'material'].forEach(field => {
+                if (bestData[field] && (!updatedProduct[field] || updatedProduct[field].trim() === '')) {
+                    updatedProduct[field] = bestData[field];
+                    updatedFields++;
+                }
+            });
 
             if (updatedFields > 0) {
                 const newProducts = [...products];
