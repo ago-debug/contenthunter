@@ -1915,6 +1915,7 @@ export default function WorkspaceClient() {
                                                             <div
                                                                 onMouseEnter={() => {
                                                                     setActivePicker({ type: 'image', row: idx, field: `slot-${slot}` });
+                                                                    setPickerSearchQuery(p.sku);
                                                                     if (p.images[slot]) setPreviewImage(resolveImageUrl(p.images[slot].url));
                                                                 }}
                                                                 onMouseLeave={() => setPreviewImage(null)}
@@ -2306,7 +2307,10 @@ export default function WorkspaceClient() {
                                                         <td key={slot} className="px-2 py-6">
                                                             <div className="relative group/slot z-10 hover:z-[70]">
                                                                 <div
-                                                                    onClick={() => setActivePicker({ type: 'image', row: idx, field: `slot-${slot}` })}
+                                                                    onClick={() => {
+                                                                        setActivePicker({ type: 'image', row: idx, field: `slot-${slot}` });
+                                                                        setPickerSearchQuery(p.sku);
+                                                                    }}
                                                                     onMouseEnter={() => {
                                                                         if (p.images[slot]) setPreviewImage(resolveImageUrl(p.images[slot].url));
                                                                     }}
