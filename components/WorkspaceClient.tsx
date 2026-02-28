@@ -487,42 +487,65 @@ export default function WorkspaceClient() {
     };
 
     const bulkMatchSkuAssets = async () => {
-        if (!assetBaseUrl) {
-            toast.warning("Configura l'Indirizzo Base nelle impostazioni.");
-            setShowSettings(true);
-            return;
-        }
-
         setIsMatchingAssets(true);
-        let count = 0;
+        let assetsCount = 0;
+        let dataCount = 0;
+
+        const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+        const skuMappedField = csvMapping.sku;
 
         const newProducts = products.map(p => {
             if (!p.sku) return p;
-
+            let updated = { ...p };
             const cleanSku = p.sku.trim();
-            const base = assetBaseUrl.endsWith('/') ? assetBaseUrl : `${assetBaseUrl}/`;
-            const fullUrl = `${base}${cleanSku}${assetExtension}`;
 
-            const exists = p.images.some(img => img.url === fullUrl);
-            if (!exists) {
-                count++;
-                const newImages = [...p.images];
-                // Put in slot 0 if empty or add to end
-                if (newImages.length === 0) {
-                    newImages.push({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
-                } else {
-                    newImages.unshift({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
+            // 1. Sync Text Data from CSV if match exists
+            if (skuMappedField && csvMasterList.length > 0) {
+                const match = csvMasterList.find(row =>
+                    String(row[skuMappedField] || "").trim().toLowerCase() === cleanSku.toLowerCase()
+                );
+                if (match) {
+                    dataCount++;
+                    // Sync system fields
+                    systemFieldsKeys.forEach(field => {
+                        const h = csvMapping[field];
+                        if (h && match[h]) (updated as any)[field] = String(match[h]);
+                    });
+                    // Sync extras
+                    extraColumns.forEach(ex => {
+                        const h = csvMapping[ex];
+                        if (h && match[h]) {
+                            updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
+                        }
+                    });
                 }
-                return { ...p, images: newImages };
             }
-            return p;
+
+            // 2. Sync Images from Base Folder
+            if (assetBaseUrl) {
+                const base = assetBaseUrl.endsWith('/') ? assetBaseUrl : `${assetBaseUrl}/`;
+                const fullUrl = `${base}${cleanSku}${assetExtension}`;
+                const exists = updated.images.some(img => img.url === fullUrl);
+                if (!exists) {
+                    assetsCount++;
+                    const newImages = [...updated.images];
+                    if (newImages.length === 0) {
+                        newImages.push({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
+                    } else {
+                        newImages.unshift({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
+                    }
+                    updated.images = newImages;
+                }
+            }
+
+            return updated;
         });
 
         setProducts(newProducts);
         setTimeout(() => {
             setIsMatchingAssets(false);
-            toast.success(`Associazione completata: ${count} nuovi asset collegati.`);
-        }, 1000);
+            toast.success(`Associazione completata: ${assetsCount} nuovi immagini e ${dataCount} record dati sincronizzati.`);
+        }, 800);
     };
 
     const extractFromPdf = async (url: string) => {
@@ -2466,13 +2489,41 @@ export default function WorkspaceClient() {
                                                                                             key={uIdx}
                                                                                             onClick={() => {
                                                                                                 const newProducts = [...products];
-                                                                                                if (currentCol.isSystem) {
-                                                                                                    (newProducts[idx] as any)[currentCol.key] = uVal;
+                                                                                                const newVal = uVal;
+
+                                                                                                if (currentCol.key === 'sku') {
+                                                                                                    // Auto populate other fields if SKU is being set
+                                                                                                    let updated = { ...p, sku: newVal };
+                                                                                                    const skuMappedField = csvMapping.sku;
+                                                                                                    const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+
+                                                                                                    if (skuMappedField) {
+                                                                                                        const match = csvMasterList.find(row =>
+                                                                                                            String(row[skuMappedField] || "").trim().toLowerCase() === newVal.trim().toLowerCase()
+                                                                                                        );
+                                                                                                        if (match) {
+                                                                                                            systemFieldsKeys.forEach(field => {
+                                                                                                                const h = csvMapping[field];
+                                                                                                                if (h && match[h]) (updated as any)[field] = String(match[h]);
+                                                                                                            });
+                                                                                                            extraColumns.forEach(ex => {
+                                                                                                                const h = csvMapping[ex];
+                                                                                                                if (h && match[h]) {
+                                                                                                                    updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
+                                                                                                                }
+                                                                                                            });
+                                                                                                        }
+                                                                                                    }
+                                                                                                    newProducts[idx] = updated;
                                                                                                 } else {
-                                                                                                    newProducts[idx] = {
-                                                                                                        ...p,
-                                                                                                        extraFields: { ...p.extraFields, [currentCol.key]: uVal }
-                                                                                                    };
+                                                                                                    if (currentCol.isSystem) {
+                                                                                                        (newProducts[idx] as any)[currentCol.key] = newVal;
+                                                                                                    } else {
+                                                                                                        newProducts[idx] = {
+                                                                                                            ...p,
+                                                                                                            extraFields: { ...p.extraFields, [currentCol.key]: newVal }
+                                                                                                        };
+                                                                                                    }
                                                                                                 }
                                                                                                 setProducts(newProducts);
                                                                                                 setActivePicker(null);
@@ -2487,13 +2538,40 @@ export default function WorkspaceClient() {
                                                                                         <div
                                                                                             onClick={() => {
                                                                                                 const newProducts = [...products];
-                                                                                                if (currentCol.isSystem) {
-                                                                                                    (newProducts[idx] as any)[currentCol.key] = pickerSearch;
+                                                                                                const newVal = pickerSearch;
+
+                                                                                                if (currentCol.key === 'sku') {
+                                                                                                    let updated = { ...p, sku: newVal };
+                                                                                                    const skuMappedField = csvMapping.sku;
+                                                                                                    const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+
+                                                                                                    if (skuMappedField) {
+                                                                                                        const match = csvMasterList.find(row =>
+                                                                                                            String(row[skuMappedField] || "").trim().toLowerCase() === newVal.trim().toLowerCase()
+                                                                                                        );
+                                                                                                        if (match) {
+                                                                                                            systemFieldsKeys.forEach(field => {
+                                                                                                                const h = csvMapping[field];
+                                                                                                                if (h && match[h]) (updated as any)[field] = String(match[h]);
+                                                                                                            });
+                                                                                                            extraColumns.forEach(ex => {
+                                                                                                                const h = csvMapping[ex];
+                                                                                                                if (h && match[h]) {
+                                                                                                                    updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
+                                                                                                                }
+                                                                                                            });
+                                                                                                        }
+                                                                                                    }
+                                                                                                    newProducts[idx] = updated;
                                                                                                 } else {
-                                                                                                    newProducts[idx] = {
-                                                                                                        ...p,
-                                                                                                        extraFields: { ...p.extraFields, [currentCol.key]: pickerSearch }
-                                                                                                    };
+                                                                                                    if (currentCol.isSystem) {
+                                                                                                        (newProducts[idx] as any)[currentCol.key] = newVal;
+                                                                                                    } else {
+                                                                                                        newProducts[idx] = {
+                                                                                                            ...p,
+                                                                                                            extraFields: { ...p.extraFields, [currentCol.key]: newVal }
+                                                                                                        };
+                                                                                                    }
                                                                                                 }
                                                                                                 setProducts(newProducts);
                                                                                                 setActivePicker(null);
