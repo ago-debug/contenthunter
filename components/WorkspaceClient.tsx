@@ -276,6 +276,16 @@ export default function WorkspaceClient() {
         return url;
     };
 
+    const resolveAssetUrl = (baseUrl: string, sku: string, ext: string) => {
+        if (!baseUrl) return "";
+        let processedBase = baseUrl.trim();
+        processedBase = processedBase.endsWith('/') ? processedBase : `${processedBase}/`;
+        if (processedBase.startsWith('/public/')) {
+            processedBase = processedBase.replace('/public', '');
+        }
+        return encodeURI(`${processedBase}${sku.trim()}${ext}`);
+    };
+
     const systemFieldsToSync = ['brand', 'dimensions', 'weight', 'material', 'category', 'bulletPoints', 'description'];
     const activeMappedFields = systemFieldsToSync.filter(f => csvMapping[f] && csvHeaders.includes(csvMapping[f]));
 
@@ -428,13 +438,17 @@ export default function WorkspaceClient() {
                 ['image1', 'image2', 'image3', 'image4'].forEach((imgKey, i) => {
                     const h = csvMapping[imgKey];
                     if (h && match[h]) {
-                        const url = String(match[h]);
-                        if (!updated.images.some(img => img.url === url)) {
+                        const url = String(match[h]).trim();
+                        // ensure we don't duplicate
+                        if (url && !csvImages.some(img => img.url === url)) {
                             csvImages.push({ id: `csv-${Date.now()}-${i}-${p.sku}`, url });
                         }
                     }
                 });
-                updated.images = [...updated.images, ...csvImages];
+
+                // CSV images should be AT THE FRONT (Highest priority)
+                const existingFiltered = updated.images.filter(img => !csvImages.some(cImg => cImg.url === img.url));
+                updated.images = [...csvImages, ...existingFiltered];
                 newProducts[idx] = updated;
             }
         });
@@ -523,17 +537,16 @@ export default function WorkspaceClient() {
 
             // 2. Sync Images from Base Folder
             if (assetBaseUrl) {
-                const base = assetBaseUrl.endsWith('/') ? assetBaseUrl : `${assetBaseUrl}/`;
-                const fullUrl = `${base}${cleanSku}${assetExtension}`;
+                const fullUrl = resolveAssetUrl(assetBaseUrl, cleanSku, assetExtension);
                 const exists = updated.images.some(img => img.url === fullUrl);
                 if (!exists) {
                     assetsCount++;
                     const newImages = [...updated.images];
-                    if (newImages.length === 0) {
-                        newImages.push({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
-                    } else {
-                        newImages.unshift({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
-                    }
+                    // Folder images should be inserted at the beginning, or just after CSV images
+                    // If we have CSV mapped images they are highest priority, so unshift might mess up. 
+                    // To stay safe, let's unshift them unless we know which images are CSV.
+                    // For now, put them right after any images that match existing URLs
+                    newImages.unshift({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
                     updated.images = newImages;
                 }
             }
@@ -2219,7 +2232,7 @@ export default function WorkspaceClient() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {products.slice(0, displayLimit).map((p, idx) => {
-                                            const assetUrl = assetBaseUrl ? `${assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/'}${p.sku.trim()}${assetExtension}` : null;
+                                            const assetUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
                                             const isMatched = p.images.some(img => img.url === assetUrl);
 
                                             return (
@@ -2426,8 +2439,8 @@ export default function WorkspaceClient() {
                                                                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Sorgente Cartella / Drive</p>
                                                                                     <div
                                                                                         onClick={() => {
-                                                                                            const base = assetBaseUrl.endsWith('/') ? assetBaseUrl : `${assetBaseUrl}/`;
-                                                                                            const fullUrl = `${base}${p.sku.trim()}${assetExtension}`;
+                                                                                            const fullUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
+                                                                                            if (!fullUrl) return;
                                                                                             const newProducts = [...products];
                                                                                             const newImages = [...p.images];
                                                                                             newImages[slot] = { id: Math.random().toString(), url: fullUrl };
@@ -2437,14 +2450,16 @@ export default function WorkspaceClient() {
                                                                                         }}
                                                                                         className="aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center p-2 hover:border-green-400 hover:bg-green-50/20 cursor-pointer group transition-all"
                                                                                     >
-                                                                                        <img
-                                                                                            src={`${assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/'}${p.sku.trim()}${assetExtension}`}
-                                                                                            onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                                                            className="w-full h-1/2 object-contain mb-2"
-                                                                                        />
+                                                                                        {assetBaseUrl ? (
+                                                                                            <img
+                                                                                                src={resolveAssetUrl(assetBaseUrl, p.sku, assetExtension)}
+                                                                                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                                                className="w-full h-1/2 object-contain mb-2"
+                                                                                            />
+                                                                                        ) : null}
                                                                                         <HardDrive className="w-6 h-6 text-gray-300 group-hover:text-green-500 mb-1" />
-                                                                                        <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2">
-                                                                                            {assetBaseUrl ? `${assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/'}${p.sku.trim()}${assetExtension}` : 'Percorso non configurato'}
+                                                                                        <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2 break-all">
+                                                                                            {assetBaseUrl ? resolveAssetUrl(assetBaseUrl, p.sku, assetExtension) : 'Percorso non configurato'}
                                                                                         </span>
                                                                                     </div>
                                                                                 </div>
