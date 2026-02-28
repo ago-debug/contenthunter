@@ -145,6 +145,7 @@ export default function WorkspaceClient() {
     const [webResults, setWebResults] = useState<any[]>([]);
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
     const [skuToPageMap, setSkuToPageMap] = useState<{ [sku: string]: number }>({});
+    const [newFieldName, setNewFieldName] = useState("");
 
     // New ERP and Search States
     const [searchSources, setSearchSources] = useState<any[]>([]);
@@ -1041,7 +1042,7 @@ export default function WorkspaceClient() {
                                     {Object.keys(csvMapping).filter(k => !extraColumns.includes(k)).map((field) => (
                                         <div key={field} className="space-y-2">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">
-                                                Campo: {field.charAt(0).toUpperCase() + field.slice(1)}
+                                                Campo: {field.replace(/([A-Z])/g, ' $1').replace(/^image\d+$/, 'Immagine Link').trim().charAt(0).toUpperCase() + field.replace(/([A-Z])/g, ' $1').replace(/^image\d+$/, 'Immagine Link').trim().slice(1)}
                                             </label>
                                             <select
                                                 value={csvMapping[field]}
@@ -1055,6 +1056,29 @@ export default function WorkspaceClient() {
                                             </select>
                                         </div>
                                     ))}
+                                    <div className="space-y-4 col-span-full pt-4 border-t border-orange-100">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-[11px] font-black uppercase tracking-widest text-[#111827]">Campi Personalizzati / Extra</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    value={newFieldName}
+                                                    onChange={(e) => setNewFieldName(e.target.value)}
+                                                    placeholder="Nome nuovo campo..."
+                                                    className="bg-white border border-gray-100 rounded-lg px-4 py-2 text-xs font-bold outline-none focus:border-orange-400"
+                                                />
+                                                <button
+                                                    onClick={() => {
+                                                        if (!newFieldName.trim()) return;
+                                                        setExtraColumns([...extraColumns, newFieldName.trim()]);
+                                                        setNewFieldName("");
+                                                    }}
+                                                    className="p-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
                                     {extraColumns.map((col) => (
                                         <div key={col} className="space-y-2">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-orange-400 block ml-1 flex items-center gap-2">
@@ -2136,11 +2160,15 @@ export default function WorkspaceClient() {
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                            <th className="px-8 py-5">SKU Prodotto</th>
-                                            <th className="px-8 py-5">Nome / Titolo</th>
-                                            <th className="px-8 py-5">Stato Asset 1</th>
-                                            <th className="px-8 py-5">Preview Collegata</th>
-                                            <th className="px-8 py-5 text-right">Prezzo</th>
+                                            <th className="px-8 py-5">SKU</th>
+                                            <th className="px-8 py-5">Stato Asset</th>
+                                            <th className="px-8 py-5">Preview</th>
+                                            {/* Dynamic User Mapped Columns */}
+                                            {Object.entries(csvMapping).map(([field, header]) => {
+                                                if (!header || field.startsWith('image')) return null;
+                                                const label = field.replace(/([A-Z])/g, ' $1').trim().charAt(0).toUpperCase() + field.replace(/([A-Z])/g, ' $1').trim().slice(1);
+                                                return <th key={field} className="px-8 py-5">{label}</th>;
+                                            })}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
@@ -2152,10 +2180,6 @@ export default function WorkspaceClient() {
                                                 <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
                                                     <td className="px-8 py-6">
                                                         <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg">{p.sku}</span>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        <p className="text-sm font-bold text-[#111827]">{p.title || 'Non Specificato'}</p>
-                                                        <p className="text-[10px] text-gray-400 font-medium uppercase">{p.category}</p>
                                                     </td>
                                                     <td className="px-8 py-6">
                                                         {isMatched ? (
@@ -2181,14 +2205,17 @@ export default function WorkspaceClient() {
                                                                     <ImageIcon className="w-4 h-4 text-gray-200" />
                                                                 </div>
                                                             )}
-                                                            <p className="text-[10px] text-gray-400 font-mono truncate max-w-[200px]" title={p.images[0]?.url}>
-                                                                {p.images[0]?.url || 'Nessun asset'}
+                                                            <p className="text-[10px] text-gray-400 font-mono truncate max-w-[120px]" title={p.images[0]?.url}>
+                                                                {p.images[0]?.url || '---'}
                                                             </p>
                                                         </div>
                                                     </td>
-                                                    <td className="px-8 py-6 text-right font-black text-sm text-[#111827]">
-                                                        € {p.price || '0.00'}
-                                                    </td>
+                                                    {Object.entries(csvMapping).map(([field, header]) => {
+                                                        if (!header || field.startsWith('image')) return null;
+                                                        let val = (p as any)[field] || (p.extraFields?.[field]) || '---';
+                                                        if (field === 'price' && val !== '---') val = `€ ${val}`;
+                                                        return <td key={field} className="px-8 py-6 text-sm font-bold text-gray-600 truncate max-w-[200px]">{val}</td>;
+                                                    })}
                                                 </tr>
                                             );
                                         })}
