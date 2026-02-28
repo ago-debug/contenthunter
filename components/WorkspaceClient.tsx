@@ -588,17 +588,17 @@ export default function WorkspaceClient() {
 
     const extractFromPdf = async (url: string, localData?: Uint8Array) => {
         setIsProcessing(true);
-        // Normalize URL if it's missing prefixes or has wrong ones
         let normalizedUrl = url;
         if (!url.startsWith('http') && !url.startsWith('/')) {
             normalizedUrl = '/' + url;
         }
 
-        // Adaptive check: if it gives 404, we might need /public prefix
         setCurrentPdfUrl(normalizedUrl);
         try {
-            // Se abbiamo i dati in RAM (durante l'upload), saltiamo la fetch network del PDF!
-            const loadingTask = pdfjsLib.getDocument(localData ? { data: localData } : normalizedUrl);
+            // Bypass Nginx/Nextjs 404 caching bugs for dynamically created files
+            const storageUrl = `/api/storage?path=${encodeURIComponent(normalizedUrl)}`;
+            // Se abbiamo i dati in RAM (durante l'upload), saltiamo network del PDF!
+            const loadingTask = pdfjsLib.getDocument(localData ? { data: localData } : storageUrl);
             const pdf = await loadingTask.promise;
             const pages: PageData[] = [];
 
@@ -1044,38 +1044,36 @@ export default function WorkspaceClient() {
                         </button>
                     </div>
 
-                    {pdfPages.length > 0 && (
-                        <div className="flex items-center gap-3 border-l border-gray-100 pl-4">
-                            <button
-                                onClick={syncToDatabase}
-                                className="bg-orange-600 text-white px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/10"
-                            >
-                                <Sparkles className="w-5 h-5" />
-                                Salva
-                            </button>
-                            <button onClick={exportToExcel} className="btn-secondary flex items-center gap-3">
-                                <FileDown className="w-5 h-5" />
-                                Esporta Excel
-                            </button>
-                            <button
-                                onClick={() => {
-                                    if (confirm("Reset workspace? Questo cancellerà anche i salvataggi locali.")) {
-                                        setPdfPages([]);
-                                        setCatalogId(null);
-                                        setProducts([]);
-                                        setCsvMasterList([]);
-                                        setCsvHeaders([]);
-                                        localStorage.removeItem("pdf_catalog_id");
-                                        localStorage.removeItem("pdf_catalog_products");
-                                    }
-                                }}
-                                className="px-6 py-3.5 bg-red-50 text-red-600 border border-red-200 font-bold text-sm rounded-xl flex items-center gap-3 hover:bg-red-100 transition-colors shadow-sm"
-                            >
-                                <Trash2 className="w-5 h-5 text-red-500" />
-                                Elimina e Inizia da Capo
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3 border-l border-gray-100 pl-4 w-full md:w-auto overflow-x-auto custom-scrollbar shrink-0">
+                        <button
+                            onClick={syncToDatabase}
+                            className="bg-orange-600 text-white px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/10 shrink-0"
+                        >
+                            <Sparkles className="w-5 h-5" />
+                            Salva
+                        </button>
+                        <button onClick={exportToExcel} className="btn-secondary flex items-center gap-3 shrink-0">
+                            <FileDown className="w-5 h-5" />
+                            Esporta Excel
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (confirm("Reset workspace? Questo cancellerà anche i salvataggi locali.")) {
+                                    setPdfPages([]);
+                                    setCatalogId(null);
+                                    setProducts([]);
+                                    setCsvMasterList([]);
+                                    setCsvHeaders([]);
+                                    localStorage.removeItem("pdf_catalog_id");
+                                    localStorage.removeItem("pdf_catalog_products");
+                                }
+                            }}
+                            className="px-6 py-3.5 bg-red-50 text-red-600 border border-red-200 font-bold text-sm rounded-xl flex items-center gap-3 hover:bg-red-100 transition-colors shadow-sm shrink-0"
+                        >
+                            <Trash2 className="w-5 h-5 text-red-500" />
+                            Elimina e Inizia da Capo
+                        </button>
+                    </div>
 
                 </div>
             </div>
