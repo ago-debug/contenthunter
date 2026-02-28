@@ -18,8 +18,13 @@ else
     git pull origin main
 fi
 
-# 2. Build and restart containers
-echo "🏗️ Building and restarting Docker containers..."
+# 2. Sync Database and Build
+echo "🏗️ Syncing Database and Building Docker containers..."
+# Ensure Prisma client is generated inside the build context if needed, 
+# although Dockerfile handles it, running it here can help with external scripts.
+npx prisma generate
+npx prisma db push --accept-data-loss
+
 docker-compose up -d --build
 
 # 3. Cleanup unused images
