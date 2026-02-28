@@ -5,15 +5,17 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { name, content } = body;
-
-        if (!name || !content) {
-            return NextResponse.json({ error: "Missing filename or content" }, { status: 400 });
+        const name = req.nextUrl.searchParams.get("name");
+        if (!name) {
+            return NextResponse.json({ error: "Missing filename in query" }, { status: 400 });
         }
 
-        const base64Data = content.replace(/^data:.*?;base64,/, "");
-        const buffer = Buffer.from(base64Data, 'base64');
+        const arrayBuffer = await req.arrayBuffer();
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+            return NextResponse.json({ error: "No file content uploaded" }, { status: 400 });
+        }
+
+        const buffer = Buffer.from(arrayBuffer);
 
         const fileName = `${Date.now()}-${name.replace(/\s+/g, "_")}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");

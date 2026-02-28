@@ -333,21 +333,11 @@ export default function WorkspaceClient() {
         setIsProcessing(true);
 
         try {
-            // Read file as Base64 to bypass all Next.js/Plesk upload parsing bugs
-            const base64: string = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-
-            const resp = await fetch(`/api/upload`, {
+            // Upload as raw binary stream to bypass Next.js JSON size limits
+            const resp = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: file.name,
-                    content: base64
-                })
+                headers: { "Content-Type": "application/octet-stream" },
+                body: file
             });
 
             if (!resp.ok) {
@@ -368,6 +358,8 @@ export default function WorkspaceClient() {
             console.error("Critical Upload Error:", err);
         } finally {
             setIsProcessing(false);
+            // Reset input so the same file can be selected again
+            if (e.target) e.target.value = '';
         }
     };
 
