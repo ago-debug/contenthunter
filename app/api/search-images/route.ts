@@ -31,102 +31,73 @@ interface ScrapedImage {
  */
 async function scrapeImagesFromSource(sourceUrl: string, sku: string): Promise<ScrapedImage[]> {
     const found: ScrapedImage[] = [];
-
+    let baseUrl: URL;
     try {
-        const baseUrl = new URL(sourceUrl);
-        const skuLower = sku.toLowerCase();
+        baseUrl = new URL(sourceUrl);
+    } catch {
+        return found; // Invalid URL
+    }
+    const skuLower = sku.toLowerCase();
 
-        // Common site search patterns - try to navigate to a search page for the SKU
+    // Funzione helper per estrarre da una singola pagina
+    const scrapePage = async (url: string): Promise<ScrapedImage[]> => {
+        try {
+            const response = await axios.get(url, { headers: BROWSER_HEADERS, timeout: 8000, maxRedirects: 5 });
+            const $ = cheerio.load(response.data);
+            return extractProductImages($, baseUrl.origin, sku);
+        } catch { return []; }
+    };
+
+    // STRATEGY 1: DuckDuckGo Site Search (vero e proprio scraping della sorgente tramite motore di ricerca)
+    try {
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(`site:${baseUrl.hostname} ${sku}`)}`;
+        const ddgResp = await axios.get(ddgUrl, { headers: BROWSER_HEADERS, timeout: 8000 });
+        const $ddg = cheerio.load(ddgResp.data);
+
+        const candidateLinks: string[] = [];
+        $ddg('a.result__url, a.result__snippet, a.result__a').each((_, el) => {
+            const href = $ddg(el).attr('href');
+            if (href) {
+                let actualLink = href;
+                const match = href.match(/uddg=([^&]+)/);
+                if (match) actualLink = decodeURIComponent(match[1]);
+                else if (href.startsWith('//')) actualLink = 'https:' + href;
+
+                if (actualLink.includes(baseUrl.hostname) && !candidateLinks.includes(actualLink)) {
+                    candidateLinks.push(actualLink);
+                }
+            }
+        });
+
+        // Analizza le prime 2 pagine prodotto trovate
+        for (const link of candidateLinks.slice(0, 2)) {
+            const images = await scrapePage(link);
+            if (images.length > 0) {
+                found.push(...images);
+            }
+        }
+    } catch (e) {
+        console.warn(`DDG Scrape fallback failed for ${baseUrl.hostname}`);
+    }
+
+    // STRATEGY 2: Common Search Paths (se lo scraping DDG fallisce o non trova abbastanza)
+    if (found.length < 2) {
         const searchCandidates = [
+            sourceUrl, // Prova l'URL esatto se fornito
             `${baseUrl.origin}/search?q=${encodeURIComponent(sku)}`,
             `${baseUrl.origin}/search?query=${encodeURIComponent(sku)}`,
             `${baseUrl.origin}/recherche?q=${encodeURIComponent(sku)}`,
             `${baseUrl.origin}/?s=${encodeURIComponent(sku)}`,
             `${baseUrl.origin}/catalogsearch/result/?q=${encodeURIComponent(sku)}`,
-            `${baseUrl.origin}/index.php?route=product/search&search=${encodeURIComponent(sku)}`,
-            `${sourceUrl}?search=${encodeURIComponent(sku)}`,
-            `${sourceUrl}?q=${encodeURIComponent(sku)}`,
         ];
 
         for (const url of searchCandidates) {
-            try {
-                const response = await axios.get(url, {
-                    headers: BROWSER_HEADERS,
-                    timeout: 8000,
-                    maxRedirects: 5,
-                });
-
-                const $ = cheerio.load(response.data);
-
-                // STEP 1: Look for a link that directly takes us to the product page
-                // Or check if we are ALREADY on a product page (e.g. search redirected us)
-                const isProductPage =
-                    $('meta[property="og:type"]').attr('content') === 'product' ||
-                    $('script[type="application/ld+json"]').text().includes('"Product"') ||
-                    response.request.res.responseUrl && response.request.res.responseUrl.includes(skuLower);
-
-                if (isProductPage) {
-                    const productImages = extractProductImages($, baseUrl.origin, sku);
-                    if (productImages.length > 0) {
-                        found.push(...productImages);
-                        break;
-                    }
-                }
-
-                let productPageUrl: string | null = null;
-                $('a').each((_, el) => {
-                    if (productPageUrl) return; // already found one
-
-                    const href = $(el).attr('href') || '';
-                    const text = $(el).text().toLowerCase();
-                    const title = $(el).attr('title')?.toLowerCase() || '';
-
-                    // Strong signals for a product link
-                    const isProductLink =
-                        (href.toLowerCase().includes(skuLower) || text.includes(skuLower) || title.includes(skuLower)) &&
-                        !href.startsWith('#') &&
-                        href.length > 2 &&
-                        !href.includes('search') &&
-                        !href.includes('category');
-
-                    if (isProductLink) {
-                        let fullHref = href;
-                        if (href.startsWith('/')) fullHref = baseUrl.origin + href;
-                        else if (!href.startsWith('http')) fullHref = baseUrl.origin + '/' + href;
-                        productPageUrl = fullHref;
-                    }
-                });
-
-                // STEP 2: If we found a product page link, scrape it for better images
-                if (productPageUrl) {
-                    try {
-                        const productResp = await axios.get(productPageUrl, {
-                            headers: BROWSER_HEADERS,
-                            timeout: 8000,
-                            maxRedirects: 5,
-                        });
-                        const $product = cheerio.load(productResp.data);
-                        const productImages = extractProductImages($product, baseUrl.origin, sku);
-                        if (productImages.length > 0) {
-                            found.push(...productImages.slice(0, 15));
-                            break; // Found results, stop trying other URLs
-                        }
-                    } catch { }
-                }
-
-                // STEP 3: Fall back to extracting from current page (search results)
-                const images = extractProductImages($, baseUrl.origin, sku);
-
-                if (images.length > 0) {
-                    found.push(...images.slice(0, 10));
-                    break; // Found results, stop trying other URLs
-                }
-            } catch {
-                continue;
+            const images = await scrapePage(url);
+            if (images.length > 0) {
+                found.push(...images);
+                break; // Ci fermiamo al primo che funziona
             }
         }
-    } catch (err) {
-        console.warn(`Could not scrape source ${sourceUrl}:`, err);
     }
 
     // Deduplicate by URL
@@ -135,65 +106,16 @@ async function scrapeImagesFromSource(sourceUrl: string, sku: string): Promise<S
         if (!unique.has(img.url)) unique.set(img.url, img);
     });
 
-    return Array.from(unique.values());
+    return Array.from(unique.values()).slice(0, 15);
 }
 
 function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string): ScrapedImage[] {
     const images: ScrapedImage[] = [];
     const seen = new Set<string>();
     const skuLower = sku.toLowerCase();
+    let isEcommerce = false;
 
-    // Strategy 1: Look for JSON-LD Product images (usually high quality)
-    $('script[type="application/ld+json"]').each((_, el) => {
-        try {
-            const json = JSON.parse($(el).text());
-            const findImages = (obj: any) => {
-                if (obj.image) {
-                    if (Array.isArray(obj.image)) {
-                        obj.image.forEach((img: any) => {
-                            const url = typeof img === 'string' ? img : img.url;
-                            if (url) addImage(url, obj.name || sku, 'JSON-LD');
-                        });
-                    } else {
-                        const url = typeof obj.image === 'string' ? obj.image : obj.image.url;
-                        if (url) addImage(url, obj.name || sku, 'JSON-LD');
-                    }
-                }
-                // Also check inside @graph for Yoast/other schemas
-                if (obj['@graph'] && Array.isArray(obj['@graph'])) {
-                    obj['@graph'].forEach(findImages);
-                }
-            };
-            findImages(json);
-        } catch { }
-    });
-
-    // Strategy 2: Look for Meta tags
-    ['og:image', 'twitter:image', 'image'].forEach(meta => {
-        const content = $(`meta[property="${meta}"], meta[name="${meta}"]`).attr('content');
-        if (content) addImage(content, sku, 'Meta');
-    });
-
-    // Strategy 3: Standard img tags
-    $('img').each((_, el) => {
-        const src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-lazy-src') || $(el).attr('data-original') || $(el).attr('srcset')?.split(' ')[0];
-        const alt = $(el).attr('alt') || '';
-        const title = $(el).attr('title') || '';
-
-        if (!src) return;
-
-        // Skip icons/spacers and generic UI elements
-        const width = parseInt($(el).attr('width') || '0');
-        const height = parseInt($(el).attr('height') || '0');
-        if ((width > 0 && width < 150) || (height > 0 && height < 150)) return;
-
-        if (src.startsWith('data:') || src.includes('.svg') || src.includes('logo') || src.includes('icon') || src.includes('sprite')) return;
-        if (src.includes('loading') || src.includes('banner') || src.includes('placeholder')) return;
-
-        addImage(src, alt || title || sku, 'IMG');
-    });
-
-    function addImage(url: string, title: string, sourceTag: string) {
+    function addImage(url: string, title: string, sourceTag: string, isSchemaMatch = false) {
         if (!url) return;
 
         // Resolve relative URLs
@@ -202,21 +124,32 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
         else if (url.startsWith('/')) fullUrl = origin + url;
         else if (!url.startsWith('http')) fullUrl = origin + '/' + url;
 
+        // Remove query parameters for strict matching (often cache keys)
+        if (fullUrl.includes('?')) fullUrl = fullUrl.split('?')[0];
+
         if (seen.has(fullUrl)) return;
         seen.add(fullUrl);
 
-        // Scoring
+        // Scoring rules
         let score = 0;
         const urlLower = fullUrl.toLowerCase();
         const titleLower = title.toLowerCase();
 
-        if (urlLower.includes(skuLower)) score += 50;
-        if (titleLower.includes(skuLower)) score += 30;
-        if (urlLower.includes('product') || urlLower.includes('catalog')) score += 10;
-        if (urlLower.match(/\.(jpg|jpeg|png|webp)$/i)) score += 5;
+        // Schema information is the absolute truth for ecommerce
+        if (isSchemaMatch) score += 300;
+
+        // Matching with SKU (if not ecommerce schema, SKU match is highly valuable)
+        const hasSkuInUrl = urlLower.includes(skuLower);
+        const hasSkuInTitle = titleLower.includes(skuLower);
+
+        if (hasSkuInUrl) score += 100;
+        if (hasSkuInTitle) score += 50;
+
+        if (urlLower.includes('product') || urlLower.includes('catalog')) score += 20;
+        if (urlLower.match(/\.(jpg|jpeg|png|webp|avif)$/i)) score += 10;
 
         // Penalize thumbnails
-        if (urlLower.includes('thumb') || urlLower.includes('/100x') || urlLower.includes('/150x')) score -= 20;
+        if (urlLower.includes('thumb') || urlLower.includes('/100x') || urlLower.includes('/150x')) score -= 100;
 
         images.push({
             id: Math.random().toString(36).slice(2),
@@ -228,7 +161,72 @@ function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string
         });
     }
 
-    // Sort by score and remove the temporary field
+    // ECOMMERCE RULE 1: Standard Schema JSON-LD Product
+    $('script[type="application/ld+json"]').each((_, el) => {
+        try {
+            const jsonText = $(el).text();
+            if (jsonText.includes('"Product"') || jsonText.includes('schema.org/Product')) {
+                isEcommerce = true;
+            }
+            const json = JSON.parse(jsonText);
+
+            const findImages = (obj: any) => {
+                if (obj.image) {
+                    if (Array.isArray(obj.image)) {
+                        obj.image.forEach((img: any) => {
+                            const url = typeof img === 'string' ? img : img.url;
+                            if (url) addImage(url, obj.name || sku, 'JSON-LD', true);
+                        });
+                    } else {
+                        const url = typeof obj.image === 'string' ? obj.image : obj.image.url;
+                        if (url) addImage(url, obj.name || sku, 'JSON-LD', true);
+                    }
+                }
+                if (obj['@graph'] && Array.isArray(obj['@graph'])) {
+                    obj['@graph'].forEach(findImages);
+                }
+            };
+            findImages(json);
+        } catch { }
+    });
+
+    // ECOMMERCE RULE 2: OpenGraph Product Tags
+    const ogType = $('meta[property="og:type"]').attr('content');
+    if (ogType === 'product' || ogType === 'product.item') {
+        isEcommerce = true;
+    }
+
+    ['og:image', 'twitter:image'].forEach(meta => {
+        const content = $(`meta[property="${meta}"], meta[name="${meta}"]`).attr('content');
+        if (content) {
+            addImage(content, sku, 'Meta', isEcommerce); // Se è ecommerce, vale come schema
+        }
+    });
+
+    // GENERIC RULE 3: Match from DOM tags
+    // Se è un sito e-commerce ma ha un layout anomalo, oppure non è ecommerce e dobbiamo basarci sullo SKU
+    $('img').each((_, el) => {
+        const src = $(el).attr('src') || $(el).attr('data-src') || $(el).attr('data-original') || $(el).attr('srcset')?.split(' ')[0];
+        const alt = $(el).attr('alt') || '';
+        const title = $(el).attr('title') || '';
+
+        if (!src) return;
+
+        const width = parseInt($(el).attr('width') || '0');
+        const height = parseInt($(el).attr('height') || '0');
+        if ((width > 0 && width < 150) || (height > 0 && height < 150)) return;
+
+        if (src.startsWith('data:') || src.includes('.svg') || src.includes('logo') || src.includes('icon')) return;
+
+        const isSkuMatch = src.toLowerCase().includes(skuLower) || alt.toLowerCase().includes(skuLower) || title.toLowerCase().includes(skuLower);
+
+        // Se è un eCommerce strutturato e abbiamo già delle info "sicure", ignoriamo le immaginine generiche
+        // Se NON è e-commerce, accettiamo le immagini, ma quelle con lo SKU avranno un punteggio maggiore
+        if (isEcommerce && !isSkuMatch) return;
+
+        addImage(src, alt || title || sku, 'IMG', false);
+    });
+
     // @ts-ignore
     return images.sort((a, b) => (b.score || 0) - (a.score || 0)).map(({ score, ...rest }) => rest);
 }
@@ -237,6 +235,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const sources = searchParams.get('sources'); // Comma separated URLs
+    const useShopping = searchParams.get('shopping') === 'true';
 
     if (!query) {
         return NextResponse.json({ images: [] });
@@ -263,8 +262,29 @@ export async function GET(request: Request) {
             }
         }
 
-        if (serpApiKey && allImages.length < 3) {
-            // STRATEGY 2: SerpApi Google Images as supplement/fallback
+        if (serpApiKey && useShopping) {
+            try {
+                const response = await axios.get(`https://serpapi.com/search.json`, {
+                    params: { q: query, tbm: 'shop', api_key: serpApiKey, engine: 'google_shopping', hl: 'it', gl: 'it' }
+                });
+                const shoppingResults = (response.data.shopping_results || []).map((res: any) => ({
+                    id: `shopping-${Math.random().toString(36).slice(2)}`,
+                    url: res.thumbnail,
+                    title: res.title,
+                    source: res.source,
+                    productData: {
+                        price: res.extracted_price ? `${res.extracted_price} €` : res.price,
+                        description: res.snippet || '',
+                        title: res.title,
+                        source: res.source
+                    }
+                }));
+                allImages.push(...shoppingResults);
+            } catch (err: any) {
+                console.warn("Google Shopping extraction error:", err.message);
+            }
+        } else if (serpApiKey && allImages.length < 3) {
+            // STRATEGY 3: SerpApi Google Images as supplement/fallback
             let finalQuery = query;
             if (sourceList.length > 0) {
                 const domains = sourceList.map(s => {

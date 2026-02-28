@@ -156,6 +156,7 @@ export default function WorkspaceClient() {
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
     const [erpSearchQuery, setErpSearchQuery] = useState("");
     const [pickerSearchQuery, setPickerSearchQuery] = useState("");
+    const [useGoogleShopping, setUseGoogleShopping] = useState(false);
 
     // Smart Positioning Effect
     useEffect(() => {
@@ -195,14 +196,14 @@ export default function WorkspaceClient() {
         }
     };
 
-    const handleWebSearch = async (product: any, manualQuery?: string) => {
+    const handleWebSearch = async (product: any, manualQuery?: string, isShopping = false) => {
         setIsSearchingWeb(true);
         setWebResults([]);
         try {
             const query = (manualQuery || product.sku).trim();
             // Pass project-specific sources to the search API
             const sourcesQuery = searchSources.map(s => s.url).join(',');
-            const response = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&sources=${encodeURIComponent(sourcesQuery)}`);
+            const response = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${isShopping || useGoogleShopping}`);
             setWebResults(response.data.images || []);
         } catch (error) {
             console.error("Web search failed:", error);
@@ -332,12 +333,21 @@ export default function WorkspaceClient() {
         setIsProcessing(true);
 
         try {
-            const resp = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
+            // Read file as Base64 to bypass all Next.js/Plesk upload parsing bugs
+            const base64: string = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            const resp = await fetch(`/api/upload`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": file.type || "application/octet-stream"
-                },
-                body: file
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name: file.name,
+                    content: base64
+                })
             });
 
             if (!resp.ok) {
@@ -347,7 +357,11 @@ export default function WorkspaceClient() {
 
             const data = await resp.json();
             setCatalogId(data.catalogId);
-            await extractFromPdf(data.filePath);
+
+            // Pass local binary to extractFromPdf to bypass any fetch/URL errors from NextJS
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            await extractFromPdf(data.filePath, uint8Array);
         } catch (err: any) {
             const errorMsg = err.message || "Caricamento fallito";
             toast.error(`System Error: ${errorMsg}`);
@@ -572,7 +586,7 @@ export default function WorkspaceClient() {
         }, 800);
     };
 
-    const extractFromPdf = async (url: string) => {
+    const extractFromPdf = async (url: string, localData?: Uint8Array) => {
         setIsProcessing(true);
         // Normalize URL if it's missing prefixes or has wrong ones
         let normalizedUrl = url;
@@ -583,7 +597,8 @@ export default function WorkspaceClient() {
         // Adaptive check: if it gives 404, we might need /public prefix
         setCurrentPdfUrl(normalizedUrl);
         try {
-            const loadingTask = pdfjsLib.getDocument(normalizedUrl);
+            // Se abbiamo i dati in RAM (durante l'upload), saltiamo la fetch network del PDF!
+            const loadingTask = pdfjsLib.getDocument(localData ? { data: localData } : normalizedUrl);
             const pdf = await loadingTask.promise;
             const pages: PageData[] = [];
 
@@ -1036,7 +1051,7 @@ export default function WorkspaceClient() {
                                 className="bg-orange-600 text-white px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/10"
                             >
                                 <Sparkles className="w-5 h-5" />
-                                Salva Progetto (Cloud)
+                                Salva
                             </button>
                             <button onClick={exportToExcel} className="btn-secondary flex items-center gap-3">
                                 <FileDown className="w-5 h-5" />
@@ -1054,9 +1069,10 @@ export default function WorkspaceClient() {
                                         localStorage.removeItem("pdf_catalog_products");
                                     }
                                 }}
-                                className="p-3.5 bg-red-50 text-red-400 border border-red-100 rounded-xl hover:bg-red-100 transition-colors"
+                                className="px-6 py-3.5 bg-red-50 text-red-600 border border-red-200 font-bold text-sm rounded-xl flex items-center gap-3 hover:bg-red-100 transition-colors shadow-sm"
                             >
-                                <Trash2 className="w-5 h-5" />
+                                <Trash2 className="w-5 h-5 text-red-500" />
+                                Elimina e Inizia da Capo
                             </button>
                         </div>
                     )}
@@ -2035,21 +2051,35 @@ export default function WorkspaceClient() {
                                                                             </>
                                                                         ) : (
                                                                             <>
-                                                                                <div className="col-span-3 flex items-center gap-2 bg-gray-50 rounded-xl p-2 mb-2 border border-gray-100 shadow-inner">
-                                                                                    <input
-                                                                                        type="text"
-                                                                                        value={pickerSearchQuery}
-                                                                                        onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                        onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
-                                                                                        placeholder="Cerca immagini..."
-                                                                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
-                                                                                    />
-                                                                                    <button
-                                                                                        onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                        className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                                                                                    >
-                                                                                        <Search className="w-3 h-3" />
-                                                                                    </button>
+                                                                                <div className="col-span-3 pb-2 flex flex-col gap-2">
+                                                                                    <div className="flex items-center justify-between px-1">
+                                                                                        <label className="flex items-center gap-2 cursor-pointer bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+                                                                                            <input
+                                                                                                type="checkbox"
+                                                                                                checked={useGoogleShopping}
+                                                                                                onChange={(e) => setUseGoogleShopping(e.target.checked)}
+                                                                                                className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                                                            />
+                                                                                            <span className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Cerca in Google Shopping</span>
+                                                                                        </label>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Search className="w-3 h-3 text-gray-400" />
+                                                                                        <input
+                                                                                            type="text"
+                                                                                            value={pickerSearchQuery}
+                                                                                            onChange={(e) => setPickerSearchQuery(e.target.value)}
+                                                                                            onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
+                                                                                            placeholder="Cerca immagini..."
+                                                                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
+                                                                                        />
+                                                                                        <button
+                                                                                            onClick={() => handleWebSearch(p, pickerSearchQuery)}
+                                                                                            className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                                                                        >
+                                                                                            <Search className="w-3 h-3" />
+                                                                                        </button>
+                                                                                    </div>
                                                                                 </div>
                                                                                 {isSearchingWeb ? (
                                                                                     <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
@@ -2067,13 +2097,31 @@ export default function WorkspaceClient() {
                                                                                                 const newProducts = [...products];
                                                                                                 const newImages = [...p.images];
                                                                                                 newImages[slot] = { id: Math.random().toString(), url: result.url };
-                                                                                                newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+
+                                                                                                let updatedProduct = { ...p, images: newImages.filter(Boolean) };
+                                                                                                if (result.productData) {
+                                                                                                    let updatedSomething = false;
+                                                                                                    if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
+                                                                                                        updatedProduct.price = result.productData.price;
+                                                                                                        updatedSomething = true;
+                                                                                                    }
+                                                                                                    if (result.productData.description && !updatedProduct.description) {
+                                                                                                        updatedProduct.description = result.productData.description;
+                                                                                                        updatedSomething = true;
+                                                                                                    }
+                                                                                                    if (updatedSomething) toast.success("Dati aggiornati automaticamente da Shopping!");
+                                                                                                }
+
+                                                                                                newProducts[idx] = updatedProduct;
                                                                                                 setProducts(newProducts);
                                                                                                 setActivePicker(null);
                                                                                             }}
                                                                                             className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
                                                                                         >
                                                                                             <img src={result.url} className="w-full h-full object-contain" />
+                                                                                            {result.productData && (
+                                                                                                <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
+                                                                                            )}
                                                                                         </div>
                                                                                     ))
                                                                                 )}
@@ -2403,20 +2451,34 @@ export default function WorkspaceClient() {
                                                                                 </>
                                                                             ) : pickerSourceMode === 'web' ? (
                                                                                 <>
-                                                                                    <div className="col-span-3 pb-2 flex items-center gap-2">
-                                                                                        <Search className="w-3 h-3 text-gray-400" />
-                                                                                        <input
-                                                                                            value={pickerSearchQuery}
-                                                                                            onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                            placeholder="Cerca immagini..."
-                                                                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
-                                                                                        />
-                                                                                        <button
-                                                                                            onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                            className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
-                                                                                        >
-                                                                                            <Search className="w-3 h-3" />
-                                                                                        </button>
+                                                                                    <div className="col-span-3 pb-2 flex flex-col gap-2">
+                                                                                        <div className="flex items-center justify-between px-1">
+                                                                                            <label className="flex items-center gap-2 cursor-pointer bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+                                                                                                <input
+                                                                                                    type="checkbox"
+                                                                                                    checked={useGoogleShopping}
+                                                                                                    onChange={(e) => setUseGoogleShopping(e.target.checked)}
+                                                                                                    className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                                                                />
+                                                                                                <span className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Cerca in Google Shopping</span>
+                                                                                            </label>
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <Search className="w-3 h-3 text-gray-400" />
+                                                                                            <input
+                                                                                                value={pickerSearchQuery}
+                                                                                                onChange={(e) => setPickerSearchQuery(e.target.value)}
+                                                                                                onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
+                                                                                                placeholder="Cerca immagini o SKU su Web..."
+                                                                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
+                                                                                            />
+                                                                                            <button
+                                                                                                onClick={() => handleWebSearch(p, pickerSearchQuery)}
+                                                                                                className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                                                                                            >
+                                                                                                <Search className="w-3 h-3" />
+                                                                                            </button>
+                                                                                        </div>
                                                                                     </div>
                                                                                     {isSearchingWeb ? (
                                                                                         <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
@@ -2434,13 +2496,31 @@ export default function WorkspaceClient() {
                                                                                                     const newProducts = [...products];
                                                                                                     const newImages = [...p.images];
                                                                                                     newImages[slot] = { id: Math.random().toString(), url: result.url };
-                                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+
+                                                                                                    let updatedProduct = { ...p, images: newImages.filter(Boolean) };
+                                                                                                    if (result.productData) {
+                                                                                                        let updatedSomething = false;
+                                                                                                        if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
+                                                                                                            updatedProduct.price = result.productData.price;
+                                                                                                            updatedSomething = true;
+                                                                                                        }
+                                                                                                        if (result.productData.description && !updatedProduct.description) {
+                                                                                                            updatedProduct.description = result.productData.description;
+                                                                                                            updatedSomething = true;
+                                                                                                        }
+                                                                                                        if (updatedSomething) toast.success("Dati aggiornati automaticamente da Shopping!");
+                                                                                                    }
+
+                                                                                                    newProducts[idx] = updatedProduct;
                                                                                                     setProducts(newProducts);
                                                                                                     setActivePicker(null);
                                                                                                 }}
                                                                                                 className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
                                                                                             >
                                                                                                 <img src={result.url} className="w-full h-full object-contain" />
+                                                                                                {result.productData && (
+                                                                                                    <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
+                                                                                                )}
                                                                                             </div>
                                                                                         ))
                                                                                     )}
