@@ -140,7 +140,7 @@ export default function WorkspaceClient() {
     const [isAddingColumn, setIsAddingColumn] = useState(false);
     const [newColumnName, setNewColumnName] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
-    const [pickerSourceMode, setPickerSourceMode] = useState<'pdf' | 'web' | 'file'>('pdf');
+    const [pickerSourceMode, setPickerSourceMode] = useState<'pdf' | 'web' | 'file' | 'folder'>('pdf');
     const [pickerPageIdx, setPickerPageIdx] = useState(0);
     const [webResults, setWebResults] = useState<any[]>([]);
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
@@ -2234,7 +2234,14 @@ export default function WorkspaceClient() {
                                                                                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                                                                             >
                                                                                 <Globe className="w-3 h-3" />
-                                                                                WEB Intelligence
+                                                                                WEB
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => setPickerSourceMode('folder')}
+                                                                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'folder' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <FolderOpen className="w-3 h-3" />
+                                                                                Folder
                                                                             </button>
                                                                         </div>
 
@@ -2324,7 +2331,7 @@ export default function WorkspaceClient() {
                                                                                         </>
                                                                                     )}
                                                                                 </>
-                                                                            ) : (
+                                                                            ) : pickerSourceMode === 'web' ? (
                                                                                 <>
                                                                                     <div className="col-span-3 pb-2 flex items-center gap-2">
                                                                                         <Search className="w-3 h-3 text-gray-400" />
@@ -2368,6 +2375,33 @@ export default function WorkspaceClient() {
                                                                                         ))
                                                                                     )}
                                                                                 </>
+                                                                            ) : (
+                                                                                <div className="col-span-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Sorgente Cartella / Drive</p>
+                                                                                    <div
+                                                                                        onClick={() => {
+                                                                                            const base = assetBaseUrl.endsWith('/') ? assetBaseUrl : `${assetBaseUrl}/`;
+                                                                                            const fullUrl = `${base}${p.sku.trim()}${assetExtension}`;
+                                                                                            const newProducts = [...products];
+                                                                                            const newImages = [...p.images];
+                                                                                            newImages[slot] = { id: Math.random().toString(), url: fullUrl };
+                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                            setProducts(newProducts);
+                                                                                            setActivePicker(null);
+                                                                                        }}
+                                                                                        className="aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center p-2 hover:border-green-400 hover:bg-green-50/20 cursor-pointer group transition-all"
+                                                                                    >
+                                                                                        <img
+                                                                                            src={`${assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/'}${p.sku.trim()}${assetExtension}`}
+                                                                                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                                            className="w-full h-1/2 object-contain mb-2"
+                                                                                        />
+                                                                                        <HardDrive className="w-6 h-6 text-gray-300 group-hover:text-green-500 mb-1" />
+                                                                                        <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2">
+                                                                                            {assetBaseUrl ? `${assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/'}${p.sku.trim()}${assetExtension}` : 'Percorso non configurato'}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                </div>
                                                                             )}
                                                                         </div>
                                                                     </div>
