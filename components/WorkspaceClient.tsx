@@ -2969,6 +2969,29 @@ export default function WorkspaceClient() {
                                             Aggiungi Sorgente
                                         </button>
                                     </div>
+
+                                    <div className="mt-6 p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-blue-600 rounded-lg shadow-sm">
+                                                    <Search className="w-4 h-4 text-white" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="text-sm font-black text-[#111827]">Google Shopping</h3>
+                                                    <p className="text-[10px] font-bold text-gray-400">Cerca automaticamente prezzi e descrizioni</p>
+                                                </div>
+                                            </div>
+                                            <label className="relative inline-flex items-center cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    className="sr-only peer"
+                                                    checked={useGoogleShopping}
+                                                    onChange={(e) => setUseGoogleShopping(e.target.checked)}
+                                                />
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="h-px bg-gray-100" />
