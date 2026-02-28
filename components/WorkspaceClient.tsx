@@ -113,7 +113,7 @@ export default function WorkspaceClient() {
 
     const [products, setProducts] = useState<ProductData[]>([]);
     const [allDBProducts, setAllDBProducts] = useState<any[]>([]);
-    const [currentView, setCurrentView] = useState<'workspace' | 'erp'>('workspace');
+    const [currentView, setCurrentView] = useState<'workspace' | 'erp' | 'asset-matcher'>('workspace');
     const [isLoadingERP, setIsLoadingERP] = useState(false);
     const [csvMasterList, setCsvMasterList] = useState<any[]>([]);
     const [extraColumns, setExtraColumns] = useState<string[]>([]);
@@ -990,22 +990,6 @@ export default function WorkspaceClient() {
                         </div>
                     )}
 
-                    {(assetBaseUrl || products.length > 0) && (
-                        <div className="flex items-center gap-3 border-l border-gray-100 pl-4">
-                            <button
-                                onClick={bulkMatchSkuAssets}
-                                disabled={isMatchingAssets}
-                                className={`px-6 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 transition-all shadow-lg ${isMatchingAssets ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-900/10'}`}
-                            >
-                                {isMatchingAssets ? (
-                                    <RefreshCw className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <HardDrive className="w-5 h-5" />
-                                )}
-                                Associa Asset SKU
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
 
@@ -1109,6 +1093,13 @@ export default function WorkspaceClient() {
                 >
                     <Cpu className="w-4 h-4" />
                     PDF Workspace
+                </button>
+                <button
+                    onClick={() => setCurrentView('asset-matcher')}
+                    className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'asset-matcher' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                    <HardDrive className="w-4 h-4" />
+                    Associa Asset SKU
                 </button>
                 <button
                     onClick={() => setCurrentView('erp')}
@@ -2045,6 +2036,172 @@ export default function WorkspaceClient() {
                                     >
                                         <ChevronRight className="w-4 h-4 rotate-90" />
                                         Carica altri 30 records ({products.length - displayLimit} rimanenti)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                ) : currentView === 'asset-matcher' ? (
+                    <motion.div
+                        key="asset-matcher"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="space-y-10"
+                    >
+                        {/* Asset Matcher Header Card */}
+                        <div className="main-card p-10 bg-gradient-to-br from-blue-50/50 to-white">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                                <div className="flex items-center gap-6">
+                                    <div className="p-5 bg-blue-600 rounded-[2rem] shadow-lg shadow-blue-200">
+                                        <HardDrive className="w-8 h-8 text-white" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-[#111827]">SKU Asset Linker</h2>
+                                        <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">Automatic matching Master List ↔ Asset Folder</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={() => csvInputRef.current?.click()}
+                                        className="btn-secondary flex items-center gap-3"
+                                    >
+                                        <Upload className="w-5 h-5 text-blue-500" />
+                                        {csvMasterList.length > 0 ? "Cambia Listino" : "Carica Listino (Excel/CSV)"}
+                                    </button>
+                                    <button
+                                        onClick={bulkMatchSkuAssets}
+                                        disabled={isMatchingAssets || products.length === 0}
+                                        className={`px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 transition-all shadow-lg ${isMatchingAssets || products.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-900/10'}`}
+                                    >
+                                        {isMatchingAssets ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                        Avvia Associazione Bulk
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 pt-12 border-t border-gray-100">
+                                <div className="space-y-4">
+                                    <label className="text-[11px] font-black uppercase tracking-widest text-blue-500 ml-1">Percorso Base Asset</label>
+                                    <div className="relative">
+                                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            value={assetBaseUrl}
+                                            onChange={(e) => setAssetBaseUrl(e.target.value)}
+                                            placeholder="https://mio-sito.it/foto/ o /public/assets/"
+                                            className="w-full pl-12 pr-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-gray-400 font-bold px-1 italic">
+                                        Tip: L&apos;asset verrà cercato come: <span className="text-blue-600">{assetBaseUrl || '[URL BASE]'}SKU{assetExtension}</span>
+                                    </p>
+                                </div>
+                                <div className="space-y-4">
+                                    <label className="text-[11px] font-black uppercase tracking-widest text-blue-500 ml-1">Estensione File</label>
+                                    <div className="flex items-center gap-3">
+                                        {[".jpg", ".png", ".webp", ".pdf"].map(ext => (
+                                            <button
+                                                key={ext}
+                                                onClick={() => setAssetExtension(ext)}
+                                                className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${assetExtension === ext ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
+                                            >
+                                                {ext}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Listino / Workspace Table */}
+                        <div className="main-card">
+                            <div className="p-8 border-b border-gray-100 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-gray-50 rounded-xl">
+                                        <Database className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                    <h3 className="text-lg font-black text-[#111827]">Workspace Records ({products.length})</h3>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        onClick={exportToExcel}
+                                        className="btn-secondary flex items-center gap-3 py-2.5"
+                                    >
+                                        <FileDown className="w-4 h-4" />
+                                        Esporta Risultati
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead>
+                                        <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                            <th className="px-8 py-5">SKU Prodotto</th>
+                                            <th className="px-8 py-5">Nome / Titolo</th>
+                                            <th className="px-8 py-5">Stato Asset 1</th>
+                                            <th className="px-8 py-5">Preview Collegata</th>
+                                            <th className="px-8 py-5 text-right">Prezzo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {products.slice(0, displayLimit).map((p, idx) => {
+                                            const assetUrl = assetBaseUrl ? `${assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/'}${p.sku.trim()}${assetExtension}` : null;
+                                            const isMatched = p.images.some(img => img.url === assetUrl);
+
+                                            return (
+                                                <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
+                                                    <td className="px-8 py-6">
+                                                        <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg">{p.sku}</span>
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <p className="text-sm font-bold text-[#111827]">{p.title || 'Non Specificato'}</p>
+                                                        <p className="text-[10px] text-gray-400 font-medium uppercase">{p.category}</p>
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        {isMatched ? (
+                                                            <div className="flex items-center gap-2 text-green-600">
+                                                                <CheckCircle2 className="w-4 h-4" />
+                                                                <span className="text-[10px] font-black uppercase tracking-widest">Collegato</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2 text-gray-300">
+                                                                <X className="w-4 h-4" />
+                                                                <span className="text-[10px] font-black uppercase tracking-widest">Mancante</span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-8 py-6">
+                                                        <div className="flex items-center gap-3">
+                                                            {p.images[0] ? (
+                                                                <div className="w-12 h-12 rounded-lg border border-gray-100 overflow-hidden bg-white shadow-sm">
+                                                                    <img src={resolveImageUrl(p.images[0].url)} className="w-full h-full object-cover" />
+                                                                </div>
+                                                            ) : (
+                                                                <div className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-100 flex items-center justify-center">
+                                                                    <ImageIcon className="w-4 h-4 text-gray-200" />
+                                                                </div>
+                                                            )}
+                                                            <p className="text-[10px] text-gray-400 font-mono truncate max-w-[200px]" title={p.images[0]?.url}>
+                                                                {p.images[0]?.url || 'Nessun asset'}
+                                                            </p>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-8 py-6 text-right font-black text-sm text-[#111827]">
+                                                        € {p.price || '0.00'}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {products.length > displayLimit && (
+                                <div className="p-8 flex justify-center border-t border-gray-100 bg-gray-50/10">
+                                    <button
+                                        onClick={() => setDisplayLimit(prev => prev + 50)}
+                                        className="btn-secondary py-2"
+                                    >
+                                        Mostra altri 50 records
                                     </button>
                                 </div>
                             )}
