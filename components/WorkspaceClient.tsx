@@ -334,11 +334,21 @@ export default function WorkspaceClient() {
         formData.append("file", file);
 
         try {
-            const resp = await axios.post("/api/upload", formData);
-            setCatalogId(resp.data.catalogId);
-            await extractFromPdf(resp.data.filePath);
+            const resp = await fetch("/api/upload", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!resp.ok) {
+                const errData = await resp.json().catch(() => ({}));
+                throw new Error(errData.error || `Upload failed with status ${resp.status}`);
+            }
+
+            const data = await resp.json();
+            setCatalogId(data.catalogId);
+            await extractFromPdf(data.filePath);
         } catch (err: any) {
-            const errorMsg = err.response?.data?.error || err.message;
+            const errorMsg = err.message || "Caricamento fallito";
             toast.error(`System Error: ${errorMsg}`);
             console.error("Critical Upload Error:", err);
         } finally {
