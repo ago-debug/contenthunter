@@ -126,7 +126,11 @@ export default function WorkspaceClient() {
         brand: "Marca",
         dimensions: "Dimensioni",
         weight: "Peso",
-        material: "Materiale"
+        material: "Materiale",
+        category: "Categoria",
+        description: "Descrizione estesa",
+        image1: "Link Immagine 1",
+        image2: "Link Immagine 2"
     });
     const [showMapping, setShowMapping] = useState(false);
     const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
@@ -242,8 +246,13 @@ export default function WorkspaceClient() {
         }
 
         if (savedProducts) {
-            setProducts(JSON.parse(savedProducts));
-            toast.info("Sessione ripristinata dal database locale.");
+            try {
+                setProducts(JSON.parse(savedProducts));
+                toast.info("Sessione ripristinata dal database locale.");
+            } catch (e) {
+                console.error("Local storage restore error:", e);
+                localStorage.removeItem("pdf_catalog_products");
+            }
         }
 
         const handleGlobalClick = (e: MouseEvent) => {
@@ -368,27 +377,31 @@ export default function WorkspaceClient() {
 
     const applyCvsMapping = () => {
         if (!csvMasterList.length) {
-            toast.warning("Matrix Error: No CSV Master List detected.");
+            toast.warning("Nessun listino caricato.");
             return;
         }
 
         const skuMappedField = csvMapping.sku;
         if (!skuMappedField) {
-            toast.warning("Mapping Error: SKU column must be identified.");
+            toast.warning("Mapping Error: Identifica la colonna SKU.");
             return;
         }
 
-        const newProducts = products.map(p => {
+        const newProducts = [...products];
+        const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+
+        // Map existing products
+        products.forEach((p, idx) => {
             const match = csvMasterList.find(row => {
-                const itemSku = String((row as any)[skuMappedField] || "").replace(/\s+/g, ' ').trim().toLowerCase();
-                const productSku = String(p.sku || "").replace(/\s+/g, ' ').trim().toLowerCase();
-                return itemSku === productSku;
-            }) as any;
+                const itemSku = String(row[skuMappedField] || "").trim().toLowerCase();
+                const productSku = String(p.sku || "").trim().toLowerCase();
+                return itemSku === productSku && itemSku !== "";
+            });
 
             if (match) {
                 const updated = { ...p };
                 // Map system fields
-                ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints'].forEach(field => {
+                systemFieldsKeys.forEach(field => {
                     const h = csvMapping[field];
                     if (h && match[h]) {
                         (updated as any)[field] = String(match[h]);
@@ -401,57 +414,106 @@ export default function WorkspaceClient() {
                         updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
                     }
                 });
-                return updated;
+                // Map images
+                const csvImages: ProductImage[] = [];
+                ['image1', 'image2', 'image3', 'image4'].forEach((imgKey, i) => {
+                    const h = csvMapping[imgKey];
+                    if (h && match[h]) {
+                        const url = String(match[h]);
+                        if (!updated.images.some(img => img.url === url)) {
+                            csvImages.push({ id: `csv-${Date.now()}-${i}-${p.sku}`, url });
+                        }
+                    }
+                });
+                updated.images = [...updated.images, ...csvImages];
+                newProducts[idx] = updated;
             }
-            return p;
+        });
+
+        // Add NEW products from CSV that aren't in the list
+        csvMasterList.forEach((row: any) => {
+            const rowSku = String(row[skuMappedField] || "").trim();
+            if (!rowSku) return;
+
+            const exists = newProducts.some(p => p.sku.trim().toLowerCase() === rowSku.toLowerCase());
+            if (!exists) {
+                const newProd: ProductData = {
+                    sku: rowSku,
+                    title: String(row[csvMapping.title] || ""),
+                    description: String(row[csvMapping.description] || ""),
+                    docDescription: String(row[csvMapping.docDescription] || ""),
+                    price: String(row[csvMapping.price] || ""),
+                    category: String(row[csvMapping.category] || "Generale"),
+                    brand: String(row[csvMapping.brand] || ""),
+                    dimensions: String(row[csvMapping.dimensions] || ""),
+                    weight: String(row[csvMapping.weight] || ""),
+                    material: String(row[csvMapping.material] || ""),
+                    bulletPoints: String(row[csvMapping.description] || ""),
+                    images: [],
+                    extraFields: {}
+                };
+
+                // Add mapping for images
+                ['image1', 'image2', 'image3', 'image4'].forEach((imgKey, i) => {
+                    const h = csvMapping[imgKey];
+                    if (h && row[h]) {
+                        newProd.images.push({ id: `csv-new-${Date.now()}-${i}-${rowSku}`, url: String(row[h]) });
+                    }
+                });
+
+                // Add mapping for extras
+                extraColumns.forEach(ex => {
+                    const h = csvMapping[ex];
+                    if (h && row[h]) {
+                        newProd.extraFields![ex] = String(row[h]);
+                    }
+                });
+
+                newProducts.push(newProd);
+            }
         });
 
         setProducts(newProducts);
-        toast.success(`Data Sync: ${newProducts.length} records processed against listino.`);
+        toast.success(`Data Sync: ${newProducts.length} record in workspace.`);
     };
 
     const bulkMatchSkuAssets = async () => {
         if (!assetBaseUrl) {
-            toast.warning("Configurazione Mancante: Imposta un indirizzo base (URL o Percorso) nelle impostazioni.");
+            toast.warning("Configura l'Indirizzo Base nelle impostazioni.");
             setShowSettings(true);
             return;
         }
 
         setIsMatchingAssets(true);
-        toast.info(`Asset Linker: Generazione link per ${products.length} prodotti...`);
+        let count = 0;
 
         const newProducts = products.map(p => {
             if (!p.sku) return p;
 
-            // Clean SKU for filename
-            const cleanSku = p.sku.replace(/[^a-zA-Z0-9]/g, '');
-            const assetUrl = assetBaseUrl.endsWith('/') ? assetBaseUrl : assetBaseUrl + '/';
-            const fullUrl = `${assetUrl}${cleanSku}${assetExtension}`;
+            const cleanSku = p.sku.trim();
+            const base = assetBaseUrl.endsWith('/') ? assetBaseUrl : `${assetBaseUrl}/`;
+            const fullUrl = `${base}${cleanSku}${assetExtension}`;
 
-            const updated = { ...p };
-            const newImages = [...p.images];
-
-            // Check if slot 0 is empty or keep it? User wants to "write the link"
-            // We overwrite or add to slot 0 if empty
-            if (newImages.length === 0 || !newImages[0].url) {
-                newImages[0] = { id: `asset-${Date.now()}-${p.sku}`, url: fullUrl };
-            } else {
-                // If already has images, maybe add as a new slot if not already present
-                const exists = newImages.some(img => img.url === fullUrl);
-                if (!exists) {
+            const exists = p.images.some(img => img.url === fullUrl);
+            if (!exists) {
+                count++;
+                const newImages = [...p.images];
+                // Put in slot 0 if empty or add to end
+                if (newImages.length === 0) {
                     newImages.push({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
+                } else {
+                    newImages.unshift({ id: `asset-${Date.now()}-${p.sku}`, url: fullUrl });
                 }
+                return { ...p, images: newImages };
             }
-
-            updated.images = newImages;
-            return updated;
+            return p;
         });
 
+        setProducts(newProducts);
         setTimeout(() => {
-            setProducts(newProducts);
             setIsMatchingAssets(false);
-            toast.success("Asset SKU collegati con successo! Verifica le anteprime.");
-        }, 1500);
+            toast.success(`Associazione completata: ${count} nuovi asset collegati.`);
+        }, 1000);
     };
 
     const extractFromPdf = async (url: string) => {
@@ -803,8 +865,47 @@ export default function WorkspaceClient() {
         }
     };
 
-    const exportToExcel = async () => {
-        window.location.href = "/api/export";
+    const exportToExcel = () => {
+        if (products.length === 0) {
+            toast.warning("Matrix Alert: Nessun record da esportare nel workspace attuale.");
+            return;
+        }
+
+        const dataToExport = products.map(p => {
+            const row: any = {
+                "SKU Code": p.sku,
+                "Titolo": p.title,
+                "Prezzo": p.price,
+                "Categoria": p.category,
+                "Brand": p.brand,
+                "Descrizione Documentale": p.docDescription,
+                "Note/Descrizione Estesa": p.bulletPoints,
+                "Analisi AI": p.description
+            };
+
+            // Add images URLs
+            for (let i = 0; i < 4; i++) {
+                row[`IMG ${i + 1}`] = p.images[i] ? p.images[i].url : "";
+            }
+
+            // Add dynamic extra fields
+            if (p.extraFields) {
+                Object.entries(p.extraFields).forEach(([key, val]) => {
+                    row[key] = val;
+                });
+            }
+
+            return row;
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Catalog Data");
+
+        // Premium Export with Timestamp
+        const timestamp = new Date().toISOString().split('T')[0];
+        XLSX.writeFile(workbook, `ContentHunter_Export_${timestamp}.xlsx`);
+        toast.success("Excel generato con successo! Download avviato.");
     };
 
     return (
@@ -881,7 +982,7 @@ export default function WorkspaceClient() {
                         </div>
                     )}
 
-                    {assetBaseUrl && pdfPages.length > 0 && (
+                    {(assetBaseUrl || products.length > 0) && (
                         <div className="flex items-center gap-3 border-l border-gray-100 pl-4">
                             <button
                                 onClick={bulkMatchSkuAssets}
