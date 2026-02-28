@@ -2162,7 +2162,7 @@ export default function WorkspaceClient() {
                                         <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
                                             <th className="px-8 py-5">SKU</th>
                                             <th className="px-8 py-5">Stato Asset</th>
-                                            <th className="px-8 py-5">Preview</th>
+                                            <th className="px-8 py-5" colSpan={4}>Asset Immagini (Miniature)</th>
                                             {/* Dynamic User Mapped Columns */}
                                             {Object.entries(csvMapping).map(([field, header]) => {
                                                 if (!header || field.startsWith('image')) return null;
@@ -2194,27 +2194,289 @@ export default function WorkspaceClient() {
                                                             </div>
                                                         )}
                                                     </td>
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex items-center gap-3">
-                                                            {p.images[0] ? (
-                                                                <div className="w-12 h-12 rounded-lg border border-gray-100 overflow-hidden bg-white shadow-sm">
-                                                                    <img src={resolveImageUrl(p.images[0].url)} className="w-full h-full object-cover" />
+                                                    {[0, 1, 2, 3].map((slot) => (
+                                                        <td key={slot} className="px-2 py-6">
+                                                            <div className="relative group/slot z-10 hover:z-[70]">
+                                                                <div
+                                                                    onClick={() => setActivePicker({ type: 'image', row: idx, field: `slot-${slot}` })}
+                                                                    onMouseEnter={() => {
+                                                                        if (p.images[slot]) setPreviewImage(resolveImageUrl(p.images[slot].url));
+                                                                    }}
+                                                                    onMouseLeave={() => setPreviewImage(null)}
+                                                                    className="w-14 h-14 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center hover:border-orange-300 transition-all cursor-pointer group-hover/slot:scale-[2.5] group-hover/slot:shadow-2xl group-hover/slot:border-orange-400 group-hover/slot:rotate-2"
+                                                                >
+                                                                    {p.images[slot] ? (
+                                                                        <img src={resolveImageUrl(p.images[slot].url)} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <ImageIcon className="w-4 h-4 text-gray-200" />
+                                                                    )}
                                                                 </div>
-                                                            ) : (
-                                                                <div className="w-12 h-12 rounded-lg border-2 border-dashed border-gray-100 flex items-center justify-center">
-                                                                    <ImageIcon className="w-4 h-4 text-gray-200" />
-                                                                </div>
-                                                            )}
-                                                            <p className="text-[10px] text-gray-400 font-mono truncate max-w-[120px]" title={p.images[0]?.url}>
-                                                                {p.images[0]?.url || '---'}
-                                                            </p>
-                                                        </div>
-                                                    </td>
+
+                                                                {activePicker?.type === 'image' && activePicker.row === idx && activePicker.field === `slot-${slot}` && (
+                                                                    <div
+                                                                        onMouseLeave={() => setActivePicker(null)}
+                                                                        className={`absolute ${idx < 5 ? 'top-full mt-4' : 'bottom-full mb-4'} left-0 w-80 bg-white border border-gray-100 rounded-2xl shadow-2xl z-[100] p-4 animate-in fade-in zoom-in duration-200`}
+                                                                    >
+                                                                        <div className="flex items-center justify-between mb-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                                                                            <button
+                                                                                onClick={() => setPickerSourceMode('pdf')}
+                                                                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <FileText className="w-3 h-3" />
+                                                                                PDF Source
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setPickerSourceMode('web');
+                                                                                    setPickerSearchQuery(p.sku);
+                                                                                    if (webResults.length === 0) handleWebSearch(p, p.sku);
+                                                                                }}
+                                                                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                            >
+                                                                                <Globe className="w-3 h-3" />
+                                                                                WEB Intelligence
+                                                                            </button>
+                                                                        </div>
+
+                                                                        <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto custom-scrollbar p-1">
+                                                                            <div
+                                                                                onClick={() => {
+                                                                                    const newProducts = [...products];
+                                                                                    const newImages = [...p.images];
+                                                                                    newImages[slot] = undefined as any;
+                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                    setProducts(newProducts);
+                                                                                    setActivePicker(null);
+                                                                                }}
+                                                                                className="aspect-square rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center hover:border-red-200 cursor-pointer"
+                                                                            >
+                                                                                <Trash2 className="w-4 h-4 text-red-300" />
+                                                                            </div>
+
+                                                                            {pickerSourceMode === 'pdf' ? (
+                                                                                <>
+                                                                                    <div className="col-span-3 flex items-center justify-between bg-gray-50 rounded-xl p-2 mb-2 border border-gray-100 shadow-inner">
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setPickerPageIdx(prev => Math.max(0, prev - 1));
+                                                                                            }}
+                                                                                            disabled={pickerPageIdx === 0}
+                                                                                            className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                        >
+                                                                                            <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+                                                                                        </button>
+                                                                                        <div className="flex flex-col items-center">
+                                                                                            <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-0.5">Sorgente PDF</span>
+                                                                                            <div className="text-[10px] font-black text-[#111827] uppercase tracking-wider">
+                                                                                                Pagina {pickerPageIdx + 1} <span className="text-gray-200">/</span> {pdfPages.length}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setPickerPageIdx(prev => Math.min(pdfPages.length - 1, prev + 1));
+                                                                                            }}
+                                                                                            disabled={pdfPages.length === 0 || pickerPageIdx === pdfPages.length - 1}
+                                                                                            className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                        >
+                                                                                            <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    {pdfPages[pickerPageIdx] && (
+                                                                                        <>
+                                                                                            {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
+                                                                                                <div
+                                                                                                    key={`sub-${pickerPageIdx}-${sIdx}`}
+                                                                                                    onMouseEnter={() => setPreviewImage(sImg.preview)}
+                                                                                                    onMouseLeave={() => setPreviewImage(null)}
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        const newProducts = [...products];
+                                                                                                        const newImages = [...p.images];
+                                                                                                        newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
+                                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                        setProducts(newProducts);
+                                                                                                        extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
+                                                                                                        setActivePicker(null);
+                                                                                                    }}
+                                                                                                    className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                >
+                                                                                                    <img src={sImg.preview} className="w-full h-full object-contain" />
+                                                                                                </div>
+                                                                                            ))}
+                                                                                            <div
+                                                                                                onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
+                                                                                                onMouseLeave={() => setPreviewImage(null)}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    const newProducts = [...products];
+                                                                                                    const newImages = [...p.images];
+                                                                                                    newImages[slot] = { id: Math.random().toString(), url: pdfPages[pickerPageIdx].imageUrl };
+                                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                    setProducts(newProducts);
+                                                                                                    setActivePicker(null);
+                                                                                                }}
+                                                                                                className="aspect-square rounded-lg border border-gray-100 overflow-hidden hover:border-gray-500 cursor-pointer transition-all bg-white hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                            >
+                                                                                                <img src={pdfPages[pickerPageIdx].imageUrl} className="w-full h-full object-contain" />
+                                                                                            </div>
+                                                                                        </>
+                                                                                    )}
+                                                                                </>
+                                                                            ) : (
+                                                                                <>
+                                                                                    <div className="col-span-3 pb-2 flex items-center gap-2">
+                                                                                        <Search className="w-3 h-3 text-gray-400" />
+                                                                                        <input
+                                                                                            value={pickerSearchQuery}
+                                                                                            onChange={(e) => setPickerSearchQuery(e.target.value)}
+                                                                                            placeholder="Cerca immagini..."
+                                                                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
+                                                                                        />
+                                                                                        <button
+                                                                                            onClick={() => handleWebSearch(p, pickerSearchQuery)}
+                                                                                            className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                                                                        >
+                                                                                            <Search className="w-3 h-3" />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                    {isSearchingWeb ? (
+                                                                                        <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
+                                                                                            <div className="w-5 h-5 border-2 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
+                                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase">Ricerca in corso...</span>
+                                                                                        </div>
+                                                                                    ) : (
+                                                                                        webResults.map((result, rIdx) => (
+                                                                                            <div
+                                                                                                key={rIdx}
+                                                                                                onMouseEnter={() => setPreviewImage(result.url)}
+                                                                                                onMouseLeave={() => setPreviewImage(null)}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    const newProducts = [...products];
+                                                                                                    const newImages = [...p.images];
+                                                                                                    newImages[slot] = { id: Math.random().toString(), url: result.url };
+                                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                    setProducts(newProducts);
+                                                                                                    setActivePicker(null);
+                                                                                                }}
+                                                                                                className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
+                                                                                            >
+                                                                                                <img src={result.url} className="w-full h-full object-contain" />
+                                                                                            </div>
+                                                                                        ))
+                                                                                    )}
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    ))}
                                                     {Object.entries(csvMapping).map(([field, header]) => {
                                                         if (!header || field.startsWith('image')) return null;
-                                                        let val = (p as any)[field] || (p.extraFields?.[field]) || '---';
-                                                        if (field === 'price' && val !== '---') val = `€ ${val}`;
-                                                        return <td key={field} className="px-8 py-6 text-sm font-bold text-gray-600 truncate max-w-[200px]">{val}</td>;
+                                                        const currentCol = { key: field, label: header, isSystem: !extraColumns.includes(field) };
+                                                        const val = (p as any)[field] || (p.extraFields?.[field]) || '';
+
+                                                        return (
+                                                            <td key={field} className="px-8 py-6 relative">
+                                                                <div className="relative group/edit">
+                                                                    <div
+                                                                        onClick={() => {
+                                                                            setActivePicker({ type: 'text', row: idx, field: field });
+                                                                            setPickerSearch("");
+                                                                        }}
+                                                                        className="min-w-[120px] max-w-[200px] bg-transparent hover:bg-blue-50/50 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 transition-all border border-transparent hover:border-blue-100 cursor-pointer flex items-center justify-between"
+                                                                    >
+                                                                        <span className="truncate">{val || '---'}</span>
+                                                                        <ChevronRight className="w-3 h-3 text-gray-300 opacity-0 group-hover/edit:opacity-100 transition-opacity" />
+                                                                    </div>
+
+                                                                    <AnimatePresence>
+                                                                        {activePicker?.type === 'text' && activePicker.row === idx && activePicker.field === field && (
+                                                                            <motion.div
+                                                                                initial={{ opacity: 0, y: -10 }}
+                                                                                animate={{ opacity: 1, y: 0 }}
+                                                                                exit={{ opacity: 0, y: -10 }}
+                                                                                className={`absolute z-[200] ${idx < 5 ? 'top-full mt-2' : 'bottom-full mb-2'} left-0 w-80 bg-white border border-gray-100 rounded-3xl shadow-[0_30px_60px_rgba(0,0,0,0.1)] p-6`}
+                                                                                onMouseLeave={() => setActivePicker(null)}
+                                                                            >
+                                                                                <div className="flex items-center gap-3 mb-4">
+                                                                                    <div className="p-2 bg-blue-50 rounded-xl">
+                                                                                        <Database className="w-4 h-4 text-blue-600" />
+                                                                                    </div>
+                                                                                    <div className="flex-1">
+                                                                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Associa Valore</p>
+                                                                                        <h4 className="text-xs font-black text-[#111827]">{header}</h4>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="relative mb-4">
+                                                                                    <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                                                                                    <input
+                                                                                        autoFocus
+                                                                                        type="text"
+                                                                                        placeholder="Cerca o digita valore..."
+                                                                                        value={pickerSearch || val}
+                                                                                        onChange={(e) => setPickerSearch(e.target.value)}
+                                                                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                                                                    />
+                                                                                </div>
+
+                                                                                <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2 p-1">
+                                                                                    {/* Unique values from CSV list for this column */}
+                                                                                    {Array.from(new Set(csvMasterList.map(item => String((item as any)[header] || "")).filter(v => v && v.toLowerCase().includes(pickerSearch.toLowerCase())))).slice(0, 15).map((uVal, uIdx) => (
+                                                                                        <div
+                                                                                            key={uIdx}
+                                                                                            onClick={() => {
+                                                                                                const newProducts = [...products];
+                                                                                                if (currentCol.isSystem) {
+                                                                                                    (newProducts[idx] as any)[currentCol.key] = uVal;
+                                                                                                } else {
+                                                                                                    newProducts[idx] = {
+                                                                                                        ...p,
+                                                                                                        extraFields: { ...p.extraFields, [currentCol.key]: uVal }
+                                                                                                    };
+                                                                                                }
+                                                                                                setProducts(newProducts);
+                                                                                                setActivePicker(null);
+                                                                                            }}
+                                                                                            className="p-3 hover:bg-blue-50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-blue-200 flex items-center justify-between group"
+                                                                                        >
+                                                                                            <span className="text-xs font-bold text-gray-600">{uVal}</span>
+                                                                                            <CheckCircle2 className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
+                                                                                        </div>
+                                                                                    ))}
+                                                                                    {pickerSearch && !csvMasterList.some(i => (i as any)[header] === pickerSearch) && (
+                                                                                        <div
+                                                                                            onClick={() => {
+                                                                                                const newProducts = [...products];
+                                                                                                if (currentCol.isSystem) {
+                                                                                                    (newProducts[idx] as any)[currentCol.key] = pickerSearch;
+                                                                                                } else {
+                                                                                                    newProducts[idx] = {
+                                                                                                        ...p,
+                                                                                                        extraFields: { ...p.extraFields, [currentCol.key]: pickerSearch }
+                                                                                                    };
+                                                                                                }
+                                                                                                setProducts(newProducts);
+                                                                                                setActivePicker(null);
+                                                                                            }}
+                                                                                            className="p-3 bg-green-50/50 border border-green-100 rounded-xl cursor-pointer hover:bg-green-100"
+                                                                                        >
+                                                                                            <span className="text-[10px] font-black text-green-600 uppercase">Salva Nuovo: </span>
+                                                                                            <span className="text-xs font-black text-green-700">{pickerSearch}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            </td>
+                                                        );
                                                     })}
                                                 </tr>
                                             );
