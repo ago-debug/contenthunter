@@ -35,8 +35,15 @@ export default function Sidebar() {
                             href="/"
                             className={`sidebar-item ${pathname === '/' ? 'active' : ''}`}
                         >
+                            <Database className="w-5 h-5" />
+                            Master ERP
+                        </Link>
+                        <Link
+                            href="/import"
+                            className={`sidebar-item ${pathname === '/import' ? 'active' : ''}`}
+                        >
                             <LayoutDashboard className="w-5 h-5" />
-                            Workspace
+                            Area Importazione
                         </Link>
                         <Link
                             href="/catalogues"
