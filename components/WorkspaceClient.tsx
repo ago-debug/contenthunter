@@ -278,7 +278,7 @@ export default function WorkspaceClient() {
 
     const handlePdfAiMatch = async (product: any) => {
         // Cerca la migliore immagine di riferimento (web o locale)
-        const targetImg = product.images.find((img: any) => img && img.url && !img.url.startsWith('PAGE_REF_') && img.url !== 'LOCAL_SESSION_ASSET');
+        const targetImg = product.images.find((img: any) => img && img.url && typeof img.url === 'string' && !img.url.startsWith('PAGE_REF_') && img.url !== 'LOCAL_SESSION_ASSET');
         if (!targetImg) {
             toast.warning("Nessuna immagine di riferimento valida (caricata da web o cartella) per questo prodotto.");
             return;
@@ -464,7 +464,7 @@ export default function WorkspaceClient() {
     }, []);
 
     const resolveImageUrl = (url: string) => {
-        if (url.startsWith("PAGE_REF_")) {
+        if (url && typeof url === 'string' && url.startsWith("PAGE_REF_")) {
             const idx = parseInt(url.split("_")[2]) - 1;
             return pdfPages[idx]?.imageUrl || "";
         }
@@ -475,7 +475,7 @@ export default function WorkspaceClient() {
         if (!baseUrl) return "";
         let processedBase = baseUrl.trim();
         processedBase = processedBase.endsWith('/') ? processedBase : `${processedBase}/`;
-        if (processedBase.startsWith('/public/')) {
+        if (processedBase && typeof processedBase === 'string' && processedBase.startsWith('/public/')) {
             processedBase = processedBase.replace('/public', '');
         }
         return encodeURI(`${processedBase}${sku.trim()}${ext}`);
@@ -2739,7 +2739,7 @@ export default function WorkspaceClient() {
                                             <th className="px-8 py-5" colSpan={4}>Asset Immagini (Miniature)</th>
                                             {/* Dynamic User Mapped Columns */}
                                             {Object.entries(csvMapping).map(([field, header]) => {
-                                                if (!header || field.startsWith('image')) return null;
+                                                if (!header || !field || typeof field !== 'string' || field.startsWith('image')) return null;
                                                 const label = field.replace(/([A-Z])/g, ' $1').trim().charAt(0).toUpperCase() + field.replace(/([A-Z])/g, ' $1').trim().slice(1);
                                                 return <th key={field} className="px-8 py-5">{label}</th>;
                                             })}
@@ -3073,7 +3073,7 @@ export default function WorkspaceClient() {
                                                         </td>
                                                     ))}
                                                     {Object.entries(csvMapping).map(([field, header]) => {
-                                                        if (!header || field.startsWith('image')) return null;
+                                                        if (!header || !field || typeof field !== 'string' || field.startsWith('image')) return null;
                                                         const currentCol = { key: field, label: header, isSystem: !extraColumns.includes(field) };
                                                         const val = (p as any)[field] || (p.extraFields?.[field]) || '';
 
