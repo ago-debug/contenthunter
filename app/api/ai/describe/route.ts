@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { OpenAI } from "openai";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: Request) {
     try {
         const body = await req.json();
@@ -34,6 +30,14 @@ Istruzioni:
 3. Usa un tono elegante, commerciale e accattivante.
 4. Concludi con un piccolo elenco puntato (Bullet points) dei punti di forza (es. Materiale, Dimensioni ecc.. se presenti).
 `;
+
+        if (!process.env.OPENAI_API_KEY) {
+            return NextResponse.json({ error: "API Key mancante sul server." }, { status: 500 });
+        }
+
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY,
+        });
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
