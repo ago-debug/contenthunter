@@ -8,89 +8,105 @@ import {
     FileDown,
     Calendar,
     BarChart3,
-    History
+    History,
+    Settings,
+    ShieldCheck,
+    Box,
+    Globe,
+    Cpu
 } from "lucide-react";
 
 export default function Sidebar() {
     const pathname = usePathname();
 
+    const menuGroups = [
+        {
+            label: "Core PIM",
+            items: [
+                { href: "/", label: "Master ERP", icon: Database },
+                { href: "/import", label: "Import Lab", icon: FileDown },
+                { href: "/catalogues", label: "Catalogues", icon: Box },
+            ]
+        },
+        {
+            label: "Distribution",
+            items: [
+                { href: "/export", label: "Excel Export", icon: FileDown },
+                { href: "/channels", label: "Omnichannel", icon: Globe },
+            ]
+        },
+        {
+            label: "System & AI",
+            items: [
+                { href: "/settings", label: "Settings", icon: Settings },
+                { href: "/admin", label: "Control Center", icon: ShieldCheck },
+            ]
+        }
+    ];
+
     return (
-        <aside className="w-80 bg-white border-r border-[#E5E7EB] sticky top-0 h-screen flex flex-col p-6 overflow-y-auto custom-scrollbar">
-            <div className="flex items-center gap-4 px-4 mb-12">
-                <div className="w-10 h-10 rounded-xl bg-orange-200 flex items-center justify-center font-black text-orange-800">
+        <aside className="w-80 bg-white border-r border-[#E5E7EB] sticky top-0 h-screen flex flex-col p-8 overflow-y-auto custom-scrollbar">
+            <div className="flex items-center gap-4 mb-14 px-2">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center font-black text-white shadow-xl shadow-slate-200">
                     CH
                 </div>
-                <h1 className="text-xl font-black tracking-tight text-[#111827]">
-                    Content <span className="text-gray-400">Hunter</span>
-                </h1>
+                <div>
+                    <h1 className="text-xl font-black tracking-tighter text-slate-900 leading-none">
+                        Content<span className="text-blue-600">Hunter</span>
+                    </h1>
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mt-1.5">Enterprise PIM</p>
+                </div>
             </div>
 
-            <nav className="space-y-8">
-                <div>
-                    <h3 className="px-6 text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">
-                        Menu Principale
-                    </h3>
-                    <div className="space-y-1">
-                        <Link
-                            href="/"
-                            className={`sidebar-item ${pathname === '/' ? 'active' : ''}`}
-                        >
-                            <Database className="w-5 h-5" />
-                            Master ERP
-                        </Link>
-                        <Link
-                            href="/import"
-                            className={`sidebar-item ${pathname === '/import' ? 'active' : ''}`}
-                        >
-                            <LayoutDashboard className="w-5 h-5" />
-                            Area Importazione
-                        </Link>
-                        <Link
-                            href="/catalogues"
-                            className={`sidebar-item ${pathname === '/catalogues' ? 'active' : ''}`}
-                        >
-                            <Database className="w-5 h-5" />
-                            Catalogues
-                        </Link>
-                        <Link
-                            href="/export"
-                            className={`sidebar-item ${pathname === '/export' ? 'active' : ''}`}
-                        >
-                            <FileDown className="w-5 h-5" />
-                            Export Console
-                        </Link>
-                        <div className="sidebar-item opacity-50 cursor-not-allowed">
-                            <Calendar className="w-5 h-5" />
-                            Schedule
+            <nav className="flex-1 space-y-10">
+                {menuGroups.map((group, gIdx) => (
+                    <div key={gIdx} className="space-y-4">
+                        <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.25em]">
+                            {group.label}
+                        </h3>
+                        <div className="space-y-1.5">
+                            {group.items.map((item, iIdx) => {
+                                const Icon = item.icon;
+                                const isActive = pathname === item.href;
+                                return (
+                                    <Link
+                                        key={iIdx}
+                                        href={item.href}
+                                        className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all group ${isActive
+                                            ? 'bg-slate-50 text-slate-900 shadow-sm border border-slate-100'
+                                            : 'text-slate-400 hover:bg-slate-50/50 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        <div className={`p-2 rounded-xl transition-all ${isActive ? 'bg-white shadow-sm text-blue-600' : 'text-slate-300 group-hover:text-slate-500'}`}>
+                                            <Icon className="w-4 h-4" />
+                                        </div>
+                                        <span className="tracking-tight">{item.label}</span>
+                                        {isActive && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-600"></div>}
+                                    </Link>
+                                );
+                            })}
                         </div>
                     </div>
-                </div>
-
-                <div>
-                    <h3 className="px-6 text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">
-                        Analytics
-                    </h3>
-                    <div className="space-y-1">
-                        <div className="sidebar-item opacity-50 cursor-not-allowed">
-                            <BarChart3 className="w-5 h-5" />
-                            Reports
-                        </div>
-                        <div className="sidebar-item opacity-50 cursor-not-allowed">
-                            <History className="w-5 h-5" />
-                            Audit Logs
-                        </div>
-                    </div>
-                </div>
+                ))}
             </nav>
 
-            <div className="mt-auto pt-8 border-t border-[#E5E7EB]">
-                <div className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-gray-50 cursor-pointer">
-                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
-                        AG
+            <div className="mt-12 pt-8 border-t border-slate-100">
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 hover:border-blue-100 transition-all cursor-pointer group">
+                    <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 group-hover:border-blue-200 group-hover:text-blue-600 transition-all">
+                            <Cpu className="w-5 h-5" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-black text-slate-900">AI Node Active</span>
+                            <span className="text-[10px] font-bold text-slate-400">GPT-4o Engine</span>
+                        </div>
                     </div>
+                </div>
+                <div className="flex items-center gap-4 px-4 py-6">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm"></div>
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold text-gray-900">Augusto G.</span>
-                        <span className="text-[10px] text-gray-400">Administrator</span>
+                        <span className="text-xs font-black text-slate-900">Administrator</span>
+                        <span className="text-[10px] font-bold text-slate-400">Enterprise Access</span>
                     </div>
                 </div>
             </div>

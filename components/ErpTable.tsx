@@ -17,6 +17,16 @@ export default function ErpTable() {
     const [webImages, setWebImages] = useState<string[]>([]);
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+    const CorporateImage = ({ src, alt, className }: { src: string, alt: string, className?: string }) => {
+        const [error, setError] = useState(false);
+        if (error || !src) return (
+            <div className={`flex items-center justify-center bg-slate-50 border border-slate-100 ${className}`}>
+                <Box className="w-1/3 h-1/3 text-slate-200" />
+            </div>
+        );
+        return <img src={src} alt={alt} className={className} onError={() => setError(true)} />;
+    };
     const [brandFilter, setBrandFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
@@ -323,11 +333,7 @@ export default function ErpTable() {
                                     <tr key={p.id} className="hover:bg-blue-50/50 transition-colors group">
                                         <td className="px-8 py-4">
                                             <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
-                                                {p.images && p.images[0] ? (
-                                                    <img src={p.images[0].url} alt={p.sku} className="w-full h-full object-contain" />
-                                                ) : (
-                                                    <span className="text-[9px] font-black uppercase text-gray-300 tracking-widest">Nessuna</span>
-                                                )}
+                                                <CorporateImage src={p.images && p.images[0]?.url} alt={p.sku} className="w-full h-full object-contain" />
                                             </div>
                                         </td>
                                         <td className="px-8 py-4">
@@ -560,7 +566,7 @@ export default function ErpTable() {
                                                     {selectedProduct.images && selectedProduct.images.length > 0 ? (
                                                         selectedProduct.images.map((img: any, i: number) => (
                                                             <div key={img.id || i} className="group relative aspect-square rounded-2xl border border-gray-200 overflow-hidden bg-gray-50 shadow-sm hover:border-blue-300 transition-all">
-                                                                <img src={img.url} className="w-full h-full object-contain p-2" />
+                                                                <CorporateImage src={img.url} alt={selectedProduct.sku} className="w-full h-full object-contain p-2" />
                                                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
                                                                     <button
                                                                         onClick={() => {
@@ -632,14 +638,15 @@ export default function ErpTable() {
                                                     <div className="md:col-span-2 bg-white p-8 rounded-3xl border border-gray-200 shadow-sm animate-in zoom-in-95">
                                                         <h5 className="text-[9px] font-black uppercase tracking-widest text-blue-600 mb-6 bg-blue-50 w-max px-3 py-1 rounded-full border border-blue-100 italic">Risultati Ricerca Remota</h5>
                                                         <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-6">
-                                                            {webImages.map((wImg: string, idx: number) => (
+                                                            {webImages.map((wImg: any, idx: number) => (
                                                                 <div key={idx} className="relative aspect-square w-28 h-28 shrink-0 rounded-2xl overflow-hidden border border-gray-100 group bg-gray-50 cursor-pointer hover:border-blue-500 shadow-sm"
                                                                     onClick={() => {
-                                                                        const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: wImg }];
+                                                                        const url = typeof wImg === 'string' ? wImg : wImg.url;
+                                                                        const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url }];
                                                                         setSelectedProduct({ ...selectedProduct, images: newImages });
                                                                         toast.success("Risorsa accodata.");
                                                                     }}>
-                                                                    <img src={wImg} className="w-full h-full object-contain p-2" />
+                                                                    <CorporateImage src={typeof wImg === 'string' ? wImg : wImg.url} alt="Web Match" className="w-full h-full object-contain p-2" />
                                                                     <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
                                                                         <div className="p-2 bg-blue-600 text-white rounded-full scale-50 group-hover:scale-100 transition-all">
                                                                             <Plus className="w-4 h-4" />

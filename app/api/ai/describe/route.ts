@@ -11,41 +11,35 @@ export async function POST(req: Request) {
         }
 
         const prompt = `
-Sei un esperto copywriter per cataloghi e-commerce. A partire dai seguenti dati grezzi o parziali di un prodotto, crea una descrizione accattivante, SEO-friendly e professionale in lingua ${language}.
+Sei un copywriter e-commerce senior. Genera una descrizione prodotto professionale, SEO ed accattivante in ${language}.
+Sii estremamente rapido e conciso, evita introduzioni inutili.
 
-Dati prodotto:
-SKU: ${productData.sku || 'N/A'}
-Titolo originale: ${productData.title || 'N/A'}
-Descrizione corrente: ${productData.description || 'N/A'}
-Descrizione file originale (Doc): ${productData.docDescription || 'N/A'}
-Brand: ${productData.brand || 'N/A'}
-Categoria: ${productData.category || 'N/A'}
-Dimensioni: ${productData.dimensions || 'N/A'}
-Peso: ${productData.weight || 'N/A'}
-Materiale/Finitura: ${productData.material || 'N/A'}
+Dati di input:
+SKU: ${productData.sku || ''}
+Titolo: ${productData.title || ''}
+Fornito dal PDF: ${productData.docDescription || ''}
+Brand/Cat: ${productData.brand || ''} / ${productData.category || ''}
 
-Istruzioni:
-1. Ignora campi "N/A" o vuoti.
-2. Formatta il risultato in Markdown pronto per il web (usa un titolo descrittivo <h3> o paragrafi standard).
-3. Usa un tono elegante, commerciale e accattivante.
-4. Concludi con un piccolo elenco puntato (Bullet points) dei punti di forza (es. Materiale, Dimensioni ecc.. se presenti).
+FORMATO RICHIESTO:
+- 3 paragrafi brevi e incisivi.
+- Un breve elenco puntato 'Caratteristiche Premium'.
+- Markdown pulito.
 `;
 
         if (!process.env.OPENAI_API_KEY) {
-            return NextResponse.json({ error: "API Key mancante sul server." }, { status: 500 });
+            return NextResponse.json({ error: "API Key mancante." }, { status: 500 });
         }
 
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY,
-        });
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { role: "system", content: "Sei un assistente e-commerce preparato ed elegante." },
+                { role: "system", content: "Sei un generatore ultrarapido di schede prodotto professionali." },
                 { role: "user", content: prompt }
             ],
-            temperature: 0.7,
+            temperature: 0.5,
+            max_tokens: 600,
         });
 
         const generatedText = completion.choices[0].message.content;
