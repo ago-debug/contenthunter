@@ -11,7 +11,7 @@ import * as XLSX from "xlsx";
 
 // Configure PDF.js worker for production
 if (typeof window !== "undefined") {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
 
 interface ProductImage {
@@ -395,11 +395,15 @@ export default function WorkspaceClient() {
         setIsProcessing(true);
 
         try {
+            // Leggiamo i dati localmente prima della fetch per evitare stream locckati dal body upload
+            const arrayBuffer = await file.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+
             // Upload as raw binary stream to bypass Next.js JSON size limits
             const resp = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/octet-stream" },
-                body: file
+                body: uint8Array // Invia direttamente il typed array per max stabilità
             });
 
             if (!resp.ok) {
@@ -411,8 +415,6 @@ export default function WorkspaceClient() {
             setCatalogId(data.catalogId);
 
             // Pass local binary to extractFromPdf to bypass any fetch/URL errors from NextJS
-            const arrayBuffer = await file.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
             await extractFromPdf(data.filePath, uint8Array);
         } catch (err: any) {
             const errorMsg = err.message || "Caricamento fallito";
