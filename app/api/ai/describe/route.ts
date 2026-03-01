@@ -32,19 +32,42 @@ FORMATO RICHIESTO:
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        const completion = await openai.chat.completions.create({
+        const stream = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
-                { role: "system", content: "Sei un generatore ultrarapido di schede prodotto professionali." },
+                { role: "system", content: "Sei un generatore ultrarapido di schede prodotto professionali. Rispondi SOLO con il contenuto finale, niente introduzioni." },
                 { role: "user", content: prompt }
             ],
             temperature: 0.5,
-            max_tokens: 600,
+            max_tokens: 800,
+            stream: true,
         });
 
-        const generatedText = completion.choices[0].message.content;
+        const responseStream = new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                try {
+                    for await (const chunk of stream) {
+                        const content = chunk.choices[0]?.delta?.content || "";
+                        if (content) {
+                            controller.enqueue(encoder.encode(content));
+                        }
+                    }
+                } catch (err) {
+                    controller.error(err);
+                } finally {
+                    controller.close();
+                }
+            },
+        });
 
-        return NextResponse.json({ success: true, description: generatedText });
+        return new Response(responseStream, {
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            },
+        });
     } catch (err: any) {
         console.error("OpenAI Error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });

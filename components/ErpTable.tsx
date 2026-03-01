@@ -86,29 +86,45 @@ export default function ErpTable() {
     const handleGenerateAIDescription = async () => {
         if (!selectedProduct) return;
         setIsGeneratingAI(true);
-        toast.loading("L'AI sta scrivendo la descrizione...", { toastId: 'ai-desc-erp' });
+        const toastId = 'ai-desc-erp';
+        toast.loading("L'AI sta scrivendo la descrizione...", { toastId });
+
         try {
             const { images, extraFields, docDescription, ...cleanProductData } = selectedProduct;
 
-            const res = await axios.post("/api/ai/describe", {
-                productData: {
-                    ...cleanProductData,
-                    docDescription: docDescription?.substring(0, 2000) || "",
-                    extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
-                },
-                language: "it"
+            const response = await fetch("/api/ai/describe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    productData: {
+                        ...cleanProductData,
+                        docDescription: docDescription?.substring(0, 2000) || "",
+                        extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
+                    },
+                    language: "it"
+                })
             });
 
-            if (res.data.success) {
-                setSelectedProduct({ ...selectedProduct, description: res.data.description });
-                toast.success("Descrizione magica generata!", { toastId: 'ai-desc-erp' });
-            } else {
-                toast.error(`Errore AI: ${res.data.error || "Server error"}`, { toastId: 'ai-desc-erp' });
+            if (!response.ok) throw new Error("Errore durante la generazione");
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let accumulated = "";
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    accumulated += decoder.decode(value, { stream: true });
+                    // Update state in real-time
+                    setSelectedProduct((prev: any) => prev ? { ...prev, description: accumulated } : null);
+                }
             }
+
+            toast.success("Descrizione completata!", { toastId });
         } catch (error: any) {
             console.error(error);
-            const msg = error.response?.data?.error || error.message || "Errore di connessione";
-            toast.error(`Errore di connessione AI: ${msg}`, { toastId: 'ai-desc-erp' });
+            toast.error("Errore di connessione o generazione", { toastId });
         } finally {
             setIsGeneratingAI(false);
         }
