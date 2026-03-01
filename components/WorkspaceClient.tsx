@@ -1996,7 +1996,7 @@ export default function WorkspaceClient() {
                                                         <span className="font-mono font-bold text-[#E6D3C1] bg-black px-3 py-1.5 rounded-lg text-sm whitespace-nowrap">{p.sku}</span>
                                                         <button
                                                             onClick={() => handleAutoFillData(p, idx)}
-                                                            className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-100"
+                                                            className="text-[10px] font-bold text-slate-900 hover:text-slate-800 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-slate-50 hover:bg-slate-200 px-2 py-1 rounded-md border border-slate-200"
                                                             title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
                                                         >
                                                             <Sparkles className="w-3 h-3" />
@@ -2008,7 +2008,7 @@ export default function WorkspaceClient() {
                                                                 <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
                                                             </div>
                                                             <div className="flex gap-1 w-full">
-                                                                <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-slate-50 text-slate-900 border border-slate-200 py-1 rounded hover:bg-slate-200 font-bold tracking-wider">WEB</button>
                                                                 <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
                                                             </div>
                                                         </div>
@@ -2050,7 +2050,7 @@ export default function WorkspaceClient() {
                                                                     >
                                                                         <div className="flex gap-1 mb-3 p-1 bg-gray-50 rounded-lg border border-gray-100">
                                                                             <button onClick={() => setPickerSourceMode('pdf')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400'}`}>PDF</button>
-                                                                            <button onClick={() => setPickerSourceMode('file')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'file' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>FILE</button>
+                                                                            <button onClick={() => setPickerSourceMode('file')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'file' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}>FILE</button>
                                                                             <button onClick={() => setPickerSourceMode('web')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-400'}`}>WEB</button>
                                                                         </div>
 
@@ -2104,10 +2104,10 @@ export default function WorkspaceClient() {
                                                                                             }
                                                                                             setActivePicker(null);
                                                                                         }}
-                                                                                        className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-all cursor-pointer"
+                                                                                        className="p-3 bg-slate-50/50 border border-slate-200 rounded-xl hover:bg-slate-200 transition-all cursor-pointer"
                                                                                     >
-                                                                                        <p className="text-[10px] font-bold text-blue-900 mb-1">Valore nel file per SKU {p.sku}</p>
-                                                                                        <p className="text-xs font-black text-blue-600">{activePicker ? String((item as any)[csvMapping[activePicker.field]] || "N/A") : "N/A"}</p>
+                                                                                        <p className="text-[10px] font-bold text-slate-900 mb-1">Valore nel file per SKU {p.sku}</p>
+                                                                                        <p className="text-xs font-black text-slate-900">{activePicker ? String((item as any)[csvMapping[activePicker.field]] || "N/A") : "N/A"}</p>
                                                                                     </div>
                                                                                 ))}
 
@@ -2170,7 +2170,7 @@ export default function WorkspaceClient() {
                                                                     >
                                                                         <div className="flex gap-1 mb-3 p-1 bg-gray-50 rounded-lg border border-gray-100">
                                                                             <button onClick={() => setPickerSourceMode('pdf')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400'}`}>PDF</button>
-                                                                            <button onClick={() => setPickerSourceMode('file')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'file' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>FILE</button>
+                                                                            <button onClick={() => setPickerSourceMode('file')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'file' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}>FILE</button>
                                                                             <button onClick={() => setPickerSourceMode('web')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-400'}`}>WEB</button>
                                                                         </div>
 
@@ -2257,15 +2257,15 @@ export default function WorkspaceClient() {
                                                                                             setActivePicker(null);
                                                                                             setPickerSearch("");
                                                                                         }}
-                                                                                        className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-all cursor-pointer group"
+                                                                                        className="p-3 bg-slate-50/50 border border-slate-200 rounded-xl hover:bg-slate-200 transition-all cursor-pointer group"
                                                                                     >
                                                                                         <div className="flex justify-between items-start mb-1">
-                                                                                            <p className="text-[9px] font-bold text-blue-900 overflow-hidden text-ellipsis whitespace-nowrap max-w-[120px]">
+                                                                                            <p className="text-[9px] font-bold text-slate-900 overflow-hidden text-ellipsis whitespace-nowrap max-w-[120px]">
                                                                                                 {String(item[csvMapping.sku] || "N/A")}
                                                                                             </p>
-                                                                                            <span className="text-[8px] bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded uppercase font-black">Match Listino</span>
+                                                                                            <span className="text-[8px] bg-slate-300 text-slate-800 px-1.5 py-0.5 rounded uppercase font-black">Match Listino</span>
                                                                                         </div>
-                                                                                        <p className="text-xs font-black text-blue-600 line-clamp-2">
+                                                                                        <p className="text-xs font-black text-slate-900 line-clamp-2">
                                                                                             {String(item[csvMapping[activePicker.field]] || "Valore vuoto")}
                                                                                         </p>
                                                                                     </div>
@@ -2333,7 +2333,7 @@ export default function WorkspaceClient() {
                                                                     >
                                                                         <div className="flex gap-1 mb-3 p-1 bg-gray-50 rounded-lg border border-gray-100">
                                                                             <button onClick={() => setPickerSourceMode('pdf')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400'}`}>PDF</button>
-                                                                            <button onClick={() => setPickerSourceMode('file')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'file' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}>FILE</button>
+                                                                            <button onClick={() => setPickerSourceMode('file')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'file' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}>FILE</button>
                                                                             <button onClick={() => setPickerSourceMode('web')} className={`flex-1 py-1 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-400'}`}>WEB</button>
                                                                         </div>
 
@@ -2401,10 +2401,10 @@ export default function WorkspaceClient() {
                                                                                             }
                                                                                             setActivePicker(null);
                                                                                         }}
-                                                                                        className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-all cursor-pointer"
+                                                                                        className="p-3 bg-slate-50/50 border border-slate-200 rounded-xl hover:bg-slate-200 transition-all cursor-pointer"
                                                                                     >
-                                                                                        <p className="text-[10px] font-bold text-blue-900 mb-1">Valore nel file per SKU {p.sku}</p>
-                                                                                        <p className="text-xs font-black text-blue-600">{activePicker ? String((item as any)[csvMapping[col.key]] || "N/A") : "N/A"}</p>
+                                                                                        <p className="text-[10px] font-bold text-slate-900 mb-1">Valore nel file per SKU {p.sku}</p>
+                                                                                        <p className="text-xs font-black text-slate-900">{activePicker ? String((item as any)[csvMapping[col.key]] || "N/A") : "N/A"}</p>
                                                                                     </div>
                                                                                 ))}
 
@@ -2465,7 +2465,7 @@ export default function WorkspaceClient() {
                                                                                 setPickerSearchQuery(p.sku);
                                                                                 if (webResults.length === 0) handleWebSearch(p, p.sku);
                                                                             }}
-                                                                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400 hover:text-gray-600'}`}
                                                                         >
                                                                             <Globe className="w-3 h-3" />
                                                                             WEB
@@ -2578,7 +2578,7 @@ export default function WorkspaceClient() {
                                                                                                         extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
                                                                                                         setActivePicker(null);
                                                                                                     }}
-                                                                                                    className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                    className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-400 cursor-pointer transition-all bg-slate-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
                                                                                                 >
                                                                                                     <img src={sImg.preview} className="w-full h-full object-contain" />
                                                                                                 </div>
@@ -2607,14 +2607,14 @@ export default function WorkspaceClient() {
                                                                             <>
                                                                                 <div className="col-span-3 pb-2 flex flex-col gap-2">
                                                                                     <div className="flex items-center justify-between px-1">
-                                                                                        <label className="flex items-center gap-2 cursor-pointer bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+                                                                                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 transition-colors">
                                                                                             <input
                                                                                                 type="checkbox"
                                                                                                 checked={useGoogleShopping}
                                                                                                 onChange={(e) => setUseGoogleShopping(e.target.checked)}
-                                                                                                className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                                                                className="w-3.5 h-3.5 text-slate-900 rounded border-gray-300 focus:ring-slate-900"
                                                                                             />
-                                                                                            <span className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Cerca in Google Shopping</span>
+                                                                                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">Cerca in Google Shopping</span>
                                                                                         </label>
                                                                                     </div>
                                                                                     <div className="flex items-center gap-2">
@@ -2625,11 +2625,11 @@ export default function WorkspaceClient() {
                                                                                             onChange={(e) => setPickerSearchQuery(e.target.value)}
                                                                                             onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
                                                                                             placeholder="Cerca immagini..."
-                                                                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
+                                                                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-400"
                                                                                         />
                                                                                         <button
                                                                                             onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                            className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                                                                            className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-900"
                                                                                         >
                                                                                             <Search className="w-3 h-3" />
                                                                                         </button>
@@ -2637,7 +2637,7 @@ export default function WorkspaceClient() {
                                                                                 </div>
                                                                                 {isSearchingWeb ? (
                                                                                     <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
-                                                                                        <div className="w-5 h-5 border-2 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
+                                                                                        <div className="w-5 h-5 border-2 border-slate-200 border-t-slate-900 rounded-full animate-spin" />
                                                                                         <span className="text-[9px] font-bold text-gray-400 uppercase">Ricerca in corso...</span>
                                                                                     </div>
                                                                                 ) : (
@@ -2670,11 +2670,11 @@ export default function WorkspaceClient() {
                                                                                                 setProducts(newProducts);
                                                                                                 setActivePicker(null);
                                                                                             }}
-                                                                                            className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
+                                                                                            className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-900 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
                                                                                         >
                                                                                             <img src={result.url} className="w-full h-full object-contain" />
                                                                                             {result.productData && (
-                                                                                                <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
+                                                                                                <div className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
                                                                                             )}
                                                                                         </div>
                                                                                     ))
@@ -2684,7 +2684,7 @@ export default function WorkspaceClient() {
                                                                                         <p className="text-[10px] text-gray-400 font-bold uppercase">Nessun risultato</p>
                                                                                         <button
                                                                                             onClick={() => handleWebSearch(p)}
-                                                                                            className="mt-2 text-[9px] text-blue-500 hover:underline font-bold"
+                                                                                            className="mt-2 text-[9px] text-slate-900 hover:underline font-bold"
                                                                                         >
                                                                                             Riprova
                                                                                         </button>
@@ -2746,7 +2746,7 @@ export default function WorkspaceClient() {
                         className="space-y-10"
                     >
                         {/* Asset Matcher Header Card */}
-                        <div className="main-card p-10 bg-gradient-to-br from-blue-50/50 to-white">
+                        <div className="main-card p-10 bg-gradient-to-br from-slate-50/50 to-white">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                                 <div className="flex items-center gap-6">
                                     <div className="p-5 bg-slate-900 rounded-[2rem] shadow-lg shadow-slate-200">
@@ -2865,7 +2865,7 @@ export default function WorkspaceClient() {
                                             value={wsSearchTerm}
                                             onChange={(e) => setWsSearchTerm(e.target.value)}
                                             placeholder="Cerca record..."
-                                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-400 focus:outline-none transition-all w-64 shadow-sm"
+                                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:border-slate-400 focus:outline-none transition-all w-64 shadow-sm"
                                         />
                                     </div>
                                 </div>
@@ -2898,13 +2898,13 @@ export default function WorkspaceClient() {
                                                 const isMatched = p.images.some(img => img.url === assetUrl);
 
                                                 return (
-                                                    <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
+                                                    <tr key={idx} className="hover:bg-slate-50/20 transition-colors">
                                                         <td className="px-8 py-6">
                                                             <div className="flex flex-col items-start gap-2">
                                                                 <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg whitespace-nowrap">{p.sku}</span>
                                                                 <button
                                                                     onClick={() => handleAutoFillData(p, idx)}
-                                                                    className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-100"
+                                                                    className="text-[10px] font-bold text-slate-900 hover:text-slate-800 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-slate-50 hover:bg-slate-200 px-2 py-1 rounded-md border border-slate-200"
                                                                     title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
                                                                 >
                                                                     <Sparkles className="w-3 h-3" />
@@ -2916,7 +2916,7 @@ export default function WorkspaceClient() {
                                                                         <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
                                                                     </div>
                                                                     <div className="flex gap-1 w-full">
-                                                                        <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
+                                                                        <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-slate-50 text-slate-900 border border-slate-200 py-1 rounded hover:bg-slate-200 font-bold tracking-wider">WEB</button>
                                                                         <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
                                                                     </div>
                                                                     <button
@@ -2983,7 +2983,7 @@ export default function WorkspaceClient() {
                                                                                         setPickerSearchQuery(p.sku);
                                                                                         if (webResults.length === 0) handleWebSearch(p, p.sku);
                                                                                     }}
-                                                                                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400 hover:text-gray-600'}`}
                                                                                 >
                                                                                     <Globe className="w-3 h-3" />
                                                                                     WEB
@@ -3059,7 +3059,7 @@ export default function WorkspaceClient() {
                                                                                                             extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
                                                                                                             setActivePicker(null);
                                                                                                         }}
-                                                                                                        className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                        className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-400 cursor-pointer transition-all bg-slate-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
                                                                                                     >
                                                                                                         <img src={sImg.preview} className="w-full h-full object-contain" />
                                                                                                     </div>
@@ -3087,14 +3087,14 @@ export default function WorkspaceClient() {
                                                                                     <>
                                                                                         <div className="col-span-3 pb-2 flex flex-col gap-2">
                                                                                             <div className="flex items-center justify-between px-1">
-                                                                                                <label className="flex items-center gap-2 cursor-pointer bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+                                                                                                <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 transition-colors">
                                                                                                     <input
                                                                                                         type="checkbox"
                                                                                                         checked={useGoogleShopping}
                                                                                                         onChange={(e) => setUseGoogleShopping(e.target.checked)}
-                                                                                                        className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                                                                        className="w-3.5 h-3.5 text-slate-900 rounded border-gray-300 focus:ring-slate-900"
                                                                                                     />
-                                                                                                    <span className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Cerca in Google Shopping</span>
+                                                                                                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">Cerca in Google Shopping</span>
                                                                                                 </label>
                                                                                             </div>
                                                                                             <div className="flex items-center gap-2">
@@ -3104,11 +3104,11 @@ export default function WorkspaceClient() {
                                                                                                     onChange={(e) => setPickerSearchQuery(e.target.value)}
                                                                                                     onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
                                                                                                     placeholder="Cerca immagini o SKU su Web..."
-                                                                                                    className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
+                                                                                                    className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-400"
                                                                                                 />
                                                                                                 <button
                                                                                                     onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                                    className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                                                                                                    className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-900 transition-colors"
                                                                                                 >
                                                                                                     <Search className="w-3 h-3" />
                                                                                                 </button>
@@ -3116,7 +3116,7 @@ export default function WorkspaceClient() {
                                                                                         </div>
                                                                                         {isSearchingWeb ? (
                                                                                             <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
-                                                                                                <div className="w-5 h-5 border-2 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
+                                                                                                <div className="w-5 h-5 border-2 border-slate-200 border-t-slate-900 rounded-full animate-spin" />
                                                                                                 <span className="text-[9px] font-bold text-gray-400 uppercase">Ricerca in corso...</span>
                                                                                             </div>
                                                                                         ) : (
@@ -3149,11 +3149,11 @@ export default function WorkspaceClient() {
                                                                                                         setProducts(newProducts);
                                                                                                         setActivePicker(null);
                                                                                                     }}
-                                                                                                    className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
+                                                                                                    className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-900 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
                                                                                                 >
                                                                                                     <img src={result.url} className="w-full h-full object-contain" />
                                                                                                     {result.productData && (
-                                                                                                        <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
+                                                                                                        <div className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
                                                                                                     )}
                                                                                                 </div>
                                                                                             ))
@@ -3244,7 +3244,7 @@ export default function WorkspaceClient() {
                                                                                 setPickerSearch("");
                                                                             }}
                                                                             placeholder={header + "..."}
-                                                                            className="bg-transparent font-bold text-gray-700 w-[180px] min-h-[50px] hover:bg-blue-50/50 rounded-xl px-4 py-2 text-sm transition-all border border-transparent hover:border-blue-100 cursor-pointer resize break-words whitespace-pre-wrap leading-tight focus:outline-none focus:border-blue-400 focus:bg-white"
+                                                                            className="bg-transparent font-bold text-gray-700 w-[180px] min-h-[50px] hover:bg-slate-50/50 rounded-xl px-4 py-2 text-sm transition-all border border-transparent hover:border-slate-200 cursor-pointer resize break-words whitespace-pre-wrap leading-tight focus:outline-none focus:border-slate-400 focus:bg-white"
                                                                         />
 
                                                                         <AnimatePresence>
@@ -3257,8 +3257,8 @@ export default function WorkspaceClient() {
                                                                                     onMouseLeave={() => setActivePicker(null)}
                                                                                 >
                                                                                     <div className="flex items-center gap-3 mb-4">
-                                                                                        <div className="p-2 bg-blue-50 rounded-xl">
-                                                                                            <Database className="w-4 h-4 text-blue-600" />
+                                                                                        <div className="p-2 bg-slate-50 rounded-xl">
+                                                                                            <Database className="w-4 h-4 text-slate-900" />
                                                                                         </div>
                                                                                         <div className="flex-1">
                                                                                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Associa Valore</p>
@@ -3274,7 +3274,7 @@ export default function WorkspaceClient() {
                                                                                             placeholder="Cerca o digita valore..."
                                                                                             value={pickerSearch || val}
                                                                                             onChange={(e) => setPickerSearch(e.target.value)}
-                                                                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                                                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-slate-300 rounded-2xl text-sm font-bold transition-all outline-none"
                                                                                         />
                                                                                     </div>
 
@@ -3323,10 +3323,10 @@ export default function WorkspaceClient() {
                                                                                                     setProducts(newProducts);
                                                                                                     setActivePicker(null);
                                                                                                 }}
-                                                                                                className="p-3 hover:bg-blue-50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-blue-200 flex items-center justify-between group"
+                                                                                                className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-slate-300 flex items-center justify-between group"
                                                                                             >
                                                                                                 <span className="text-xs font-bold text-gray-600">{uVal}</span>
-                                                                                                <CheckCircle2 className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
+                                                                                                <CheckCircle2 className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100" />
                                                                                             </div>
                                                                                         ))}
                                                                                         {pickerSearch && !csvMasterList.some(i => (i as any)[header] === pickerSearch) && (
@@ -3413,7 +3413,7 @@ export default function WorkspaceClient() {
                         {/* ERP Stats Row */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                             {[
-                                { label: 'Totale Prodotti', value: allDBProducts.length, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                { label: 'Totale Prodotti', value: allDBProducts.length, icon: Package, color: 'text-slate-900', bg: 'bg-slate-50' },
                                 { label: 'Cataloghi Attivi', value: new Set(allDBProducts.map(p => p.catalogId)).size, icon: FolderOpen, color: 'text-orange-600', bg: 'bg-orange-50' },
                                 { label: 'Valore Stock', value: '€ ' + allDBProducts.reduce((acc, p) => acc + (parseFloat(p.price) || 0), 0).toLocaleString(), icon: BarChart3, color: 'text-green-600', bg: 'bg-green-50' },
                                 { label: 'Ultimo Sync', value: 'Oggi 14:30', icon: History, color: 'text-purple-600', bg: 'bg-purple-50' }
@@ -3503,7 +3503,7 @@ export default function WorkspaceClient() {
                                                             </div>
                                                         </td>
                                                         <td className="px-8 py-5">
-                                                            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-blue-50 text-blue-600 rounded-full">{res.category || 'N/A'}</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-slate-50 text-slate-900 rounded-full">{res.category || 'N/A'}</span>
                                                         </td>
                                                         <td className="px-8 py-5 text-sm font-bold text-gray-500">{res.brand || '---'}</td>
                                                         <td className="px-8 py-5 font-mono font-black text-sm text-[#111827]">€ {res.price || '0.00'}</td>
@@ -3623,10 +3623,10 @@ export default function WorkspaceClient() {
                                         </button>
                                     </div>
 
-                                    <div className="mt-6 p-6 bg-blue-50/50 rounded-2xl border border-blue-100">
+                                    <div className="mt-6 p-6 bg-slate-50/50 rounded-2xl border border-slate-200">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-blue-600 rounded-lg shadow-sm">
+                                                <div className="p-2 bg-slate-900 rounded-lg shadow-sm">
                                                     <Search className="w-4 h-4 text-white" />
                                                 </div>
                                                 <div>
@@ -3641,7 +3641,7 @@ export default function WorkspaceClient() {
                                                     checked={useGoogleShopping}
                                                     onChange={(e) => setUseGoogleShopping(e.target.checked)}
                                                 />
-                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
                                             </label>
                                         </div>
                                     </div>
@@ -3652,26 +3652,26 @@ export default function WorkspaceClient() {
                                 {/* External Assets Section */}
                                 <div className="space-y-6">
                                     <div className="flex items-center gap-2">
-                                        <HardDrive className="w-4 h-4 text-blue-400" />
+                                        <HardDrive className="w-4 h-4 text-slate-400" />
                                         <h3 className="text-sm font-black uppercase tracking-widest text-[#111827]">Assets Esterni (Immagini per SKU)</h3>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-blue-50/30 rounded-[28px] border border-blue-100/50">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50/30 rounded-[28px] border border-slate-200/50">
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 ml-1">Indirizzo Base (URL, Drive, Locale)</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Indirizzo Base (URL, Drive, Locale)</label>
                                             <input
                                                 value={assetBaseUrl}
                                                 onChange={(e) => setAssetBaseUrl(e.target.value)}
                                                 placeholder="https://mio-sito.it/foto/ o /public/assets/"
-                                                className="w-full px-5 py-3.5 bg-white border border-blue-100 rounded-2xl text-sm font-bold text-blue-900 outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-200 transition-all"
                                             />
                                             <p className="text-[8px] text-blue-300 font-medium px-1">Tip: Usa "https://drive.google.com/uc?id=" per Drive (servono ID diretti).</p>
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-blue-400 ml-1">Estensione File</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Estensione File</label>
                                             <select
                                                 value={assetExtension}
                                                 onChange={(e) => setAssetExtension(e.target.value)}
-                                                className="w-full px-5 py-3.5 bg-white border border-blue-100 rounded-2xl text-sm font-bold text-blue-900 outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                className="w-full px-5 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 outline-none focus:ring-4 focus:ring-slate-200 transition-all"
                                             >
                                                 <option value=".jpg">JPG (.jpg)</option>
                                                 <option value=".jpeg">JPEG (.jpeg)</option>
@@ -3681,10 +3681,10 @@ export default function WorkspaceClient() {
                                             </select>
                                         </div>
                                         <div className="md:col-span-2">
-                                            <div className="p-4 bg-white/60 rounded-2xl border border-blue-100">
-                                                <p className="text-[10px] text-blue-500 font-bold leading-relaxed">
+                                            <div className="p-4 bg-white/60 rounded-2xl border border-slate-200">
+                                                <p className="text-[10px] text-slate-900 font-bold leading-relaxed">
                                                     Questa funzione cercherà automaticamente di collegare immagini chiamate come lo SKU.<br />
-                                                    Esempio: SKU "ART123" → <span className="text-blue-700 font-black">{assetBaseUrl || '[URL]'}{"ART123"}{assetExtension}</span>
+                                                    Esempio: SKU "ART123" → <span className="text-slate-800 font-black">{assetBaseUrl || '[URL]'}{"ART123"}{assetExtension}</span>
                                                 </p>
                                             </div>
                                         </div>

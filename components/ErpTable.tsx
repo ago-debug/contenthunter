@@ -301,7 +301,7 @@ export default function ErpTable() {
                             placeholder="Cerca per SKU, Title, Brand, EAV..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-gray-50 border-none rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-blue-100 transition-all outline-none"
+                            className="w-full bg-gray-50 border-none rounded-xl pl-12 pr-4 py-3 text-sm font-bold text-gray-900 focus:ring-2 focus:ring-slate-200 transition-all outline-none"
                         />
                     </div>
 
@@ -310,7 +310,7 @@ export default function ErpTable() {
                     <select
                         value={brandFilter}
                         onChange={(e) => setBrandFilter(e.target.value)}
-                        className="bg-gray-50 border-none rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#111827] cursor-pointer focus:ring-2 focus:ring-blue-100 outline-none"
+                        className="bg-gray-50 border-none rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#111827] cursor-pointer focus:ring-2 focus:ring-slate-200 outline-none"
                     >
                         <option value="all">Tutti i Brand</option>
                         {uniqueBrands.map(b => (
@@ -321,7 +321,7 @@ export default function ErpTable() {
                     <select
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}
-                        className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#111827] cursor-pointer focus:ring-2 focus:ring-blue-100 outline-none hover:bg-white transition-all"
+                        className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-xs font-black uppercase tracking-widest text-[#111827] cursor-pointer focus:ring-2 focus:ring-slate-200 outline-none hover:bg-white transition-all"
                     >
                         <option value="all">Tutte le Categorie</option>
                         {uniqueCategories.map(c => (
@@ -332,13 +332,13 @@ export default function ErpTable() {
                     <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-100">
                         <button
                             onClick={() => setViewMode('table')}
-                            className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
                         >
                             <List className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => setViewMode('grid')}
-                            className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
+                            className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
                         >
                             <LayoutGrid className="w-5 h-5" />
                         </button>
@@ -357,7 +357,7 @@ export default function ErpTable() {
             <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden border border-gray-200">
                 <div className="p-6 bg-white border-b border-gray-50 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                        <div className="w-2 h-2 rounded-full bg-slate-900 animate-pulse"></div>
                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Database Realtime Sync Active</span>
                     </div>
                 </div>
@@ -369,7 +369,7 @@ export default function ErpTable() {
                                     <th className="px-6 py-4 w-10">
                                         <input
                                             type="checkbox"
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                                            className="rounded border-gray-300 text-slate-900 focus:ring-slate-900 w-4 h-4 cursor-pointer"
                                             checked={selectedIds.length > 0 && selectedIds.length === filteredProducts.length}
                                             onChange={(e) => {
                                                 if (e.target.checked) setSelectedIds(filteredProducts.map(p => p.id));
@@ -389,7 +389,7 @@ export default function ErpTable() {
                                 {loading ? (
                                     <tr>
                                         <td colSpan={7} className="px-8 py-20 text-center">
-                                            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
+                                            <RefreshCw className="w-8 h-8 text-slate-900 animate-spin mx-auto" />
                                             <p className="mt-4 text-xs font-black uppercase tracking-widest text-gray-400">Caricamento Libreria ERP...</p>
                                         </td>
                                     </tr>
@@ -401,11 +401,11 @@ export default function ErpTable() {
                                         </td>
                                     </tr>
                                 ) : filteredProducts.map((p) => (
-                                    <tr key={p.id} className={`hover:bg-blue-50/30 transition-colors group ${selectedIds.includes(p.id) ? 'bg-blue-50/50' : ''}`}>
+                                    <tr key={p.id} className={`hover:bg-slate-50/30 transition-colors group ${selectedIds.includes(p.id) ? 'bg-slate-50/50' : ''}`}>
                                         <td className="px-6 py-4">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                                className="rounded border-gray-300 text-slate-900 focus:ring-slate-900 w-4 h-4"
                                                 checked={selectedIds.includes(p.id)}
                                                 onChange={(e) => {
                                                     if (e.target.checked) setSelectedIds([...selectedIds, p.id]);
@@ -427,7 +427,7 @@ export default function ErpTable() {
                                         <td className="px-8 py-4">
                                             <button
                                                 onClick={() => setSelectedProduct(p)}
-                                                className="font-black text-gray-900 hover:text-blue-600 transition-colors text-left"
+                                                className="font-black text-gray-900 hover:text-slate-900 transition-colors text-left"
                                             >
                                                 {p.title || "Prodotto Senza Titolo"}
                                             </button>
@@ -438,7 +438,7 @@ export default function ErpTable() {
                                         <td className="px-8 py-4 text-right">
                                             <button
                                                 onClick={() => setSelectedProduct(p)}
-                                                className="p-3 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all mr-2"
+                                                className="p-3 bg-slate-50 text-slate-900 rounded-xl hover:bg-slate-900 hover:text-white transition-all mr-2"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
@@ -491,7 +491,7 @@ export default function ErpTable() {
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <div className="hidden sm:flex items-center gap-2 mr-4">
-                                            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                            <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse"></span>
                                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Editing Session</span>
                                         </div>
                                         <button
@@ -519,7 +519,7 @@ export default function ErpTable() {
                                             <div className="space-y-6">
                                                 <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
-                                                        <div className="w-1 h-3 bg-blue-600 rounded-full"></div> Core Information
+                                                        <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Core Information
                                                     </h4>
                                                     <div className="space-y-5">
                                                         <div>
@@ -527,7 +527,7 @@ export default function ErpTable() {
                                                             <input
                                                                 value={selectedProduct.title || ""}
                                                                 onChange={e => setSelectedProduct({ ...selectedProduct, title: e.target.value })}
-                                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50/50 focus:border-blue-400 transition-all text-sm"
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 focus:border-slate-400 transition-all text-sm"
                                                             />
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-4">
@@ -536,7 +536,7 @@ export default function ErpTable() {
                                                                 <input
                                                                     value={selectedProduct.category || ""}
                                                                     onChange={e => setSelectedProduct({ ...selectedProduct, category: e.target.value })}
-                                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50/50 transition-all text-sm"
+                                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 transition-all text-sm"
                                                                 />
                                                             </div>
                                                             <div>
@@ -544,7 +544,7 @@ export default function ErpTable() {
                                                                 <input
                                                                     value={selectedProduct.brand || ""}
                                                                     onChange={e => setSelectedProduct({ ...selectedProduct, brand: e.target.value })}
-                                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50/50 transition-all text-sm"
+                                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 transition-all text-sm"
                                                                 />
                                                             </div>
                                                         </div>
@@ -570,7 +570,7 @@ export default function ErpTable() {
                                                                 value={selectedProduct.ean || ""}
                                                                 onChange={e => setSelectedProduct({ ...selectedProduct, ean: e.target.value })}
                                                                 placeholder="GTIN-13 / EAN"
-                                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-blue-50/50 transition-all text-sm"
+                                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 transition-all text-sm"
                                                             />
                                                         </div>
                                                     </div>
@@ -625,7 +625,7 @@ export default function ErpTable() {
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-blue-600 p-8 rounded-3xl shadow-lg text-white space-y-4">
+                                                <div className="bg-slate-900 p-8 rounded-3xl shadow-lg text-white space-y-4">
                                                     <div className="flex items-center gap-3">
                                                         <RefreshCw className="w-5 h-5 text-blue-200" />
                                                         <h5 className="font-black uppercase tracking-widest text-xs">PIM Insight</h5>
@@ -642,7 +642,7 @@ export default function ErpTable() {
                                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
                                             <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 mb-6 flex items-center gap-2">
-                                                    <div className="w-1 h-3 bg-blue-600 rounded-full"></div> Digital Asset Management
+                                                    <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Digital Asset Management
                                                 </h4>
                                                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                     {selectedProduct.images && selectedProduct.images.length > 0 ? (
@@ -682,13 +682,13 @@ export default function ErpTable() {
                                                     <div>
                                                         <h4 className="text-xl font-black text-white uppercase tracking-tighter">Deep PDF Asset Extraction</h4>
                                                         <p className="text-sm font-bold text-slate-400 mt-1 max-w-sm">
-                                                            Analizza il PDF originale del catalogo per estrarre le pagine in cui compare lo SKU: <span className="text-blue-400">{selectedProduct.sku}</span>.
+                                                            Analizza il PDF originale del catalogo per estrarre le pagine in cui compare lo SKU: <span className="text-slate-400">{selectedProduct.sku}</span>.
                                                         </p>
                                                     </div>
                                                     <button
                                                         onClick={handleDeepPdfSearch}
                                                         disabled={isSearchingPdf}
-                                                        className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-400 hover:text-white transition-all shadow-2xl shrink-0 disabled:opacity-50"
+                                                        className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-400 hover:text-white transition-all shadow-2xl shrink-0 disabled:opacity-50"
                                                     >
                                                         {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin mr-2 inline" /> : null}
                                                         Deep Search in PDF
@@ -697,8 +697,8 @@ export default function ErpTable() {
                                             </div>
 
                                             {pdfSearchResults.length > 0 && (
-                                                <div className="bg-white p-8 rounded-3xl border border-blue-100 shadow-xl shadow-blue-50/50 space-y-6 animate-in slide-in-from-top-4">
-                                                    <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                                                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-50/50 space-y-6 animate-in slide-in-from-top-4">
+                                                    <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                                                         <Sparkles className="w-4 h-4" /> Asset Trovati nei Cataloghi Originali
                                                     </h5>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -723,7 +723,7 @@ export default function ErpTable() {
                                                                                 setSelectedProduct({ ...selectedProduct, images: newImages });
                                                                                 toast.success("Asset PDF recuperato!");
                                                                             }}
-                                                                            className="w-12 h-12 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-blue-500 overflow-hidden shrink-0"
+                                                                            className="w-12 h-12 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-900 overflow-hidden shrink-0"
                                                                         >
                                                                             <CorporateImage src={sub.preview} alt="Sub Asset" className="w-full h-full object-contain" />
                                                                         </div>
@@ -738,14 +738,14 @@ export default function ErpTable() {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
-                                                        <Plus className="w-3 h-3 text-blue-600" /> Upload Diretto
+                                                        <Plus className="w-3 h-3 text-slate-900" /> Upload Diretto
                                                     </h4>
                                                     <div className="flex gap-2">
                                                         <input
                                                             value={newImageUrl}
                                                             onChange={e => setNewImageUrl(e.target.value)}
                                                             placeholder="https://sorgente-immagine.com/asset.jpg"
-                                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-100 transition-all text-xs"
+                                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all text-xs"
                                                         />
                                                         <button
                                                             onClick={() => {
@@ -765,24 +765,24 @@ export default function ErpTable() {
 
                                                 <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
-                                                        <Globe className="w-3 h-3 text-blue-600" /> Web Scraper Engine
+                                                        <Globe className="w-3 h-3 text-slate-900" /> Web Scraper Engine
                                                     </h4>
                                                     <button
                                                         onClick={() => searchWebImages(`${selectedProduct.brand || ''} ${selectedProduct.sku}`.trim() || selectedProduct.title)}
                                                         disabled={isSearchingWeb}
-                                                        className="w-full flex justify-center items-center gap-3 px-6 py-4 bg-gray-50 border border-gray-200 text-slate-900 rounded-xl font-black shadow-sm disabled:opacity-50 hover:bg-white hover:border-blue-400 hover:text-blue-600 transition-all uppercase text-[10px] tracking-widest"
+                                                        className="w-full flex justify-center items-center gap-3 px-6 py-4 bg-gray-50 border border-gray-200 text-slate-900 rounded-xl font-black shadow-sm disabled:opacity-50 hover:bg-white hover:border-slate-400 hover:text-slate-900 transition-all uppercase text-[10px] tracking-widest"
                                                     >
-                                                        {isSearchingWeb ? <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> : <Search className="w-4 h-4" />}
+                                                        {isSearchingWeb ? <RefreshCw className="w-4 h-4 animate-spin text-slate-900" /> : <Search className="w-4 h-4" />}
                                                         Deep Asset Search
                                                     </button>
                                                 </div>
 
                                                 {webImages.length > 0 && (
                                                     <div className="md:col-span-2 bg-white p-8 rounded-3xl border border-gray-200 shadow-sm animate-in zoom-in-95">
-                                                        <h5 className="text-[9px] font-black uppercase tracking-widest text-blue-600 mb-6 bg-blue-50 w-max px-3 py-1 rounded-full border border-blue-100 italic">Risultati Ricerca Remota</h5>
+                                                        <h5 className="text-[9px] font-black uppercase tracking-widest text-slate-900 mb-6 bg-slate-50 w-max px-3 py-1 rounded-full border border-slate-200 italic">Risultati Ricerca Remota</h5>
                                                         <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-6">
                                                             {webImages.map((wImg: any, idx: number) => (
-                                                                <div key={idx} className="relative aspect-square w-28 h-28 shrink-0 rounded-2xl overflow-hidden border border-gray-100 group bg-gray-50 cursor-pointer hover:border-blue-500 shadow-sm"
+                                                                <div key={idx} className="relative aspect-square w-28 h-28 shrink-0 rounded-2xl overflow-hidden border border-gray-100 group bg-gray-50 cursor-pointer hover:border-slate-900 shadow-sm"
                                                                     onClick={() => {
                                                                         const url = typeof wImg === 'string' ? wImg : wImg.url;
                                                                         const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url }];
@@ -790,8 +790,8 @@ export default function ErpTable() {
                                                                         toast.success("Risorsa accodata.");
                                                                     }}>
                                                                     <CorporateImage src={typeof wImg === 'string' ? wImg : wImg.url} alt="Web Match" className="w-full h-full object-contain p-2" />
-                                                                    <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                                                                        <div className="p-2 bg-blue-600 text-white rounded-full scale-50 group-hover:scale-100 transition-all">
+                                                                    <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
+                                                                        <div className="p-2 bg-slate-900 text-white rounded-full scale-50 group-hover:scale-100 transition-all">
                                                                             <Plus className="w-4 h-4" />
                                                                         </div>
                                                                     </div>
@@ -899,7 +899,7 @@ export default function ErpTable() {
                                                     <RefreshCw className="w-48 h-48 rotate-12" />
                                                 </div>
                                                 <div className="relative z-10 flex items-start gap-8">
-                                                    <div className="p-5 bg-blue-600 text-white rounded-2xl shadow-2xl shadow-blue-200">
+                                                    <div className="p-5 bg-slate-900 text-white rounded-2xl shadow-2xl shadow-blue-200">
                                                         <RefreshCw className="w-8 h-8" />
                                                     </div>
                                                     <div>
@@ -911,7 +911,7 @@ export default function ErpTable() {
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 relative z-10">
                                                     <div className="bg-white border border-slate-100 p-8 rounded-3xl shadow-sm">
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">WooID Association</p>
-                                                        <p className="font-mono text-2xl font-black text-blue-600 tracking-tight">{selectedProduct.wooId || "NOT_SYNCED"}</p>
+                                                        <p className="font-mono text-2xl font-black text-slate-900 tracking-tight">{selectedProduct.wooId || "NOT_SYNCED"}</p>
                                                     </div>
                                                     <div className="bg-white border border-slate-100 p-8 rounded-3xl shadow-sm">
                                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Sync Probability</p>
@@ -938,7 +938,7 @@ export default function ErpTable() {
                                                         <div key={field} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-all group">
                                                             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{field.replace('_', ' ')}</span>
                                                             <div className="h-px bg-gray-200 flex-1 mx-4 opacity-40"></div>
-                                                            <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 uppercase italic">Mapped Ready</span>
+                                                            <span className="text-[11px] font-bold text-slate-900 bg-slate-50 px-3 py-1 rounded-lg border border-slate-200 uppercase italic">Mapped Ready</span>
                                                         </div>
                                                     ))}
                                                 </div>
@@ -996,7 +996,7 @@ export default function ErpTable() {
                                     <div className="p-8 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                                         <div>
                                             <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">WooCommerce Settings</h3>
-                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">Connessione API REST Store</p>
+                                            <p className="text-[10px] font-bold text-slate-900 uppercase tracking-widest mt-1">Connessione API REST Store</p>
                                         </div>
                                         <button onClick={() => setShowWooConfig(false)} className="p-3 bg-white border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all shadow-sm">
                                             <X className="w-5 h-5 text-gray-400" />
@@ -1012,7 +1012,7 @@ export default function ErpTable() {
                                                     value={wooConfig.domain}
                                                     onChange={e => setWooConfig({ ...wooConfig, domain: e.target.value })}
                                                     placeholder="https://tuosito.it"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-slate-200 transition-all"
                                                 />
                                             </div>
                                             <div>
@@ -1022,7 +1022,7 @@ export default function ErpTable() {
                                                     value={wooConfig.key}
                                                     onChange={e => setWooConfig({ ...wooConfig, key: e.target.value })}
                                                     placeholder="ck_################"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-slate-200 transition-all"
                                                 />
                                             </div>
                                             <div>
@@ -1032,7 +1032,7 @@ export default function ErpTable() {
                                                     value={wooConfig.secret}
                                                     onChange={e => setWooConfig({ ...wooConfig, secret: e.target.value })}
                                                     placeholder="cs_################"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-slate-200 transition-all"
                                                 />
                                             </div>
                                         </div>
@@ -1075,7 +1075,7 @@ export default function ErpTable() {
                                 className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-10 py-5 rounded-[2.5rem] shadow-2xl z-[100] flex items-center gap-10 border border-white/10 backdrop-blur-xl"
                             >
                                 <div className="flex items-center gap-3 pr-10 border-r border-white/10">
-                                    <span className="bg-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">{selectedIds.length}</span>
+                                    <span className="bg-slate-900 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">{selectedIds.length}</span>
                                     <span className="text-xs font-black uppercase tracking-widest text-slate-400">Selezionati</span>
                                 </div>
                                 <div className="flex items-center gap-4">

@@ -93,7 +93,7 @@ export default function Sidebar() {
             <div className="mt-8 pt-6 border-t border-slate-100">
                 <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 transition-all cursor-pointer group mb-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 group-hover:border-blue-200 group-hover:text-blue-600 transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-400 group-hover:border-slate-300 group-hover:text-slate-900 transition-all">
                             <Cpu className="w-4 h-4" />
                         </div>
                         <div className="flex flex-col">
