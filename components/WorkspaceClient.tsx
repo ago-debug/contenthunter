@@ -546,6 +546,10 @@ export default function WorkspaceClient() {
             const data = await resp.json();
             setCatalogId(data.catalogId);
 
+            if (csvMasterList.length === 0) {
+                toast.info("Dati listino assenti: il PDF verrà visualizzato ma nessun prodotto verrà auto-mappato.");
+            }
+
             // Pass local binary to extractFromPdf to bypass any fetch/URL errors from NextJS
             await extractFromPdf(data.filePath, uint8Array);
         } catch (err: any) {
@@ -651,23 +655,31 @@ export default function WorkspaceClient() {
         toast.loading("L'AI sta scrivendo la descrizione...", { toastId: 'ai-desc' });
         try {
             // Rimuoviamo il payload enorme delle immagini in base64 per non crashare e sforare i limiti API
-            const { images, ...cleanProductData } = product;
+            const { images, extraFields, docDescription, ...cleanProductData } = product;
 
+            // Logghiamo la dimensione per debug se necessario, ma mandiamo solo i testi essenziali
             const res = await axios.post("/api/ai/describe", {
-                productData: cleanProductData,
+                productData: {
+                    ...cleanProductData,
+                    // Trunghiamo descrizioni bibliche per evitare 413 o timeout
+                    docDescription: docDescription?.substring(0, 2000) || "",
+                    // Passiamo solo l'essenziale dei campi extra se presenti (prendiamo i primi 1000 caratteri per sicurezza)
+                    extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
+                },
                 language: translateTargetLang
             });
             if (res.data.success) {
                 const newProducts = [...products];
                 newProducts[idx] = { ...newProducts[idx], description: res.data.description };
                 setProducts(newProducts);
-                toast.success("Descrizione magica generata!");
+                toast.success("Descrizione magica generata!", { toastId: 'ai-desc' });
             } else {
-                toast.error("Errore dal server AI");
+                toast.error(`Errore AI: ${res.data.error || "Server error"}`, { toastId: 'ai-desc' });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error("Errore di connessione con l'AI");
+            const msg = error.response?.data?.error || error.message || "Errore di connessione";
+            toast.error(`Errore di connessione AI: ${msg}`, { toastId: 'ai-desc' });
         } finally {
             toast.dismiss('ai-desc');
             setIsGeneratingAI(null);
@@ -1353,15 +1365,13 @@ export default function WorkspaceClient() {
                             <Settings className="w-5 h-5" />
                             Sorgenti Web
                         </button>
-                        {csvMasterList.length > 0 && (
-                            <button
-                                onClick={() => fileInputRef.current?.click()}
-                                className={pdfPages.length === 0 ? "btn-primary flex items-center gap-3 shadow-orange-900/10" : "btn-secondary flex items-center gap-3"}
-                            >
-                                <Upload className="w-5 h-5" />
-                                {pdfPages.length === 0 ? "Carica PDF" : "Cambia PDF"}
-                            </button>
-                        )}
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className={pdfPages.length === 0 ? "btn-primary flex items-center gap-3 shadow-orange-900/10" : "btn-secondary flex items-center gap-3"}
+                        >
+                            <Upload className="w-5 h-5" />
+                            {pdfPages.length === 0 ? "Carica PDF" : "Cambia PDF"}
+                        </button>
 
                         <button
                             onClick={() => {
@@ -1638,11 +1648,17 @@ export default function WorkspaceClient() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 opacity-30">
-                                        <div className="w-24 h-24 bg-gray-50 rounded-[2.5rem] flex items-center justify-center border-2 border-dashed border-gray-200">
-                                            <Plus className="w-10 h-10" />
+                                    <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="w-24 h-24 bg-white hover:bg-orange-50 hover:border-orange-200 cursor-pointer rounded-[2.5rem] flex items-center justify-center border-2 border-dashed border-gray-200 transition-all group shadow-sm active:scale-95"
+                                        >
+                                            <Plus className="w-10 h-10 text-gray-300 group-hover:text-orange-500 transition-colors" />
                                         </div>
-                                        <p className="text-sm font-medium max-w-xs">Nessun documento attivo. Carica un file per iniziare l&apos;estrazione.</p>
+                                        <div className="space-y-2 opacity-50">
+                                            <p className="text-sm font-black uppercase tracking-widest text-[#111827]">Sorgente PDF Assente</p>
+                                            <p className="text-xs font-bold text-gray-400">Clicca sul + per caricare il documento o trascinalo qui.</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
