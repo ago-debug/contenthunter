@@ -419,7 +419,12 @@ export default function WorkspaceClient() {
         setIsLoadingERP(true);
         try {
             const resp = await axios.get('/api/products');
-            setAllDBProducts(resp.data);
+            if (Array.isArray(resp.data)) {
+                setAllDBProducts(resp.data);
+            } else {
+                console.error("Dati ricevuti non validi dal PIM HUB Hub:", resp.data);
+                toast.error("Errore: Impossibile recuperare i dati del database PIM.");
+            }
         } catch (err) {
             console.error("Error loading ERP data", err);
             toast.error("Errore nel caricamento del database");

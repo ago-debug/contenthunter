@@ -49,6 +49,7 @@ export default function ErpTable() {
     useEffect(() => {
         const saved = localStorage.getItem("pim_woo_config");
         if (saved) setWooConfig(JSON.parse(saved));
+        fetchProducts(); // Initial data load
     }, []);
 
     const testWooConnection = async () => {
@@ -183,7 +184,12 @@ export default function ErpTable() {
         setLoading(true);
         try {
             const res = await axios.get("/api/products");
-            setProducts(res.data);
+            if (Array.isArray(res.data)) {
+                setProducts(res.data);
+            } else {
+                console.error("Dati ricevuti non validi (possibile redirect di login):", res.data);
+                toast.error("Sessione scaduta o dati non validi. Ricarica la pagina.");
+            }
         } catch (err: any) {
             toast.error("Errore nel caricamento del Server PIM");
         } finally {
