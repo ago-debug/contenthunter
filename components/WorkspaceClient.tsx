@@ -144,6 +144,8 @@ export default function WorkspaceClient() {
     const [pickerPageIdx, setPickerPageIdx] = useState(0);
     const [webResults, setWebResults] = useState<any[]>([]);
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+    const [isSearchingPdfAi, setIsSearchingPdfAi] = useState(false);
+    const [pdfAiMatches, setPdfAiMatches] = useState<{ pageIdx: number, preview: string, ref: string, score: number }[] | null>(null);
     const [skuToPageMap, setSkuToPageMap] = useState<{ [sku: string]: number }>({});
     const [newFieldName, setNewFieldName] = useState("");
 
@@ -210,6 +212,106 @@ export default function WorkspaceClient() {
             toast.error("Errore nella ricerca web");
         } finally {
             setIsSearchingWeb(false);
+        }
+    };
+
+    const calculateImageSimilarity = (src1: string, src2: string): Promise<number> => {
+        return new Promise((resolve) => {
+            const img1 = new Image();
+            const img2 = new Image();
+            let loaded = 0;
+
+            const compare = () => {
+                const getPixels = (img: HTMLImageElement) => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 16;
+                    canvas.height = 16;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) return new Float32Array(256);
+                    ctx.drawImage(img, 0, 0, 16, 16);
+                    const data = ctx.getImageData(0, 0, 16, 16).data;
+                    const grays = new Float32Array(256);
+                    for (let i = 0; i < 256; i++) {
+                        grays[i] = (data[i * 4] + data[i * 4 + 1] + data[i * 4 + 2]) / 3;
+                    }
+                    return grays;
+                };
+
+                try {
+                    const px1 = getPixels(img1);
+                    const px2 = getPixels(img2);
+                    let diff = 0;
+                    for (let i = 0; i < 256; i++) {
+                        diff += Math.pow(px1[i] - px2[i], 2);
+                    }
+                    const score = 100 - (Math.sqrt(diff / 256) / 255) * 100;
+                    resolve(score);
+                } catch {
+                    resolve(0);
+                }
+            };
+
+            img1.crossOrigin = "anonymous";
+            img2.crossOrigin = "anonymous";
+            img1.onload = () => { loaded++; if (loaded === 2) compare(); };
+            img2.onload = () => { loaded++; if (loaded === 2) compare(); };
+            img1.onerror = () => resolve(0);
+            img2.onerror = () => resolve(0);
+
+            // Use our proxy for external URLs to avoid canvas cors taint
+            const proxify = (url: string) => url.startsWith('http') && !url.includes(window.location.host)
+                ? `/api/proxy-image?url=${encodeURIComponent(url)}`
+                : url;
+
+            img1.src = proxify(src1);
+            img2.src = proxify(src2);
+        });
+    };
+
+    const handlePdfAiMatch = async (product: any) => {
+        // Cerca la migliore immagine di riferimento (web o locale)
+        const targetImg = product.images.find((img: any) => img && img.url && !img.url.startsWith('PAGE_REF_') && img.url !== 'LOCAL_SESSION_ASSET');
+        if (!targetImg) {
+            toast.warning("Nessuna immagine di riferimento valida (caricata da web o cartella) per questo prodotto.");
+            return;
+        }
+
+        setIsSearchingPdfAi(true);
+        setPdfAiMatches(null);
+        setPickerPageIdx(0); // non strettamente necessario ma pulito
+        const toastId = toast.loading("Scansione Retina AI: Analizzo tutte le pagine PDF...");
+
+        try {
+            const matches: { pageIdx: number; preview: string; ref: string; score: number }[] = [];
+
+            for (let pageIdx = 0; pageIdx < pdfPages.length; pageIdx++) {
+                const page = pdfPages[pageIdx];
+                if (!page.subImages) continue;
+
+                for (const subImg of page.subImages) {
+                    const score = await calculateImageSimilarity(targetImg.url, subImg.preview);
+                    // Abbassato leggermente threshold considerando sfondi etc.
+                    if (score > 60) {
+                        matches.push({ pageIdx, preview: subImg.preview, ref: subImg.ref, score });
+                    }
+                }
+            }
+
+            matches.sort((a, b) => b.score - a.score);
+            setPdfAiMatches(matches.slice(0, 15)); // top 15 results
+            toast.dismiss(toastId);
+
+            if (matches.length > 0) {
+                toast.success(`Trovate ${matches.length} occorrenze simili nel PDF!`);
+            } else {
+                toast.error("Nessuna corrispondenza visiva trovata nel PDF.");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.dismiss(toastId);
+            toast.error("Errore durante la scansione AI visiva.");
+        } finally {
+            setIsSearchingPdfAi(false);
         }
     };
 
@@ -2045,73 +2147,118 @@ export default function WorkspaceClient() {
 
                                                                         {pickerSourceMode === 'pdf' ? (
                                                                             <>
-                                                                                <div className="col-span-3 flex items-center justify-between bg-gray-50 rounded-xl p-2 mb-2 border border-gray-100 shadow-inner">
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setPickerPageIdx(prev => Math.max(0, prev - 1));
-                                                                                        }}
-                                                                                        disabled={pickerPageIdx === 0}
-                                                                                        className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
-                                                                                    >
-                                                                                        <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
-                                                                                    </button>
-                                                                                    <div className="flex flex-col items-center">
-                                                                                        <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-0.5">Sorgente PDF</span>
-                                                                                        <div className="text-[10px] font-black text-[#111827] uppercase tracking-wider">
-                                                                                            Pagina {pickerPageIdx + 1} <span className="text-gray-200">/</span> {pdfPages.length}
+                                                                                <div className="col-span-3 mb-2 flex flex-col gap-2 relative">
+                                                                                    {isSearchingPdfAi && (
+                                                                                        <div className="absolute inset-0 z-10 bg-white/80 flex items-center justify-center rounded-xl backdrop-blur-sm">
+                                                                                            <div className="w-5 h-5 border-2 border-orange-100 border-t-orange-500 rounded-full animate-[spin_0.5s_linear_infinite]" />
                                                                                         </div>
+                                                                                    )}
+                                                                                    <div className="flex items-center justify-between bg-gray-50 rounded-xl p-2 border border-gray-100 shadow-inner">
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setPickerPageIdx(prev => Math.max(0, prev - 1));
+                                                                                                setPdfAiMatches(null);
+                                                                                            }}
+                                                                                            disabled={pickerPageIdx === 0}
+                                                                                            className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                        >
+                                                                                            <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+                                                                                        </button>
+                                                                                        <div className="flex flex-col items-center">
+                                                                                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">{pdfAiMatches ? 'AI MATCH' : 'Sorgente PDF'}</span>
+                                                                                            <div className="text-[10px] font-black text-[#111827] uppercase tracking-wider text-center flex gap-1">
+                                                                                                {pdfAiMatches ? `TOP ${pdfAiMatches.length} RISULTATI` : `Pagina ${pickerPageIdx + 1} `}
+                                                                                                {!pdfAiMatches && <span className="text-gray-300">/ {pdfPages.length}</span>}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setPickerPageIdx(prev => Math.min(pdfPages.length - 1, prev + 1));
+                                                                                                setPdfAiMatches(null);
+                                                                                            }}
+                                                                                            disabled={pdfPages.length === 0 || pickerPageIdx === pdfPages.length - 1}
+                                                                                            className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                        >
+                                                                                            <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                                                                                        </button>
                                                                                     </div>
+
                                                                                     <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setPickerPageIdx(prev => Math.min(pdfPages.length - 1, prev + 1));
-                                                                                        }}
-                                                                                        disabled={pdfPages.length === 0 || pickerPageIdx === pdfPages.length - 1}
-                                                                                        className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                        onClick={(e) => { e.stopPropagation(); handlePdfAiMatch(p); }}
+                                                                                        className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${pdfAiMatches ? 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100' : 'bg-white text-gray-500 border-gray-200 hover:border-orange-300 hover:text-orange-500'}`}
+                                                                                        title="Trova questa immagine in tutto il PDF tramite Intelligenza Artificiale visiva"
                                                                                     >
-                                                                                        <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                                                                                        <Sparkles className="w-3 h-3" />
+                                                                                        Ricerca Visiva AI (Tutto il PDF)
                                                                                     </button>
                                                                                 </div>
-                                                                                {pdfPages[pickerPageIdx] && (
-                                                                                    <>
-                                                                                        {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
-                                                                                            <div
-                                                                                                key={`sub-${pickerPageIdx}-${sIdx}`}
-                                                                                                onMouseEnter={() => setPreviewImage(sImg.preview)}
-                                                                                                onMouseLeave={() => setPreviewImage(null)}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    const newProducts = [...products];
-                                                                                                    const newImages = [...p.images];
-                                                                                                    newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
-                                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
-                                                                                                    setProducts(newProducts);
-                                                                                                    extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
-                                                                                                    setActivePicker(null);
-                                                                                                }}
-                                                                                                className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
-                                                                                            >
-                                                                                                <img src={sImg.preview} className="w-full h-full object-contain" />
-                                                                                            </div>
-                                                                                        ))}
+
+                                                                                {pdfAiMatches ? (
+                                                                                    pdfAiMatches.map((m, mIdx) => (
                                                                                         <div
-                                                                                            onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
+                                                                                            key={`ai-${mIdx}`}
+                                                                                            onMouseEnter={() => setPreviewImage(m.preview)}
                                                                                             onMouseLeave={() => setPreviewImage(null)}
                                                                                             onClick={(e) => {
                                                                                                 e.stopPropagation();
                                                                                                 const newProducts = [...products];
                                                                                                 const newImages = [...p.images];
-                                                                                                newImages[slot] = { id: Math.random().toString(), url: `PAGE_REF_${pickerPageIdx + 1}` };
+                                                                                                newImages[slot] = { id: Math.random().toString(), url: m.preview };
                                                                                                 newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
                                                                                                 setProducts(newProducts);
+                                                                                                extractHighResAsset(m.pageIdx, m.ref, idx, slot);
                                                                                                 setActivePicker(null);
+                                                                                                setPdfAiMatches(null);
                                                                                             }}
-                                                                                            className="aspect-square rounded-lg border border-gray-100 overflow-hidden hover:border-orange-400 cursor-pointer transition-all opacity-60 hover:opacity-100 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                            className="aspect-square rounded-lg border border-orange-200 overflow-hidden hover:border-orange-500 cursor-pointer transition-all bg-orange-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative relative group"
                                                                                         >
-                                                                                            <img src={pdfPages[pickerPageIdx].imageUrl} className="w-full h-full object-cover" title={`Pagina ${pickerPageIdx + 1}`} />
+                                                                                            <div className="absolute top-0 right-0 bg-black/70 text-[10px] px-1 py-0.5 rounded-bl-lg font-bold text-[#E6D3C1] z-10">P.{m.pageIdx + 1}</div>
+                                                                                            <img src={m.preview} className="w-full h-full object-contain" />
                                                                                         </div>
-                                                                                    </>
+                                                                                    ))
+                                                                                ) : (
+                                                                                    pdfPages[pickerPageIdx] && (
+                                                                                        <>
+                                                                                            {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
+                                                                                                <div
+                                                                                                    key={`sub-${pickerPageIdx}-${sIdx}`}
+                                                                                                    onMouseEnter={() => setPreviewImage(sImg.preview)}
+                                                                                                    onMouseLeave={() => setPreviewImage(null)}
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        const newProducts = [...products];
+                                                                                                        const newImages = [...p.images];
+                                                                                                        newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
+                                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                        setProducts(newProducts);
+                                                                                                        extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
+                                                                                                        setActivePicker(null);
+                                                                                                    }}
+                                                                                                    className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                >
+                                                                                                    <img src={sImg.preview} className="w-full h-full object-contain" />
+                                                                                                </div>
+                                                                                            ))}
+                                                                                            <div
+                                                                                                onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
+                                                                                                onMouseLeave={() => setPreviewImage(null)}
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    const newProducts = [...products];
+                                                                                                    const newImages = [...p.images];
+                                                                                                    newImages[slot] = { id: Math.random().toString(), url: `PAGE_REF_${pickerPageIdx + 1}` };
+                                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                    setProducts(newProducts);
+                                                                                                    setActivePicker(null);
+                                                                                                }}
+                                                                                                className="aspect-square rounded-lg border border-gray-100 overflow-hidden hover:border-orange-400 cursor-pointer transition-all opacity-60 hover:opacity-100 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                            >
+                                                                                                <img src={pdfPages[pickerPageIdx].imageUrl} className="w-full h-full object-cover" title={`Pagina ${pickerPageIdx + 1}`} />
+                                                                                            </div>
+                                                                                        </>
+                                                                                    )
                                                                                 )}
                                                                             </>
                                                                         ) : (
