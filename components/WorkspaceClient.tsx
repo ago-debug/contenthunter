@@ -267,9 +267,9 @@ export default function WorkspaceClient() {
             img2.onerror = () => resolve(0);
 
             // Use our proxy for external URLs to avoid canvas cors taint
-            const proxify = (url: string) => url.startsWith('http') && !url.includes(window.location.host)
+            const proxify = (url: string) => url && typeof url === 'string' && url.startsWith('http') && !url.includes(window.location.host)
                 ? `/api/proxy-image?url=${encodeURIComponent(url)}`
-                : url;
+                : url || '';
 
             img1.src = proxify(src1);
             img2.src = proxify(src2);
@@ -510,7 +510,7 @@ export default function WorkspaceClient() {
                         ...p,
                         images: (p.images || []).map(img => ({
                             ...img,
-                            url: img.url.startsWith("data:image") ? "LOCAL_SESSION_ASSET" : img.url
+                            url: img.url && typeof img.url === 'string' && img.url.startsWith("data:image") ? "LOCAL_SESSION_ASSET" : img.url
                         }))
                     }));
                     localStorage.setItem("pdf_catalog_products", JSON.stringify(sanitized));
@@ -879,9 +879,9 @@ export default function WorkspaceClient() {
 
     const extractFromPdf = async (url: string, localData?: Uint8Array) => {
         setIsProcessing(true);
-        let normalizedUrl = url;
-        if (!url.startsWith('http') && !url.startsWith('/')) {
-            normalizedUrl = '/' + url;
+        let normalizedUrl = url || "";
+        if (normalizedUrl && !normalizedUrl.startsWith('http') && !normalizedUrl.startsWith('/')) {
+            normalizedUrl = '/' + normalizedUrl;
         }
 
         setCurrentPdfUrl(normalizedUrl);
