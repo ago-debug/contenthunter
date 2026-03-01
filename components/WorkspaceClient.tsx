@@ -147,6 +147,7 @@ export default function WorkspaceClient() {
     const [translateTargetField, setTranslateTargetField] = useState<string>("all");
     const [projectName, setProjectName] = useState("Nuovo Progetto");
     const [isTranslating, setIsTranslating] = useState(false);
+    const [isGeneratingAI, setIsGeneratingAI] = useState<number | null>(null);
     const [pickerSourceMode, setPickerSourceMode] = useState<'pdf' | 'web' | 'file' | 'folder'>('pdf');
     const [pickerPageIdx, setPickerPageIdx] = useState(0);
     const [webResults, setWebResults] = useState<any[]>([]);
@@ -642,6 +643,31 @@ export default function WorkspaceClient() {
             toast.error("Errore durante la traduzione dei campi.");
         } finally {
             setIsTranslating(false);
+        }
+    };
+
+    const handleGenerateAIDescription = async (idx: number, product: ProductData) => {
+        setIsGeneratingAI(idx);
+        toast.loading("L'AI sta scrivendo la descrizione...", { toastId: 'ai-desc' });
+        try {
+            const res = await axios.post("/api/ai/describe", {
+                productData: product,
+                language: translateTargetLang
+            });
+            if (res.data.success) {
+                const newProducts = [...products];
+                newProducts[idx] = { ...newProducts[idx], description: res.data.description };
+                setProducts(newProducts);
+                toast.success("Descrizione magica generata!");
+            } else {
+                toast.error("Errore dal server AI");
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Errore di connessione con l'AI");
+        } finally {
+            toast.dismiss('ai-desc');
+            setIsGeneratingAI(null);
         }
     };
 
@@ -2746,6 +2772,14 @@ export default function WorkspaceClient() {
                                                                     <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
                                                                     <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
                                                                 </div>
+                                                                <button
+                                                                    onClick={() => handleGenerateAIDescription(idx, p)}
+                                                                    disabled={isGeneratingAI === idx}
+                                                                    className="w-full text-[8px] mt-1 bg-indigo-50 text-indigo-600 border border-indigo-100 py-1 rounded hover:bg-indigo-100 font-bold tracking-wider flex justify-center items-center gap-1 transition-all shadow-[0_2px_10px_rgba(99,102,241,0.1)] hover:shadow-[0_4px_15px_rgba(99,102,241,0.2)] disabled:opacity-50"
+                                                                >
+                                                                    {isGeneratingAI === idx ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5 text-indigo-400" />}
+                                                                    Genera SEO AI
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </td>
