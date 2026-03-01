@@ -94,6 +94,8 @@ export default function WorkspaceClient() {
 
     const [catalogId, setCatalogId] = useState<number | null>(null);
     const [pdfPages, setPdfPages] = useState<PageData[]>([]);
+    const [wsSearchTerm, setWsSearchTerm] = useState("");
+    const [isSyncingPages, setIsSyncingPages] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [activeField, setActiveField] = useState<keyof ProductData | null>("sku");
     const [currentProduct, setCurrentProduct] = useState<ProductData>({
@@ -652,36 +654,51 @@ export default function WorkspaceClient() {
 
     const handleGenerateAIDescription = async (idx: number, product: ProductData) => {
         setIsGeneratingAI(idx);
-        toast.loading("L'AI sta scrivendo la descrizione...", { toastId: 'ai-desc' });
+        const toastId = 'ai-desc-ws';
+        toast.loading("L'AI sta scrivendo la descrizione...", { toastId });
         try {
-            // Rimuoviamo il payload enorme delle immagini in base64 per non crashare e sforare i limiti API
             const { images, extraFields, docDescription, ...cleanProductData } = product;
 
-            // Logghiamo la dimensione per debug se necessario, ma mandiamo solo i testi essenziali
-            const res = await axios.post("/api/ai/describe", {
-                productData: {
-                    ...cleanProductData,
-                    // Trunghiamo descrizioni bibliche per evitare 413 o timeout
-                    docDescription: docDescription?.substring(0, 2000) || "",
-                    // Passiamo solo l'essenziale dei campi extra se presenti (prendiamo i primi 1000 caratteri per sicurezza)
-                    extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
-                },
-                language: translateTargetLang
+            const response = await fetch("/api/ai/describe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    productData: {
+                        ...cleanProductData,
+                        docDescription: docDescription?.substring(0, 2000) || "",
+                        extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
+                    },
+                    language: translateTargetLang
+                })
             });
-            if (res.data.success) {
-                const newProducts = [...products];
-                newProducts[idx] = { ...newProducts[idx], description: res.data.description };
-                setProducts(newProducts);
-                toast.success("Descrizione magica generata!", { toastId: 'ai-desc' });
-            } else {
-                toast.error(`Errore AI: ${res.data.error || "Server error"}`, { toastId: 'ai-desc' });
+
+            if (!response.ok) throw new Error("Errore durante la generazione");
+
+            const reader = response.body?.getReader();
+            const decoder = new TextDecoder();
+            let accumulated = "";
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    accumulated += decoder.decode(value, { stream: true });
+
+                    // Update the product description in real-time
+                    setProducts(prev => {
+                        const next = [...prev];
+                        if (next[idx]) next[idx] = { ...next[idx], description: accumulated };
+                        return next;
+                    });
+                }
             }
+
+            toast.success("Descrizione magica generata!", { toastId });
         } catch (error: any) {
             console.error(error);
-            const msg = error.response?.data?.error || error.message || "Errore di connessione";
-            toast.error(`Errore di connessione AI: ${msg}`, { toastId: 'ai-desc' });
+            const msg = error.message || "Errore di connessione";
+            toast.error(`Errore AI: ${msg}`, { toastId });
         } finally {
-            toast.dismiss('ai-desc');
             setIsGeneratingAI(null);
         }
     };
@@ -1192,11 +1209,29 @@ export default function WorkspaceClient() {
             }
 
             for (const product of products) {
+                // Resolve any PAGE_REF_ URLs to actual URLs before saving to DB
+                const resolvedImages = (product.images || []).map(img => ({
+                    ...img,
+                    url: resolveImageUrl(img.url)
+                })).filter(img => img.url && !img.url.startsWith("PAGE_REF_"));
+
                 await axios.post("/api/products", {
                     ...product,
+                    images: resolvedImages,
                     catalogId: useCatalogId
                 });
             }
+
+            // Also Sync PDF Pages for Deep Search
+            if (pdfPages.length > 0) {
+                setIsSyncingPages(true);
+                await axios.post("/api/catalogues/sync-pages", {
+                    catalogId: useCatalogId,
+                    pages: pdfPages
+                });
+                setIsSyncingPages(false);
+            }
+
             toast.dismiss();
             toast.success(`${products.length} record sincronizzati correttamente.`);
         } catch (err) {
@@ -2762,6 +2797,16 @@ export default function WorkspaceClient() {
                                         <FileDown className="w-4 h-4" />
                                         Esporta Risultati
                                     </button>
+                                    <div className="relative ml-4">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                        <input
+                                            type="text"
+                                            value={wsSearchTerm}
+                                            onChange={(e) => setWsSearchTerm(e.target.value)}
+                                            placeholder="Cerca record..."
+                                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:border-blue-400 focus:outline-none transition-all w-64 shadow-sm"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             <div className="overflow-x-auto">
@@ -2780,500 +2825,507 @@ export default function WorkspaceClient() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
-                                        {products.slice(0, displayLimit).map((p, idx) => {
-                                            const assetUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
-                                            const isMatched = p.images.some(img => img.url === assetUrl);
+                                        {products
+                                            .filter(p => {
+                                                const search = wsSearchTerm.toLowerCase();
+                                                return p.sku.toLowerCase().includes(search) ||
+                                                    (p.title && p.title.toLowerCase().includes(search)) ||
+                                                    (p.category && p.category.toLowerCase().includes(search));
+                                            })
+                                            .slice(0, displayLimit).map((p, idx) => {
+                                                const assetUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
+                                                const isMatched = p.images.some(img => img.url === assetUrl);
 
-                                            return (
-                                                <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
-                                                    <td className="px-8 py-6">
-                                                        <div className="flex flex-col items-start gap-2">
-                                                            <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg whitespace-nowrap">{p.sku}</span>
-                                                            <button
-                                                                onClick={() => handleAutoFillData(p, idx)}
-                                                                className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-100"
-                                                                title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
-                                                            >
-                                                                <Sparkles className="w-3 h-3" />
-                                                                Auto-Compila
-                                                            </button>
-                                                            <div className="flex flex-col gap-1 w-full mt-1">
-                                                                <div className="flex gap-1 w-full">
-                                                                    <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1 rounded hover:bg-orange-100 font-bold tracking-wider">PDF</button>
-                                                                    <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
-                                                                </div>
-                                                                <div className="flex gap-1 w-full">
-                                                                    <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
-                                                                    <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
-                                                                </div>
+                                                return (
+                                                    <tr key={idx} className="hover:bg-blue-50/20 transition-colors">
+                                                        <td className="px-8 py-6">
+                                                            <div className="flex flex-col items-start gap-2">
+                                                                <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg whitespace-nowrap">{p.sku}</span>
                                                                 <button
-                                                                    onClick={() => handleGenerateAIDescription(idx, p)}
-                                                                    disabled={isGeneratingAI === idx}
-                                                                    className="w-full text-[8px] mt-1 bg-indigo-50 text-indigo-600 border border-indigo-100 py-1 rounded hover:bg-indigo-100 font-bold tracking-wider flex justify-center items-center gap-1 transition-all shadow-[0_2px_10px_rgba(99,102,241,0.1)] hover:shadow-[0_4px_15px_rgba(99,102,241,0.2)] disabled:opacity-50"
+                                                                    onClick={() => handleAutoFillData(p, idx)}
+                                                                    className="text-[10px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-100"
+                                                                    title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
                                                                 >
-                                                                    {isGeneratingAI === idx ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5 text-indigo-400" />}
-                                                                    Genera SEO AI
+                                                                    <Sparkles className="w-3 h-3" />
+                                                                    Auto-Compila
                                                                 </button>
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-8 py-6">
-                                                        {isMatched ? (
-                                                            <div className="flex items-center gap-2 text-green-600">
-                                                                <CheckCircle2 className="w-4 h-4" />
-                                                                <span className="text-[10px] font-black uppercase tracking-widest">Collegato</span>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-2 text-gray-300">
-                                                                <X className="w-4 h-4" />
-                                                                <span className="text-[10px] font-black uppercase tracking-widest">Mancante</span>
-                                                            </div>
-                                                        )}
-                                                    </td>
-                                                    {[0, 1, 2, 3].map((slot) => (
-                                                        <td key={slot} className="px-2 py-6">
-                                                            <div className="relative group/slot z-10 hover:z-[70]">
-                                                                <div
-                                                                    onClick={() => {
-                                                                        setActivePicker({ type: 'image', row: idx, field: `slot-${slot}` });
-                                                                        setPickerSearchQuery(p.sku);
-                                                                    }}
-                                                                    onMouseEnter={() => {
-                                                                        if (p.images[slot]) setPreviewImage(resolveImageUrl(p.images[slot].url));
-                                                                    }}
-                                                                    onMouseLeave={() => setPreviewImage(null)}
-                                                                    className="w-14 h-14 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center hover:border-orange-300 transition-all cursor-pointer group-hover/slot:scale-[2.5] group-hover/slot:shadow-2xl group-hover/slot:border-orange-400 group-hover/slot:rotate-2"
-                                                                >
-                                                                    {p.images[slot] ? (
-                                                                        <img src={resolveImageUrl(p.images[slot].url)} className="w-full h-full object-cover" />
-                                                                    ) : (
-                                                                        <ImageIcon className="w-4 h-4 text-gray-200" />
-                                                                    )}
-                                                                </div>
-
-                                                                {activePicker?.type === 'image' && activePicker.row === idx && activePicker.field === `slot-${slot}` && (
-                                                                    <div
-                                                                        onMouseLeave={() => setActivePicker(null)}
-                                                                        className={`absolute ${idx < 5 ? 'top-full mt-4' : 'bottom-full mb-4'} left-0 w-80 bg-white border border-gray-100 rounded-2xl shadow-2xl z-[100] p-4 animate-in fade-in zoom-in duration-200`}
+                                                                <div className="flex flex-col gap-1 w-full mt-1">
+                                                                    <div className="flex gap-1 w-full">
+                                                                        <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1 rounded hover:bg-orange-100 font-bold tracking-wider">PDF</button>
+                                                                        <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
+                                                                    </div>
+                                                                    <div className="flex gap-1 w-full">
+                                                                        <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
+                                                                        <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => handleGenerateAIDescription(idx, p)}
+                                                                        disabled={isGeneratingAI === idx}
+                                                                        className="w-full text-[8px] mt-1 bg-indigo-50 text-indigo-600 border border-indigo-100 py-1 rounded hover:bg-indigo-100 font-bold tracking-wider flex justify-center items-center gap-1 transition-all shadow-[0_2px_10px_rgba(99,102,241,0.1)] hover:shadow-[0_4px_15px_rgba(99,102,241,0.2)] disabled:opacity-50"
                                                                     >
-                                                                        <div className="flex items-center justify-between mb-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
-                                                                            <button
-                                                                                onClick={() => setPickerSourceMode('pdf')}
-                                                                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                            >
-                                                                                <FileText className="w-3 h-3" />
-                                                                                PDF Source
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => {
-                                                                                    setPickerSourceMode('web');
-                                                                                    setPickerSearchQuery(p.sku);
-                                                                                    if (webResults.length === 0) handleWebSearch(p, p.sku);
-                                                                                }}
-                                                                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                            >
-                                                                                <Globe className="w-3 h-3" />
-                                                                                WEB
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => setPickerSourceMode('folder')}
-                                                                                className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'folder' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
-                                                                            >
-                                                                                <FolderOpen className="w-3 h-3" />
-                                                                                Folder
-                                                                            </button>
-                                                                        </div>
+                                                                        {isGeneratingAI === idx ? <RefreshCw className="w-2.5 h-2.5 animate-spin" /> : <Sparkles className="w-2.5 h-2.5 text-indigo-400" />}
+                                                                        Genera SEO AI
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-6">
+                                                            {isMatched ? (
+                                                                <div className="flex items-center gap-2 text-green-600">
+                                                                    <CheckCircle2 className="w-4 h-4" />
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest">Collegato</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2 text-gray-300">
+                                                                    <X className="w-4 h-4" />
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest">Mancante</span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        {[0, 1, 2, 3].map((slot) => (
+                                                            <td key={slot} className="px-2 py-6">
+                                                                <div className="relative group/slot z-10 hover:z-[70]">
+                                                                    <div
+                                                                        onClick={() => {
+                                                                            setActivePicker({ type: 'image', row: idx, field: `slot-${slot}` });
+                                                                            setPickerSearchQuery(p.sku);
+                                                                        }}
+                                                                        onMouseEnter={() => {
+                                                                            if (p.images[slot]) setPreviewImage(resolveImageUrl(p.images[slot].url));
+                                                                        }}
+                                                                        onMouseLeave={() => setPreviewImage(null)}
+                                                                        className="w-14 h-14 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden flex items-center justify-center hover:border-orange-300 transition-all cursor-pointer group-hover/slot:scale-[2.5] group-hover/slot:shadow-2xl group-hover/slot:border-orange-400 group-hover/slot:rotate-2"
+                                                                    >
+                                                                        {p.images[slot] ? (
+                                                                            <img src={resolveImageUrl(p.images[slot].url)} className="w-full h-full object-cover" />
+                                                                        ) : (
+                                                                            <ImageIcon className="w-4 h-4 text-gray-200" />
+                                                                        )}
+                                                                    </div>
 
-                                                                        <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto custom-scrollbar p-1">
-                                                                            <div
-                                                                                onClick={() => {
-                                                                                    const newProducts = [...products];
-                                                                                    const newImages = [...p.images];
-                                                                                    newImages[slot] = undefined as any;
-                                                                                    newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
-                                                                                    setProducts(newProducts);
-                                                                                    setActivePicker(null);
-                                                                                }}
-                                                                                className="aspect-square rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center hover:border-red-200 cursor-pointer"
-                                                                            >
-                                                                                <Trash2 className="w-4 h-4 text-red-300" />
+                                                                    {activePicker?.type === 'image' && activePicker.row === idx && activePicker.field === `slot-${slot}` && (
+                                                                        <div
+                                                                            onMouseLeave={() => setActivePicker(null)}
+                                                                            className={`absolute ${idx < 5 ? 'top-full mt-4' : 'bottom-full mb-4'} left-0 w-80 bg-white border border-gray-100 rounded-2xl shadow-2xl z-[100] p-4 animate-in fade-in zoom-in duration-200`}
+                                                                        >
+                                                                            <div className="flex items-center justify-between mb-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
+                                                                                <button
+                                                                                    onClick={() => setPickerSourceMode('pdf')}
+                                                                                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                                >
+                                                                                    <FileText className="w-3 h-3" />
+                                                                                    PDF Source
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => {
+                                                                                        setPickerSourceMode('web');
+                                                                                        setPickerSearchQuery(p.sku);
+                                                                                        if (webResults.length === 0) handleWebSearch(p, p.sku);
+                                                                                    }}
+                                                                                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                                >
+                                                                                    <Globe className="w-3 h-3" />
+                                                                                    WEB
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => setPickerSourceMode('folder')}
+                                                                                    className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'folder' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                                >
+                                                                                    <FolderOpen className="w-3 h-3" />
+                                                                                    Folder
+                                                                                </button>
                                                                             </div>
 
-                                                                            {pickerSourceMode === 'pdf' ? (
-                                                                                <>
-                                                                                    <div className="col-span-3 flex items-center justify-between bg-gray-50 rounded-xl p-2 mb-2 border border-gray-100 shadow-inner">
-                                                                                        <button
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                setPickerPageIdx(prev => Math.max(0, prev - 1));
-                                                                                            }}
-                                                                                            disabled={pickerPageIdx === 0}
-                                                                                            className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
-                                                                                        >
-                                                                                            <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
-                                                                                        </button>
-                                                                                        <div className="flex flex-col items-center">
-                                                                                            <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-0.5">Sorgente PDF</span>
-                                                                                            <div className="text-[10px] font-black text-[#111827] uppercase tracking-wider">
-                                                                                                Pagina {pickerPageIdx + 1} <span className="text-gray-200">/</span> {pdfPages.length}
+                                                                            <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto custom-scrollbar p-1">
+                                                                                <div
+                                                                                    onClick={() => {
+                                                                                        const newProducts = [...products];
+                                                                                        const newImages = [...p.images];
+                                                                                        newImages[slot] = undefined as any;
+                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                        setProducts(newProducts);
+                                                                                        setActivePicker(null);
+                                                                                    }}
+                                                                                    className="aspect-square rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center hover:border-red-200 cursor-pointer"
+                                                                                >
+                                                                                    <Trash2 className="w-4 h-4 text-red-300" />
+                                                                                </div>
+
+                                                                                {pickerSourceMode === 'pdf' ? (
+                                                                                    <>
+                                                                                        <div className="col-span-3 flex items-center justify-between bg-gray-50 rounded-xl p-2 mb-2 border border-gray-100 shadow-inner">
+                                                                                            <button
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    setPickerPageIdx(prev => Math.max(0, prev - 1));
+                                                                                                }}
+                                                                                                disabled={pickerPageIdx === 0}
+                                                                                                className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                            >
+                                                                                                <ChevronLeft className="w-3.5 h-3.5 text-gray-500" />
+                                                                                            </button>
+                                                                                            <div className="flex flex-col items-center">
+                                                                                                <span className="text-[8px] font-black text-gray-300 uppercase tracking-[0.2em] mb-0.5">Sorgente PDF</span>
+                                                                                                <div className="text-[10px] font-black text-[#111827] uppercase tracking-wider">
+                                                                                                    Pagina {pickerPageIdx + 1} <span className="text-gray-200">/</span> {pdfPages.length}
+                                                                                                </div>
                                                                                             </div>
+                                                                                            <button
+                                                                                                onClick={(e) => {
+                                                                                                    e.stopPropagation();
+                                                                                                    setPickerPageIdx(prev => Math.min(pdfPages.length - 1, prev + 1));
+                                                                                                }}
+                                                                                                disabled={pdfPages.length === 0 || pickerPageIdx === pdfPages.length - 1}
+                                                                                                className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
+                                                                                            >
+                                                                                                <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
+                                                                                            </button>
                                                                                         </div>
-                                                                                        <button
-                                                                                            onClick={(e) => {
-                                                                                                e.stopPropagation();
-                                                                                                setPickerPageIdx(prev => Math.min(pdfPages.length - 1, prev + 1));
-                                                                                            }}
-                                                                                            disabled={pdfPages.length === 0 || pickerPageIdx === pdfPages.length - 1}
-                                                                                            className="p-1 px-2 hover:bg-white rounded-lg disabled:opacity-20 transition-all shadow-sm border border-transparent hover:border-gray-200"
-                                                                                        >
-                                                                                            <ChevronRight className="w-3.5 h-3.5 text-gray-500" />
-                                                                                        </button>
-                                                                                    </div>
-                                                                                    {pdfPages[pickerPageIdx] && (
-                                                                                        <>
-                                                                                            {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
+                                                                                        {pdfPages[pickerPageIdx] && (
+                                                                                            <>
+                                                                                                {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
+                                                                                                    <div
+                                                                                                        key={`sub-${pickerPageIdx}-${sIdx}`}
+                                                                                                        onMouseEnter={() => setPreviewImage(sImg.preview)}
+                                                                                                        onMouseLeave={() => setPreviewImage(null)}
+                                                                                                        onClick={(e) => {
+                                                                                                            e.stopPropagation();
+                                                                                                            const newProducts = [...products];
+                                                                                                            const newImages = [...p.images];
+                                                                                                            newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
+                                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                            setProducts(newProducts);
+                                                                                                            extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
+                                                                                                            setActivePicker(null);
+                                                                                                        }}
+                                                                                                        className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                    >
+                                                                                                        <img src={sImg.preview} className="w-full h-full object-contain" />
+                                                                                                    </div>
+                                                                                                ))}
                                                                                                 <div
-                                                                                                    key={`sub-${pickerPageIdx}-${sIdx}`}
-                                                                                                    onMouseEnter={() => setPreviewImage(sImg.preview)}
+                                                                                                    onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
                                                                                                     onMouseLeave={() => setPreviewImage(null)}
                                                                                                     onClick={(e) => {
                                                                                                         e.stopPropagation();
                                                                                                         const newProducts = [...products];
                                                                                                         const newImages = [...p.images];
-                                                                                                        newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
+                                                                                                        newImages[slot] = { id: Math.random().toString(), url: pdfPages[pickerPageIdx].imageUrl };
                                                                                                         newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
                                                                                                         setProducts(newProducts);
-                                                                                                        extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
                                                                                                         setActivePicker(null);
                                                                                                     }}
-                                                                                                    className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-400 cursor-pointer transition-all bg-blue-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                    className="aspect-square rounded-lg border border-gray-100 overflow-hidden hover:border-gray-500 cursor-pointer transition-all bg-white hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
                                                                                                 >
-                                                                                                    <img src={sImg.preview} className="w-full h-full object-contain" />
+                                                                                                    <img src={pdfPages[pickerPageIdx].imageUrl} className="w-full h-full object-contain" />
                                                                                                 </div>
-                                                                                            ))}
+                                                                                            </>
+                                                                                        )}
+                                                                                    </>
+                                                                                ) : pickerSourceMode === 'web' ? (
+                                                                                    <>
+                                                                                        <div className="col-span-3 pb-2 flex flex-col gap-2">
+                                                                                            <div className="flex items-center justify-between px-1">
+                                                                                                <label className="flex items-center gap-2 cursor-pointer bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
+                                                                                                    <input
+                                                                                                        type="checkbox"
+                                                                                                        checked={useGoogleShopping}
+                                                                                                        onChange={(e) => setUseGoogleShopping(e.target.checked)}
+                                                                                                        className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                                                                                    />
+                                                                                                    <span className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Cerca in Google Shopping</span>
+                                                                                                </label>
+                                                                                            </div>
+                                                                                            <div className="flex items-center gap-2">
+                                                                                                <Search className="w-3 h-3 text-gray-400" />
+                                                                                                <input
+                                                                                                    value={pickerSearchQuery}
+                                                                                                    onChange={(e) => setPickerSearchQuery(e.target.value)}
+                                                                                                    onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
+                                                                                                    placeholder="Cerca immagini o SKU su Web..."
+                                                                                                    className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
+                                                                                                />
+                                                                                                <button
+                                                                                                    onClick={() => handleWebSearch(p, pickerSearchQuery)}
+                                                                                                    className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                                                                                                >
+                                                                                                    <Search className="w-3 h-3" />
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {isSearchingWeb ? (
+                                                                                            <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
+                                                                                                <div className="w-5 h-5 border-2 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
+                                                                                                <span className="text-[9px] font-bold text-gray-400 uppercase">Ricerca in corso...</span>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            webResults.map((result, rIdx) => (
+                                                                                                <div
+                                                                                                    key={rIdx}
+                                                                                                    onMouseEnter={() => setPreviewImage(result.url)}
+                                                                                                    onMouseLeave={() => setPreviewImage(null)}
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        const newProducts = [...products];
+                                                                                                        const newImages = [...p.images];
+                                                                                                        newImages[slot] = { id: Math.random().toString(), url: result.url };
+
+                                                                                                        let updatedProduct = { ...p, images: newImages.filter(Boolean) };
+                                                                                                        if (result.productData) {
+                                                                                                            let updatedSomething = false;
+                                                                                                            if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
+                                                                                                                updatedProduct.price = result.productData.price;
+                                                                                                                updatedSomething = true;
+                                                                                                            }
+                                                                                                            if (result.productData.description && !updatedProduct.description) {
+                                                                                                                updatedProduct.description = result.productData.description;
+                                                                                                                updatedSomething = true;
+                                                                                                            }
+                                                                                                            if (updatedSomething) toast.success("Dati aggiornati automaticamente da Shopping!");
+                                                                                                        }
+
+                                                                                                        newProducts[idx] = updatedProduct;
+                                                                                                        setProducts(newProducts);
+                                                                                                        setActivePicker(null);
+                                                                                                    }}
+                                                                                                    className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
+                                                                                                >
+                                                                                                    <img src={result.url} className="w-full h-full object-contain" />
+                                                                                                    {result.productData && (
+                                                                                                        <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            ))
+                                                                                        )}
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <div className="col-span-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
+                                                                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Sorgente Cartella / Drive</p>
+
+                                                                                        <div className="flex flex-col gap-3">
+                                                                                            <div className="relative">
+                                                                                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+                                                                                                <input
+                                                                                                    type="text"
+                                                                                                    placeholder={`Cerca file o SKU (es. ${p.sku})...`}
+                                                                                                    value={pickerSearchQuery}
+                                                                                                    onChange={(e) => setPickerSearchQuery(e.target.value)}
+                                                                                                    className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-7 py-1.5 text-[10px] font-bold focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all"
+                                                                                                />
+                                                                                                {pickerSearchQuery && (
+                                                                                                    <button
+                                                                                                        onClick={(e) => { e.stopPropagation(); setPickerSearchQuery(""); }}
+                                                                                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                                                                                                    >
+                                                                                                        <X className="w-3 h-3" />
+                                                                                                    </button>
+                                                                                                )}
+                                                                                            </div>
+
                                                                                             <div
-                                                                                                onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
-                                                                                                onMouseLeave={() => setPreviewImage(null)}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
+                                                                                                onClick={() => {
+                                                                                                    const targetSku = pickerSearchQuery.trim() || p.sku;
+                                                                                                    const fullUrl = resolveAssetUrl(assetBaseUrl, targetSku, assetExtension);
+                                                                                                    if (!fullUrl) return;
                                                                                                     const newProducts = [...products];
                                                                                                     const newImages = [...p.images];
-                                                                                                    newImages[slot] = { id: Math.random().toString(), url: pdfPages[pickerPageIdx].imageUrl };
+                                                                                                    newImages[slot] = { id: Math.random().toString(), url: fullUrl };
                                                                                                     newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
                                                                                                     setProducts(newProducts);
                                                                                                     setActivePicker(null);
+                                                                                                    setPickerSearchQuery("");
                                                                                                 }}
-                                                                                                className="aspect-square rounded-lg border border-gray-100 overflow-hidden hover:border-gray-500 cursor-pointer transition-all bg-white hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                className="aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center p-2 hover:border-green-400 hover:bg-green-50/20 cursor-pointer group transition-all"
                                                                                             >
-                                                                                                <img src={pdfPages[pickerPageIdx].imageUrl} className="w-full h-full object-contain" />
+                                                                                                {assetBaseUrl ? (
+                                                                                                    <img
+                                                                                                        src={resolveAssetUrl(assetBaseUrl, pickerSearchQuery.trim() || p.sku, assetExtension)}
+                                                                                                        onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                                                                        className="w-full h-1/2 object-contain mb-2"
+                                                                                                    />
+                                                                                                ) : null}
+                                                                                                <HardDrive className="w-6 h-6 text-gray-300 group-hover:text-green-500 mb-1" />
+                                                                                                <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2 break-all">
+                                                                                                    {assetBaseUrl ? resolveAssetUrl(assetBaseUrl, pickerSearchQuery.trim() || p.sku, assetExtension) : 'Percorso non configurato'}
+                                                                                                </span>
                                                                                             </div>
-                                                                                        </>
-                                                                                    )}
-                                                                                </>
-                                                                            ) : pickerSourceMode === 'web' ? (
-                                                                                <>
-                                                                                    <div className="col-span-3 pb-2 flex flex-col gap-2">
-                                                                                        <div className="flex items-center justify-between px-1">
-                                                                                            <label className="flex items-center gap-2 cursor-pointer bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors">
-                                                                                                <input
-                                                                                                    type="checkbox"
-                                                                                                    checked={useGoogleShopping}
-                                                                                                    onChange={(e) => setUseGoogleShopping(e.target.checked)}
-                                                                                                    className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                                                                                                />
-                                                                                                <span className="text-[10px] font-black text-blue-800 uppercase tracking-wider">Cerca in Google Shopping</span>
-                                                                                            </label>
-                                                                                        </div>
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            <Search className="w-3 h-3 text-gray-400" />
-                                                                                            <input
-                                                                                                value={pickerSearchQuery}
-                                                                                                onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                                onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
-                                                                                                placeholder="Cerca immagini o SKU su Web..."
-                                                                                                className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-blue-400"
-                                                                                            />
-                                                                                            <button
-                                                                                                onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                                className="p-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                                                                                            >
-                                                                                                <Search className="w-3 h-3" />
-                                                                                            </button>
                                                                                         </div>
                                                                                     </div>
-                                                                                    {isSearchingWeb ? (
-                                                                                        <div className="col-span-3 py-8 flex flex-col items-center justify-center gap-2">
-                                                                                            <div className="w-5 h-5 border-2 border-blue-100 border-t-blue-500 rounded-full animate-spin" />
-                                                                                            <span className="text-[9px] font-bold text-gray-400 uppercase">Ricerca in corso...</span>
-                                                                                        </div>
-                                                                                    ) : (
-                                                                                        webResults.map((result, rIdx) => (
-                                                                                            <div
-                                                                                                key={rIdx}
-                                                                                                onMouseEnter={() => setPreviewImage(result.url)}
-                                                                                                onMouseLeave={() => setPreviewImage(null)}
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation();
-                                                                                                    const newProducts = [...products];
-                                                                                                    const newImages = [...p.images];
-                                                                                                    newImages[slot] = { id: Math.random().toString(), url: result.url };
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        ))}
+                                                        {Object.entries(csvMapping).map(([field, header]) => {
+                                                            if (!header || !field || typeof field !== 'string' || field.startsWith('image')) return null;
+                                                            const currentCol = { key: field, label: header, isSystem: !extraColumns.includes(field) };
+                                                            const val = (p as any)[field] || (p.extraFields?.[field]) || '';
 
-                                                                                                    let updatedProduct = { ...p, images: newImages.filter(Boolean) };
-                                                                                                    if (result.productData) {
-                                                                                                        let updatedSomething = false;
-                                                                                                        if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
-                                                                                                            updatedProduct.price = result.productData.price;
-                                                                                                            updatedSomething = true;
-                                                                                                        }
-                                                                                                        if (result.productData.description && !updatedProduct.description) {
-                                                                                                            updatedProduct.description = result.productData.description;
-                                                                                                            updatedSomething = true;
-                                                                                                        }
-                                                                                                        if (updatedSomething) toast.success("Dati aggiornati automaticamente da Shopping!");
+                                                            return (
+                                                                <td key={field} className="px-4 py-4 relative">
+                                                                    <div className="relative group/edit">
+                                                                        <textarea
+                                                                            rows={2}
+                                                                            value={val}
+                                                                            onChange={(e) => {
+                                                                                const newProducts = [...products];
+                                                                                if (currentCol.isSystem) {
+                                                                                    (newProducts[idx] as any)[field] = e.target.value;
+                                                                                } else {
+                                                                                    newProducts[idx].extraFields = { ...newProducts[idx].extraFields, [field]: e.target.value };
+                                                                                }
+                                                                                setProducts(newProducts);
+                                                                            }}
+                                                                            onFocus={() => {
+                                                                                setActivePicker({ type: 'text', row: idx, field: field });
+                                                                                setPickerSearch("");
+                                                                            }}
+                                                                            placeholder={header + "..."}
+                                                                            className="bg-transparent font-bold text-gray-700 w-[180px] min-h-[50px] hover:bg-blue-50/50 rounded-xl px-4 py-2 text-sm transition-all border border-transparent hover:border-blue-100 cursor-pointer resize break-words whitespace-pre-wrap leading-tight focus:outline-none focus:border-blue-400 focus:bg-white"
+                                                                        />
+
+                                                                        <AnimatePresence>
+                                                                            {activePicker?.type === 'text' && activePicker.row === idx && activePicker.field === field && (
+                                                                                <motion.div
+                                                                                    initial={{ opacity: 0, y: -10 }}
+                                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                                    exit={{ opacity: 0, y: -10 }}
+                                                                                    className={`absolute z-[200] ${idx < 5 ? 'top-full mt-2' : 'bottom-full mb-2'} left-0 w-80 bg-white border border-gray-100 rounded-3xl shadow-[0_30px_60px_rgba(0,0,0,0.1)] p-6`}
+                                                                                    onMouseLeave={() => setActivePicker(null)}
+                                                                                >
+                                                                                    <div className="flex items-center gap-3 mb-4">
+                                                                                        <div className="p-2 bg-blue-50 rounded-xl">
+                                                                                            <Database className="w-4 h-4 text-blue-600" />
+                                                                                        </div>
+                                                                                        <div className="flex-1">
+                                                                                            <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Associa Valore</p>
+                                                                                            <h4 className="text-xs font-black text-[#111827]">{header}</h4>
+                                                                                        </div>
+                                                                                    </div>
+
+                                                                                    <div className="relative mb-4">
+                                                                                        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
+                                                                                        <input
+                                                                                            autoFocus
+                                                                                            type="text"
+                                                                                            placeholder="Cerca o digita valore..."
+                                                                                            value={pickerSearch || val}
+                                                                                            onChange={(e) => setPickerSearch(e.target.value)}
+                                                                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                                                                        />
+                                                                                    </div>
+
+                                                                                    <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2 p-1">
+                                                                                        {/* Unique values from CSV list for this column */}
+                                                                                        {Array.from(new Set(csvMasterList.map(item => String((item as any)[header] || "")).filter(v => v && v.toLowerCase().includes(pickerSearch.toLowerCase())))).slice(0, 15).map((uVal, uIdx) => (
+                                                                                            <div
+                                                                                                key={uIdx}
+                                                                                                onClick={() => {
+                                                                                                    const newProducts = [...products];
+                                                                                                    const newVal = uVal;
+
+                                                                                                    // Find the row in CSV that exactly matches this selected value for the current header
+                                                                                                    const match = csvMasterList.find(row =>
+                                                                                                        String(row[header] || "").trim().toLowerCase() === newVal.trim().toLowerCase()
+                                                                                                    );
+
+                                                                                                    let updated = { ...p };
+
+                                                                                                    if (currentCol.isSystem) {
+                                                                                                        (updated as any)[currentCol.key] = newVal;
+                                                                                                    } else {
+                                                                                                        updated.extraFields = { ...(updated.extraFields || {}), [currentCol.key]: newVal };
                                                                                                     }
 
-                                                                                                    newProducts[idx] = updatedProduct;
+                                                                                                    // Auto populate all other mapped fields from the matched row
+                                                                                                    if (match) {
+                                                                                                        const systemFieldsKeys = ['sku', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+
+                                                                                                        systemFieldsKeys.forEach(f => {
+                                                                                                            if (f === currentCol.key) return; // Already set
+                                                                                                            const h = csvMapping[f];
+                                                                                                            if (h && match[h]) (updated as any)[f] = String(match[h]);
+                                                                                                        });
+
+                                                                                                        extraColumns.forEach(ex => {
+                                                                                                            if (ex === currentCol.key) return; // Already set
+                                                                                                            const h = csvMapping[ex];
+                                                                                                            if (h && match[h]) {
+                                                                                                                updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
+                                                                                                            }
+                                                                                                        });
+                                                                                                    }
+
+                                                                                                    newProducts[idx] = updated;
                                                                                                     setProducts(newProducts);
                                                                                                     setActivePicker(null);
                                                                                                 }}
-                                                                                                className="aspect-square rounded-lg border border-blue-100 overflow-hidden hover:border-blue-500 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
+                                                                                                className="p-3 hover:bg-blue-50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-blue-200 flex items-center justify-between group"
                                                                                             >
-                                                                                                <img src={result.url} className="w-full h-full object-contain" />
-                                                                                                {result.productData && (
-                                                                                                    <div className="absolute top-0 right-0 bg-blue-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
-                                                                                                )}
+                                                                                                <span className="text-xs font-bold text-gray-600">{uVal}</span>
+                                                                                                <CheckCircle2 className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
                                                                                             </div>
-                                                                                        ))
-                                                                                    )}
-                                                                                </>
-                                                                            ) : (
-                                                                                <div className="col-span-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2">
-                                                                                    <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Sorgente Cartella / Drive</p>
+                                                                                        ))}
+                                                                                        {pickerSearch && !csvMasterList.some(i => (i as any)[header] === pickerSearch) && (
+                                                                                            <div
+                                                                                                onClick={() => {
+                                                                                                    const newProducts = [...products];
+                                                                                                    const newVal = pickerSearch;
 
-                                                                                    <div className="flex flex-col gap-3">
-                                                                                        <div className="relative">
-                                                                                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                                                                                            <input
-                                                                                                type="text"
-                                                                                                placeholder={`Cerca file o SKU (es. ${p.sku})...`}
-                                                                                                value={pickerSearchQuery}
-                                                                                                onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                                className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-7 py-1.5 text-[10px] font-bold focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all"
-                                                                                            />
-                                                                                            {pickerSearchQuery && (
-                                                                                                <button
-                                                                                                    onClick={(e) => { e.stopPropagation(); setPickerSearchQuery(""); }}
-                                                                                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
-                                                                                                >
-                                                                                                    <X className="w-3 h-3" />
-                                                                                                </button>
-                                                                                            )}
-                                                                                        </div>
+                                                                                                    // Even for custom input, check if it matches any row for this header perfectly
+                                                                                                    const match = csvMasterList.find(row =>
+                                                                                                        String(row[header] || "").trim().toLowerCase() === newVal.trim().toLowerCase()
+                                                                                                    );
 
-                                                                                        <div
-                                                                                            onClick={() => {
-                                                                                                const targetSku = pickerSearchQuery.trim() || p.sku;
-                                                                                                const fullUrl = resolveAssetUrl(assetBaseUrl, targetSku, assetExtension);
-                                                                                                if (!fullUrl) return;
-                                                                                                const newProducts = [...products];
-                                                                                                const newImages = [...p.images];
-                                                                                                newImages[slot] = { id: Math.random().toString(), url: fullUrl };
-                                                                                                newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
-                                                                                                setProducts(newProducts);
-                                                                                                setActivePicker(null);
-                                                                                                setPickerSearchQuery("");
-                                                                                            }}
-                                                                                            className="aspect-video rounded-xl border-2 border-dashed border-gray-200 bg-white flex flex-col items-center justify-center p-2 hover:border-green-400 hover:bg-green-50/20 cursor-pointer group transition-all"
-                                                                                        >
-                                                                                            {assetBaseUrl ? (
-                                                                                                <img
-                                                                                                    src={resolveAssetUrl(assetBaseUrl, pickerSearchQuery.trim() || p.sku, assetExtension)}
-                                                                                                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                                                                                                    className="w-full h-1/2 object-contain mb-2"
-                                                                                                />
-                                                                                            ) : null}
-                                                                                            <HardDrive className="w-6 h-6 text-gray-300 group-hover:text-green-500 mb-1" />
-                                                                                            <span className="text-[10px] font-bold text-gray-400 text-center line-clamp-2 px-2 break-all">
-                                                                                                {assetBaseUrl ? resolveAssetUrl(assetBaseUrl, pickerSearchQuery.trim() || p.sku, assetExtension) : 'Percorso non configurato'}
-                                                                                            </span>
-                                                                                        </div>
+                                                                                                    let updated = { ...p };
+
+                                                                                                    if (currentCol.isSystem) {
+                                                                                                        (updated as any)[currentCol.key] = newVal;
+                                                                                                    } else {
+                                                                                                        updated.extraFields = { ...(updated.extraFields || {}), [currentCol.key]: newVal };
+                                                                                                    }
+
+                                                                                                    if (match) {
+                                                                                                        const systemFieldsKeys = ['sku', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+
+                                                                                                        systemFieldsKeys.forEach(f => {
+                                                                                                            if (f === currentCol.key) return;
+                                                                                                            const h = csvMapping[f];
+                                                                                                            if (h && match[h]) (updated as any)[f] = String(match[h]);
+                                                                                                        });
+
+                                                                                                        extraColumns.forEach(ex => {
+                                                                                                            if (ex === currentCol.key) return;
+                                                                                                            const h = csvMapping[ex];
+                                                                                                            if (h && match[h]) {
+                                                                                                                updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
+                                                                                                            }
+                                                                                                        });
+                                                                                                    }
+
+                                                                                                    newProducts[idx] = updated;
+                                                                                                    setProducts(newProducts);
+                                                                                                    setActivePicker(null);
+                                                                                                }}
+                                                                                                className="p-3 bg-green-50/50 border border-green-100 rounded-xl cursor-pointer hover:bg-green-100"
+                                                                                            >
+                                                                                                <span className="text-[10px] font-black text-green-600 uppercase">Salva Nuovo: </span>
+                                                                                                <span className="text-xs font-black text-green-700">{pickerSearch}</span>
+                                                                                            </div>
+                                                                                        )}
                                                                                     </div>
-                                                                                </div>
+                                                                                </motion.div>
                                                                             )}
-                                                                        </div>
+                                                                        </AnimatePresence>
                                                                     </div>
-                                                                )}
-                                                            </div>
-                                                        </td>
-                                                    ))}
-                                                    {Object.entries(csvMapping).map(([field, header]) => {
-                                                        if (!header || !field || typeof field !== 'string' || field.startsWith('image')) return null;
-                                                        const currentCol = { key: field, label: header, isSystem: !extraColumns.includes(field) };
-                                                        const val = (p as any)[field] || (p.extraFields?.[field]) || '';
-
-                                                        return (
-                                                            <td key={field} className="px-4 py-4 relative">
-                                                                <div className="relative group/edit">
-                                                                    <textarea
-                                                                        rows={2}
-                                                                        value={val}
-                                                                        onChange={(e) => {
-                                                                            const newProducts = [...products];
-                                                                            if (currentCol.isSystem) {
-                                                                                (newProducts[idx] as any)[field] = e.target.value;
-                                                                            } else {
-                                                                                newProducts[idx].extraFields = { ...newProducts[idx].extraFields, [field]: e.target.value };
-                                                                            }
-                                                                            setProducts(newProducts);
-                                                                        }}
-                                                                        onFocus={() => {
-                                                                            setActivePicker({ type: 'text', row: idx, field: field });
-                                                                            setPickerSearch("");
-                                                                        }}
-                                                                        placeholder={header + "..."}
-                                                                        className="bg-transparent font-bold text-gray-700 w-[180px] min-h-[50px] hover:bg-blue-50/50 rounded-xl px-4 py-2 text-sm transition-all border border-transparent hover:border-blue-100 cursor-pointer resize break-words whitespace-pre-wrap leading-tight focus:outline-none focus:border-blue-400 focus:bg-white"
-                                                                    />
-
-                                                                    <AnimatePresence>
-                                                                        {activePicker?.type === 'text' && activePicker.row === idx && activePicker.field === field && (
-                                                                            <motion.div
-                                                                                initial={{ opacity: 0, y: -10 }}
-                                                                                animate={{ opacity: 1, y: 0 }}
-                                                                                exit={{ opacity: 0, y: -10 }}
-                                                                                className={`absolute z-[200] ${idx < 5 ? 'top-full mt-2' : 'bottom-full mb-2'} left-0 w-80 bg-white border border-gray-100 rounded-3xl shadow-[0_30px_60px_rgba(0,0,0,0.1)] p-6`}
-                                                                                onMouseLeave={() => setActivePicker(null)}
-                                                                            >
-                                                                                <div className="flex items-center gap-3 mb-4">
-                                                                                    <div className="p-2 bg-blue-50 rounded-xl">
-                                                                                        <Database className="w-4 h-4 text-blue-600" />
-                                                                                    </div>
-                                                                                    <div className="flex-1">
-                                                                                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Associa Valore</p>
-                                                                                        <h4 className="text-xs font-black text-[#111827]">{header}</h4>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <div className="relative mb-4">
-                                                                                    <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
-                                                                                    <input
-                                                                                        autoFocus
-                                                                                        type="text"
-                                                                                        placeholder="Cerca o digita valore..."
-                                                                                        value={pickerSearch || val}
-                                                                                        onChange={(e) => setPickerSearch(e.target.value)}
-                                                                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-2xl text-sm font-bold transition-all outline-none"
-                                                                                    />
-                                                                                </div>
-
-                                                                                <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-2 p-1">
-                                                                                    {/* Unique values from CSV list for this column */}
-                                                                                    {Array.from(new Set(csvMasterList.map(item => String((item as any)[header] || "")).filter(v => v && v.toLowerCase().includes(pickerSearch.toLowerCase())))).slice(0, 15).map((uVal, uIdx) => (
-                                                                                        <div
-                                                                                            key={uIdx}
-                                                                                            onClick={() => {
-                                                                                                const newProducts = [...products];
-                                                                                                const newVal = uVal;
-
-                                                                                                // Find the row in CSV that exactly matches this selected value for the current header
-                                                                                                const match = csvMasterList.find(row =>
-                                                                                                    String(row[header] || "").trim().toLowerCase() === newVal.trim().toLowerCase()
-                                                                                                );
-
-                                                                                                let updated = { ...p };
-
-                                                                                                if (currentCol.isSystem) {
-                                                                                                    (updated as any)[currentCol.key] = newVal;
-                                                                                                } else {
-                                                                                                    updated.extraFields = { ...(updated.extraFields || {}), [currentCol.key]: newVal };
-                                                                                                }
-
-                                                                                                // Auto populate all other mapped fields from the matched row
-                                                                                                if (match) {
-                                                                                                    const systemFieldsKeys = ['sku', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
-
-                                                                                                    systemFieldsKeys.forEach(f => {
-                                                                                                        if (f === currentCol.key) return; // Already set
-                                                                                                        const h = csvMapping[f];
-                                                                                                        if (h && match[h]) (updated as any)[f] = String(match[h]);
-                                                                                                    });
-
-                                                                                                    extraColumns.forEach(ex => {
-                                                                                                        if (ex === currentCol.key) return; // Already set
-                                                                                                        const h = csvMapping[ex];
-                                                                                                        if (h && match[h]) {
-                                                                                                            updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
-                                                                                                        }
-                                                                                                    });
-                                                                                                }
-
-                                                                                                newProducts[idx] = updated;
-                                                                                                setProducts(newProducts);
-                                                                                                setActivePicker(null);
-                                                                                            }}
-                                                                                            className="p-3 hover:bg-blue-50 rounded-xl cursor-pointer transition-all border border-transparent hover:border-blue-200 flex items-center justify-between group"
-                                                                                        >
-                                                                                            <span className="text-xs font-bold text-gray-600">{uVal}</span>
-                                                                                            <CheckCircle2 className="w-3 h-3 text-blue-400 opacity-0 group-hover:opacity-100" />
-                                                                                        </div>
-                                                                                    ))}
-                                                                                    {pickerSearch && !csvMasterList.some(i => (i as any)[header] === pickerSearch) && (
-                                                                                        <div
-                                                                                            onClick={() => {
-                                                                                                const newProducts = [...products];
-                                                                                                const newVal = pickerSearch;
-
-                                                                                                // Even for custom input, check if it matches any row for this header perfectly
-                                                                                                const match = csvMasterList.find(row =>
-                                                                                                    String(row[header] || "").trim().toLowerCase() === newVal.trim().toLowerCase()
-                                                                                                );
-
-                                                                                                let updated = { ...p };
-
-                                                                                                if (currentCol.isSystem) {
-                                                                                                    (updated as any)[currentCol.key] = newVal;
-                                                                                                } else {
-                                                                                                    updated.extraFields = { ...(updated.extraFields || {}), [currentCol.key]: newVal };
-                                                                                                }
-
-                                                                                                if (match) {
-                                                                                                    const systemFieldsKeys = ['sku', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
-
-                                                                                                    systemFieldsKeys.forEach(f => {
-                                                                                                        if (f === currentCol.key) return;
-                                                                                                        const h = csvMapping[f];
-                                                                                                        if (h && match[h]) (updated as any)[f] = String(match[h]);
-                                                                                                    });
-
-                                                                                                    extraColumns.forEach(ex => {
-                                                                                                        if (ex === currentCol.key) return;
-                                                                                                        const h = csvMapping[ex];
-                                                                                                        if (h && match[h]) {
-                                                                                                            updated.extraFields = { ...(updated.extraFields || {}), [ex]: String(match[h]) };
-                                                                                                        }
-                                                                                                    });
-                                                                                                }
-
-                                                                                                newProducts[idx] = updated;
-                                                                                                setProducts(newProducts);
-                                                                                                setActivePicker(null);
-                                                                                            }}
-                                                                                            className="p-3 bg-green-50/50 border border-green-100 rounded-xl cursor-pointer hover:bg-green-100"
-                                                                                        >
-                                                                                            <span className="text-[10px] font-black text-green-600 uppercase">Salva Nuovo: </span>
-                                                                                            <span className="text-xs font-black text-green-700">{pickerSearch}</span>
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
-                                                                            </motion.div>
-                                                                        )}
-                                                                    </AnimatePresence>
-                                                                </div>
-                                                            </td>
-                                                        );
-                                                    })}
-                                                </tr>
-                                            );
-                                        })}
+                                                                </td>
+                                                            );
+                                                        })}
+                                                    </tr>
+                                                );
+                                            })}
                                     </tbody>
                                 </table>
                             </div>

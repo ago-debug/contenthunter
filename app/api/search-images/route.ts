@@ -52,10 +52,21 @@ async function scrapeImagesFromSource(sourceUrl: string, sku: string): Promise<S
     // Funzione helper per estrarre da una singola pagina
     const scrapePage = async (url: string): Promise<ScrapedImage[]> => {
         try {
-            const response = await axios.get(url, { headers: BROWSER_HEADERS, timeout: 8000, maxRedirects: 5 });
+            console.log(`Scraping page: ${url}`);
+            const response = await axios.get(url, {
+                headers: {
+                    ...BROWSER_HEADERS,
+                    'Referer': 'https://www.google.com/'
+                },
+                timeout: 10000,
+                maxRedirects: 5
+            });
             const $ = cheerio.load(response.data);
             return extractProductImages($, baseUrl.origin, sku);
-        } catch { return []; }
+        } catch (err: any) {
+            console.error(`Error scraping ${url}:`, err.message);
+            return [];
+        }
     };
 
     // STRATEGY 1: DuckDuckGo Site Search (vero e proprio scraping della sorgente tramite motore di ricerca)
@@ -90,22 +101,23 @@ async function scrapeImagesFromSource(sourceUrl: string, sku: string): Promise<S
         console.warn(`DDG Scrape fallback failed for ${baseUrl.hostname}`);
     }
 
-    // STRATEGY 2: Common Search Paths (se lo scraping DDG fallisce o non trova abbastanza)
-    if (found.length < 2) {
+    // STRATEGY 2: Retailer Search Fallbacks
+    if (found.length < 5) {
         const searchCandidates = [
-            sourceUrl, // Prova l'URL esatto se fornito
+            sourceUrl,
             `${baseUrl.origin}/search?q=${encodeURIComponent(sku)}`,
-            `${baseUrl.origin}/search?query=${encodeURIComponent(sku)}`,
-            `${baseUrl.origin}/recherche?q=${encodeURIComponent(sku)}`,
-            `${baseUrl.origin}/?s=${encodeURIComponent(sku)}`,
             `${baseUrl.origin}/catalogsearch/result/?q=${encodeURIComponent(sku)}`,
+            `${baseUrl.origin}/s?k=${encodeURIComponent(sku)}`,
+            `${baseUrl.origin}/?s=${encodeURIComponent(sku)}`,
+            `https://www.google.com/search?q=${encodeURIComponent(sku + " " + baseUrl.hostname)}&tbm=isch`
         ];
 
         for (const url of searchCandidates) {
+            if (!url) continue;
             const images = await scrapePage(url);
             if (images.length > 0) {
                 found.push(...images);
-                break; // Ci fermiamo al primo che funziona
+                if (found.length > 10) break;
             }
         }
     }

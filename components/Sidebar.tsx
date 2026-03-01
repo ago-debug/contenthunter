@@ -45,7 +45,7 @@ export default function Sidebar() {
     ];
 
     return (
-        <aside className="w-72 bg-white border-r border-slate-200 sticky top-0 h-screen flex flex-col p-6 overflow-y-auto custom-scrollbar shadow-sm">
+        <aside className="w-60 bg-white border-r border-slate-200 sticky top-0 h-screen flex flex-col px-4 py-8 overflow-y-auto custom-scrollbar shadow-sm">
             <div className="flex items-center gap-3 mb-10 px-2">
                 <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center font-black text-white shadow-lg overflow-hidden shrink-0">
                     <span className="text-sm">CH</span>

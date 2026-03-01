@@ -17,15 +17,21 @@ export default function ErpTable() {
     const [webImages, setWebImages] = useState<string[]>([]);
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [pdfSearchResults, setPdfSearchResults] = useState<any[]>([]);
+    const [isSearchingPdf, setIsSearchingPdf] = useState(false);
 
-    const CorporateImage = ({ src, alt, className }: { src: string, alt: string, className?: string }) => {
+    const CorporateImage = ({ src, alt, className }: { src: string | any, alt: string, className?: string }) => {
         const [error, setError] = useState(false);
-        if (error || !src) return (
+        const isInvalid = !src || (typeof src === 'string' && src.startsWith("PAGE_REF_"));
+        if (error || isInvalid) return (
             <div className={`flex items-center justify-center bg-slate-50 border border-slate-100 ${className}`}>
                 <Box className="w-1/3 h-1/3 text-slate-200" />
             </div>
         );
-        return <img src={src} alt={alt} className={className} onError={() => setError(true)} />;
+        const resolvedSrc = typeof src === 'string' ? src : src?.url;
+        return <img src={resolvedSrc} alt={alt} className={className} onError={() => setError(true)} />;
     };
     const [brandFilter, setBrandFilter] = useState("all");
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -131,9 +137,47 @@ export default function ErpTable() {
     };
 
 
-    useEffect(() => {
-        fetchProducts();
-    }, []);
+
+
+    const handleDeepPdfSearch = async () => {
+        if (!selectedProduct) return;
+        setIsSearchingPdf(true);
+        setPdfSearchResults([]);
+        const query = selectedProduct.sku;
+        const toastId = 'deep-pdf-search';
+        toast.loading(`Analisi PDF in corso per ${query}...`, { toastId });
+
+        try {
+            const res = await axios.get(`/api/catalogues/deep-search`, {
+                params: { q: query, catalogId: selectedProduct.catalogId }
+            });
+            setPdfSearchResults(res.data || []);
+            if (res.data.length > 0) {
+                toast.success(`Trovate ${res.data.length} corrispondenze nei PDF`, { toastId });
+            } else {
+                toast.warning("Nessuna corrispondenza trovata nei documenti PDF storici", { toastId });
+            }
+        } catch (err) {
+            toast.error("Errore durante il Deep Scan del PDF", { toastId });
+        } finally {
+            setIsSearchingPdf(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`Sei sicuro di voler eliminare massivamente ${selectedIds.length} prodotti?`)) return;
+        setIsBulkDeleting(true);
+        try {
+            await axios.post("/api/products/bulk", { ids: selectedIds, action: "delete" });
+            toast.success(`${selectedIds.length} prodotti eliminati con successo`);
+            setSelectedIds([]);
+            fetchProducts();
+        } catch (err) {
+            toast.error("Errore durante l'eliminazione massiva");
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
 
     const fetchProducts = async () => {
         setLoading(true);
@@ -322,6 +366,17 @@ export default function ErpTable() {
                         <table className="w-full text-left">
                             <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400">
                                 <tr>
+                                    <th className="px-6 py-4 w-10">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4 cursor-pointer"
+                                            checked={selectedIds.length > 0 && selectedIds.length === filteredProducts.length}
+                                            onChange={(e) => {
+                                                if (e.target.checked) setSelectedIds(filteredProducts.map(p => p.id));
+                                                else setSelectedIds([]);
+                                            }}
+                                        />
+                                    </th>
                                     <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] rounded-tl-3xl">Asset</th>
                                     <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em]">Codice SKU</th>
                                     <th className="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em]">Denominazione</th>
@@ -333,20 +388,31 @@ export default function ErpTable() {
                             <tbody className="divide-y divide-gray-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-8 py-20 text-center">
+                                        <td colSpan={7} className="px-8 py-20 text-center">
                                             <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mx-auto" />
                                             <p className="mt-4 text-xs font-black uppercase tracking-widest text-gray-400">Caricamento Libreria ERP...</p>
                                         </td>
                                     </tr>
                                 ) : filteredProducts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-8 py-20 text-center">
+                                        <td colSpan={7} className="px-8 py-20 text-center">
                                             <Box className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                                             <p className="text-xs font-black uppercase tracking-widest text-gray-400">Nessun prodotto trovato</p>
                                         </td>
                                     </tr>
                                 ) : filteredProducts.map((p) => (
-                                    <tr key={p.id} className="hover:bg-blue-50/50 transition-colors group">
+                                    <tr key={p.id} className={`hover:bg-blue-50/30 transition-colors group ${selectedIds.includes(p.id) ? 'bg-blue-50/50' : ''}`}>
+                                        <td className="px-6 py-4">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                                                checked={selectedIds.includes(p.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) setSelectedIds([...selectedIds, p.id]);
+                                                    else setSelectedIds(selectedIds.filter(id => id !== p.id));
+                                                }}
+                                            />
+                                        </td>
                                         <td className="px-8 py-4">
                                             <div className="w-16 h-16 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
                                                 <CorporateImage src={p.images && p.images[0]?.url} alt={p.sku} className="w-full h-full object-contain" />
@@ -608,6 +674,67 @@ export default function ErpTable() {
                                                 </div>
                                             </div>
 
+                                            <div className="bg-slate-900 p-10 rounded-[2.5rem] shadow-xl overflow-hidden relative group">
+                                                <div className="absolute top-0 right-0 p-10 opacity-[0.05] group-hover:opacity-[0.1] transition-all">
+                                                    <Package className="w-32 h-32 rotate-12" />
+                                                </div>
+                                                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                                    <div>
+                                                        <h4 className="text-xl font-black text-white uppercase tracking-tighter">Deep PDF Asset Extraction</h4>
+                                                        <p className="text-sm font-bold text-slate-400 mt-1 max-w-sm">
+                                                            Analizza il PDF originale del catalogo per estrarre le pagine in cui compare lo SKU: <span className="text-blue-400">{selectedProduct.sku}</span>.
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={handleDeepPdfSearch}
+                                                        disabled={isSearchingPdf}
+                                                        className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-400 hover:text-white transition-all shadow-2xl shrink-0 disabled:opacity-50"
+                                                    >
+                                                        {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin mr-2 inline" /> : null}
+                                                        Deep Search in PDF
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {pdfSearchResults.length > 0 && (
+                                                <div className="bg-white p-8 rounded-3xl border border-blue-100 shadow-xl shadow-blue-50/50 space-y-6 animate-in slide-in-from-top-4">
+                                                    <h5 className="text-[10px] font-black uppercase tracking-widest text-blue-600 flex items-center gap-2">
+                                                        <Sparkles className="w-4 h-4" /> Asset Trovati nei Cataloghi Originali
+                                                    </h5>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                                        {pdfSearchResults.map((res: any, idx: number) => (
+                                                            <div key={idx} className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-4">
+                                                                <div className="aspect-video relative rounded-xl overflow-hidden border border-slate-200 bg-white">
+                                                                    <CorporateImage src={res.imageUrl} alt="PDF Page" className="w-full h-full object-cover" />
+                                                                    <div className="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-black px-2 py-1 rounded backdrop-blur">
+                                                                        PG {res.pageNumber}
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{res.catalogName}</p>
+                                                                    <p className="text-xs font-bold text-slate-600 italic">"...{res.snippet}..."</p>
+                                                                </div>
+                                                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                                                    {res.subImages?.map((sub: any, sIdx: number) => (
+                                                                        <div
+                                                                            key={sIdx}
+                                                                            onClick={() => {
+                                                                                const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: sub.preview }];
+                                                                                setSelectedProduct({ ...selectedProduct, images: newImages });
+                                                                                toast.success("Asset PDF recuperato!");
+                                                                            }}
+                                                                            className="w-12 h-12 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-blue-500 overflow-hidden shrink-0"
+                                                                        >
+                                                                            <CorporateImage src={sub.preview} alt="Sub Asset" className="w-full h-full object-contain" />
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
                                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
@@ -845,7 +972,8 @@ export default function ErpTable() {
                                 </div>
                             </motion.div>
                         </div>
-                    )}
+                    )
+                    }
                 </AnimatePresence>
                 {/* WooCommerce Configuration Modal */}
                 <AnimatePresence>
@@ -884,7 +1012,7 @@ export default function ErpTable() {
                                                     value={wooConfig.domain}
                                                     onChange={e => setWooConfig({ ...wooConfig, domain: e.target.value })}
                                                     placeholder="https://tuosito.it"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
                                                 />
                                             </div>
                                             <div>
@@ -894,7 +1022,7 @@ export default function ErpTable() {
                                                     value={wooConfig.key}
                                                     onChange={e => setWooConfig({ ...wooConfig, key: e.target.value })}
                                                     placeholder="ck_################"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
                                                 />
                                             </div>
                                             <div>
@@ -904,7 +1032,7 @@ export default function ErpTable() {
                                                     value={wooConfig.secret}
                                                     onChange={e => setWooConfig({ ...wooConfig, secret: e.target.value })}
                                                     placeholder="cs_################"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 font-mono text-sm focus:outline-none focus:ring-4 focus:ring-blue-100 transition-all"
                                                 />
                                             </div>
                                         </div>
@@ -932,7 +1060,51 @@ export default function ErpTable() {
                                     </div>
                                 </motion.div>
                             </div>
-                        )}
+                        )
+                    }
+                </AnimatePresence>
+
+                {/* Bulk Action Bar */}
+                <AnimatePresence>
+                    {
+                        selectedIds.length > 0 && (
+                            <motion.div
+                                initial={{ y: 100, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: 100, opacity: 0 }}
+                                className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-10 py-5 rounded-[2.5rem] shadow-2xl z-[100] flex items-center gap-10 border border-white/10 backdrop-blur-xl"
+                            >
+                                <div className="flex items-center gap-3 pr-10 border-r border-white/10">
+                                    <span className="bg-blue-600 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">{selectedIds.length}</span>
+                                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Selezionati</span>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm("Eliminare massivamente gli SKU selezionati?")) {
+                                                setIsBulkDeleting(true);
+                                                // Implement endpoint call for bulk delete
+                                                toast.error("Endpoint massivo in configurazione...");
+                                                setIsBulkDeleting(false);
+                                            }
+                                        }}
+                                        className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest"
+                                    >
+                                        <Trash2 className="w-4 h-4" /> Elimina Massa
+                                    </button>
+                                    <button className="flex items-center gap-2 text-slate-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest">
+                                        <RefreshCw className="w-4 h-4" /> Sync Woo
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedIds([])}
+                                        className="px-6 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase hover:bg-white/20 transition-all"
+                                    >
+                                        Annulla
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )
+                    }
                 </AnimatePresence>
             </div>
         </div>

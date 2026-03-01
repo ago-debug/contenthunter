@@ -17,6 +17,7 @@ model Catalog {
   template      Template?      @relation(fields: [templateId], references: [id])
   entries       CatalogEntry[]
   searchSources SearchSource[]
+  pages         PdfPage[]
 
   @@index([templateId], map: "Catalog_templateId_fkey")
 }
@@ -139,6 +140,19 @@ model ProductImage {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId], map: "ProductImage_productId_fkey")
+}
+
+model PdfPage {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  pageNumber Int
+  text      String   @db.LongText
+  imageUrl  String   @db.LongText
+  subImages String?  @db.LongText // JSON array of extracted image paths
+  createdAt DateTime @default(now())
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
 }
 
 model User {
