@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -140,6 +140,11 @@ export default function WorkspaceClient() {
     const [isAddingColumn, setIsAddingColumn] = useState(false);
     const [newColumnName, setNewColumnName] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [activeSection, setActiveSection] = useState<'info' | 'images' | 'history'>('info');
+
+    const [currencyToClean, setCurrencyToClean] = useState<string>("");
+    const [translateTargetLang, setTranslateTargetLang] = useState<string>("en");
+    const [isTranslating, setIsTranslating] = useState(false);
     const [pickerSourceMode, setPickerSourceMode] = useState<'pdf' | 'web' | 'file' | 'folder'>('pdf');
     const [pickerPageIdx, setPickerPageIdx] = useState(0);
     const [webResults, setWebResults] = useState<any[]>([]);
@@ -377,6 +382,28 @@ export default function WorkspaceClient() {
         }
     };
 
+    const getSearchQuery = (product: any) => {
+        if (product.images?.length > 0) return `${product.sku} ${product.title || ""}`.trim();
+        if (product.sku) return product.sku;
+        return product.title || "";
+    };
+
+    const handleSmartSearch = (product: any, idx: number, source: 'pdf' | 'folder' | 'web' | 'google_shopping') => {
+        const q = getSearchQuery(product);
+        if (source === 'google_shopping') {
+            window.open(`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`, '_blank');
+            return;
+        }
+
+        const firstEmpty = [0, 1, 2, 3].find(s => !product.images[s]) ?? 0;
+        setActivePicker({ type: 'image', row: idx, field: `slot-${firstEmpty}` });
+        setPickerSearchQuery(q);
+        setPickerSourceMode(source);
+        if (source === 'web' && webResults.length === 0) {
+            handleWebSearch(product, q);
+        }
+    };
+
     const loadERPData = async () => {
         setIsLoadingERP(true);
         try {
@@ -577,6 +604,43 @@ export default function WorkspaceClient() {
         reader.readAsBinaryString(file);
     };
 
+    const handleBulkTranslate = async () => {
+        if (!products.length) return;
+        setIsTranslating(true);
+        const updatedProducts = [...products];
+
+        try {
+            for (let i = 0; i < updatedProducts.length; i++) {
+                const p = updatedProducts[i];
+                const fields = ['title', 'docDescription', ...extraColumns];
+
+                for (const field of fields) {
+                    const val = (p as any)[field] || p.extraFields?.[field];
+                    if (val && typeof val === 'string') {
+                        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${translateTargetLang}&dt=t&q=${encodeURIComponent(val.substring(0, 1000))}`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+                        if (data && data[0]) {
+                            const translated = data[0].map((x: any) => x[0]).join('');
+                            if (fields.includes(field) && field !== 'title' && field !== 'docDescription') {
+                                p.extraFields = { ...p.extraFields, [field]: translated };
+                            } else {
+                                (p as any)[field] = translated;
+                            }
+                        }
+                    }
+                }
+            }
+            setProducts(updatedProducts);
+            toast.success(`Traduzione completata con successo`);
+        } catch (err) {
+            console.error(err);
+            toast.error("Errore durante la traduzione dei campi.");
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
     const applyCvsMapping = () => {
         if (!csvMasterList.length) {
             toast.warning("Nessun listino caricato.");
@@ -605,8 +669,12 @@ export default function WorkspaceClient() {
                 // Map system fields
                 systemFieldsKeys.forEach(field => {
                     const h = csvMapping[field];
-                    if (h && match[h]) {
-                        (updated as any)[field] = String(match[h]);
+                    if (h && match[h] !== undefined && match[h] !== null) {
+                        let val = String(match[h]);
+                        if (field === 'price' && currencyToClean) {
+                            val = val.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'gi'), '').trim();
+                        }
+                        (updated as any)[field] = val;
                     }
                 });
                 // Map extras
@@ -643,12 +711,17 @@ export default function WorkspaceClient() {
 
             const exists = newProducts.some(p => p.sku.trim().toLowerCase() === rowSku.toLowerCase());
             if (!exists) {
+                let pPrice = String(row[csvMapping.price] || "");
+                if (currencyToClean) {
+                    pPrice = pPrice.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'gi'), '').trim();
+                }
+
                 const newProd: ProductData = {
                     sku: rowSku,
                     title: String(row[csvMapping.title] || ""),
                     description: String(row[csvMapping.description] || ""),
                     docDescription: String(row[csvMapping.docDescription] || ""),
-                    price: String(row[csvMapping.price] || ""),
+                    price: pPrice,
                     category: String(row[csvMapping.category] || "Generale"),
                     brand: String(row[csvMapping.brand] || ""),
                     dimensions: String(row[csvMapping.dimensions] || ""),
@@ -1298,6 +1371,23 @@ export default function WorkspaceClient() {
                                             </select>
                                         </div>
                                     ))}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block ml-1">
+                                            Pulisci Valuta (Prezzo)
+                                        </label>
+                                        <select
+                                            value={currencyToClean}
+                                            onChange={(e) => setCurrencyToClean(e.target.value)}
+                                            className="w-full bg-white border border-orange-100 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all font-bold text-gray-700"
+                                        >
+                                            <option value="">Nessuna (Lascia inalterato)</option>
+                                            <option value="€">Rimuovi €</option>
+                                            <option value="$">Rimuovi $</option>
+                                            <option value="£">Rimuovi £</option>
+                                            <option value="EUR">Rimuovi EUR</option>
+                                            <option value="USD">Rimuovi USD</option>
+                                        </select>
+                                    </div>
                                     <div className="space-y-4 col-span-full pt-4 border-t border-orange-100">
                                         <div className="flex items-center justify-between">
                                             <label className="text-[11px] font-black uppercase tracking-widest text-[#111827]">Campi Personalizzati / Extra</label>
@@ -1596,6 +1686,31 @@ export default function WorkspaceClient() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 mr-4 border-r border-gray-200 pr-4">
+                                        <select
+                                            value={translateTargetLang}
+                                            onChange={(e) => setTranslateTargetLang(e.target.value)}
+                                            className="bg-white border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-purple-100 text-purple-700"
+                                        >
+                                            <option value="en">Inglese</option>
+                                            <option value="es">Spagnolo</option>
+                                            <option value="fr">Francese</option>
+                                            <option value="de">Tedesco</option>
+                                            <option value="it">Italiano</option>
+                                        </select>
+                                        <button
+                                            onClick={handleBulkTranslate}
+                                            disabled={isTranslating || products.length === 0}
+                                            className="btn-secondary px-4 py-2 flex items-center gap-2 text-xs font-bold disabled:opacity-50"
+                                        >
+                                            {isTranslating ? (
+                                                <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <Languages className="w-4 h-4 text-purple-600" />
+                                            )}
+                                            <span className="text-purple-700">Traduci Voci</span>
+                                        </button>
+                                    </div>
                                     <AnimatePresence>
                                         {isAddingColumn && (
                                             <motion.div
@@ -1670,13 +1785,23 @@ export default function WorkspaceClient() {
                                                             <Sparkles className="w-3 h-3" />
                                                             Auto-Compila
                                                         </button>
+                                                        <div className="flex flex-col gap-1 w-full mt-1">
+                                                            <div className="flex gap-1 w-full">
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1 rounded hover:bg-orange-100 font-bold tracking-wider">PDF</button>
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
+                                                            </div>
+                                                            <div className="flex gap-1 w-full">
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </td>
                                                 <td className="px-8 py-6">
                                                     <div className="flex flex-col gap-2 relative">
                                                         <div className="flex items-center gap-2 group/input">
-                                                            <input
-                                                                type="text"
+                                                            <textarea
+                                                                rows={2}
                                                                 value={p.title || ""}
                                                                 onChange={(e) => {
                                                                     const newProducts = [...products];
@@ -1685,7 +1810,7 @@ export default function WorkspaceClient() {
                                                                 }}
                                                                 onFocus={() => setActivePicker({ type: 'text', row: idx, field: 'title' })}
                                                                 placeholder="Titolo..."
-                                                                className="bg-transparent font-bold text-gray-900 border-b border-dashed border-gray-200 focus:border-orange-400 focus:outline-none text-sm w-full"
+                                                                className="bg-transparent font-bold text-gray-900 border-b border-dashed border-gray-200 focus:border-orange-400 focus:outline-none text-sm w-full resize-none break-words whitespace-pre-wrap leading-tight"
                                                             />
                                                             <button
                                                                 onMouseEnter={() => setActivePicker({ type: 'text', row: idx, field: 'title' })}
@@ -2519,6 +2644,16 @@ export default function WorkspaceClient() {
                                                                 <Sparkles className="w-3 h-3" />
                                                                 Auto-Compila
                                                             </button>
+                                                            <div className="flex flex-col gap-1 w-full mt-1">
+                                                                <div className="flex gap-1 w-full">
+                                                                    <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1 rounded hover:bg-orange-100 font-bold tracking-wider">PDF</button>
+                                                                    <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
+                                                                </div>
+                                                                <div className="flex gap-1 w-full">
+                                                                    <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-blue-50 text-blue-600 border border-blue-100 py-1 rounded hover:bg-blue-100 font-bold tracking-wider">WEB</button>
+                                                                    <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </td>
                                                     <td className="px-8 py-6">
