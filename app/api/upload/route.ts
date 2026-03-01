@@ -26,17 +26,20 @@ export async function POST(req: NextRequest) {
         const filePath = path.join(uploadDir, fileName);
         await writeFile(filePath, buffer);
 
-        // Create catalogue record
-        const catalog = await prisma.catalog.create({
-            data: {
-                name: name,
-                filePath: `/uploads/${fileName}`,
-            },
-        });
+        let catalogId = null;
+        if (req.nextUrl.searchParams.get("save") === "true") {
+            const catalog = await prisma.catalog.create({
+                data: {
+                    name: name,
+                    filePath: `/uploads/${fileName}`,
+                },
+            });
+            catalogId = catalog.id;
+        }
 
         return NextResponse.json({
             success: true,
-            catalogId: catalog.id,
+            catalogId: catalogId,
             filePath: `/uploads/${fileName}`
         });
     } catch (err: any) {

@@ -17,3 +17,19 @@ export async function GET() {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+export async function POST(req: Request) {
+    try {
+        const body = await req.json();
+        const catalog = await prisma.catalog.create({
+            data: {
+                name: body.name || "Nuovo Progetto",
+                filePath: body.filePath || "/uploads/placeholder.pdf",
+            },
+        });
+        return NextResponse.json(catalog);
+    } catch (err: any) {
+        console.error("Create catalog error:", err);
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}

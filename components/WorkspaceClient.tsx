@@ -144,6 +144,8 @@ export default function WorkspaceClient() {
 
     const [currencyToClean, setCurrencyToClean] = useState<string>("");
     const [translateTargetLang, setTranslateTargetLang] = useState<string>("en");
+    const [translateTargetField, setTranslateTargetField] = useState<string>("all");
+    const [projectName, setProjectName] = useState("Nuovo Progetto");
     const [isTranslating, setIsTranslating] = useState(false);
     const [pickerSourceMode, setPickerSourceMode] = useState<'pdf' | 'web' | 'file' | 'folder'>('pdf');
     const [pickerPageIdx, setPickerPageIdx] = useState(0);
@@ -562,8 +564,8 @@ export default function WorkspaceClient() {
 
         const reader = new FileReader();
         reader.onload = (evt) => {
-            const bstr = evt.target?.result;
-            const wb = XLSX.read(bstr, { type: 'binary' });
+            const ab = evt.target?.result;
+            const wb = XLSX.read(ab, { type: 'array' });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
             const data = XLSX.utils.sheet_to_json(ws);
@@ -601,7 +603,7 @@ export default function WorkspaceClient() {
                 toast.success(`Listino CSV caricato: ${data.length} voci. Auto-mapping completato.`);
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     };
 
     const handleBulkTranslate = async () => {
@@ -612,7 +614,9 @@ export default function WorkspaceClient() {
         try {
             for (let i = 0; i < updatedProducts.length; i++) {
                 const p = updatedProducts[i];
-                const fields = ['title', 'docDescription', ...extraColumns];
+                const fields = translateTargetField === 'all'
+                    ? ['title', 'docDescription', ...extraColumns]
+                    : [translateTargetField];
 
                 for (const field of fields) {
                     const val = (p as any)[field] || p.extraFields?.[field];
@@ -1095,10 +1099,18 @@ export default function WorkspaceClient() {
         setIsProcessing(true);
         try {
             toast.loading("Sincronizzazione Database in corso...");
+
+            let useCatalogId = catalogId;
+            if (!useCatalogId) {
+                const res = await axios.post('/api/catalogues', { name: projectName });
+                useCatalogId = res.data.id;
+                setCatalogId(useCatalogId);
+            }
+
             for (const product of products) {
                 await axios.post("/api/products", {
                     ...product,
-                    catalogId
+                    catalogId: useCatalogId
                 });
             }
             toast.dismiss();
@@ -1143,9 +1155,16 @@ export default function WorkspaceClient() {
         }
 
         try {
+            let useCatalogId = catalogId;
+            if (!useCatalogId) {
+                const res = await axios.post('/api/catalogues', { name: projectName });
+                useCatalogId = res.data.id;
+                setCatalogId(useCatalogId);
+            }
+
             await axios.post("/api/products", {
                 ...currentProduct,
-                catalogId
+                catalogId: useCatalogId
             });
 
             setProducts([currentProduct, ...products]);
@@ -1162,12 +1181,19 @@ export default function WorkspaceClient() {
 
     const updateProductInERP = async (updatedProduct: any) => {
         try {
+            let useCatalogId = updatedProduct.catalogId || catalogId;
+            if (!useCatalogId) {
+                const res = await axios.post('/api/catalogues', { name: projectName });
+                useCatalogId = res.data.id;
+                setCatalogId(useCatalogId);
+            }
+
             await axios.post("/api/products", {
                 ...updatedProduct,
+                catalogId: useCatalogId,
                 images: updatedProduct.images.map((img: any) => ({
                     url: typeof img === 'string' ? img : (img.imageUrl || img.url)
-                })),
-                catalogId
+                }))
             });
             toast.success("Prodotto salvato con successo");
             setEditingProduct(null);
@@ -1291,6 +1317,7 @@ export default function WorkspaceClient() {
                             onClick={() => {
                                 if (confirm("Reset workspace? Questo cancellerà anche i salvataggi locali.")) {
                                     setPdfPages([]);
+                                    setCurrentPdfUrl(null);
                                     setCatalogId(null);
                                     setProducts([]);
                                     setCsvMasterList([]);
@@ -1687,6 +1714,18 @@ export default function WorkspaceClient() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-2 mr-4 border-r border-gray-200 pr-4">
+                                        <select
+                                            value={translateTargetField}
+                                            onChange={(e) => setTranslateTargetField(e.target.value)}
+                                            className="bg-white border border-gray-200 rounded-lg px-2 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-purple-100 text-gray-700"
+                                        >
+                                            <option value="all">Tutte le colonne</option>
+                                            <option value="title">Titolo</option>
+                                            <option value="docDescription">Desc. Documentale</option>
+                                            {extraColumns.map(c => (
+                                                <option key={c} value={c}>{c}</option>
+                                            ))}
+                                        </select>
                                         <select
                                             value={translateTargetLang}
                                             onChange={(e) => setTranslateTargetLang(e.target.value)}
@@ -2536,7 +2575,31 @@ export default function WorkspaceClient() {
                                         <HardDrive className="w-8 h-8 text-white" />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-black text-[#111827]">SKU Asset Linker</h2>
+                                        <div className="flex items-center gap-4">
+                                            <input
+                                                value={projectName}
+                                                onChange={(e) => setProjectName(e.target.value)}
+                                                className="bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:border-orange-500 text-xl font-bold text-gray-800 outline-none px-2 py-1 transition-all"
+                                                placeholder="Nome Progetto..."
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    if (confirm("Sei sicuro di voler avviare un nuovo progetto? Tutti i dati in memoria verranno puliti.")) {
+                                                        setProducts([]);
+                                                        setPdfPages([]);
+                                                        setCurrentPdfUrl(null);
+                                                        setCsvMasterList([]);
+                                                        setCsvHeaders([]);
+                                                        setExtraColumns([]);
+                                                        setProjectName("Nuovo Progetto");
+                                                        toast.success("Nuovo progetto avviato");
+                                                    }
+                                                }}
+                                                className="px-4 py-1.5 text-xs font-black uppercase tracking-widest text-[#E6D3C1] bg-black hover:bg-gray-900 rounded-lg transition-all"
+                                            >
+                                                Nuovo Progetto
+                                            </button>
+                                        </div>
                                         <p className="text-sm text-gray-400 font-bold uppercase tracking-widest mt-1">Automatic matching Master List ↔ Asset Folder</p>
                                     </div>
                                 </div>
@@ -2951,18 +3014,27 @@ export default function WorkspaceClient() {
                                                         const val = (p as any)[field] || (p.extraFields?.[field]) || '';
 
                                                         return (
-                                                            <td key={field} className="px-8 py-6 relative">
+                                                            <td key={field} className="px-4 py-4 relative">
                                                                 <div className="relative group/edit">
-                                                                    <div
-                                                                        onClick={() => {
+                                                                    <textarea
+                                                                        rows={2}
+                                                                        value={val}
+                                                                        onChange={(e) => {
+                                                                            const newProducts = [...products];
+                                                                            if (currentCol.isSystem) {
+                                                                                (newProducts[idx] as any)[field] = e.target.value;
+                                                                            } else {
+                                                                                newProducts[idx].extraFields = { ...newProducts[idx].extraFields, [field]: e.target.value };
+                                                                            }
+                                                                            setProducts(newProducts);
+                                                                        }}
+                                                                        onFocus={() => {
                                                                             setActivePicker({ type: 'text', row: idx, field: field });
                                                                             setPickerSearch("");
                                                                         }}
-                                                                        className="min-w-[120px] max-w-[200px] bg-transparent hover:bg-blue-50/50 rounded-xl px-4 py-2 text-sm font-bold text-gray-700 transition-all border border-transparent hover:border-blue-100 cursor-pointer flex items-center justify-between"
-                                                                    >
-                                                                        <span className="truncate">{val || '---'}</span>
-                                                                        <ChevronRight className="w-3 h-3 text-gray-300 opacity-0 group-hover/edit:opacity-100 transition-opacity" />
-                                                                    </div>
+                                                                        placeholder={header + "..."}
+                                                                        className="bg-transparent font-bold text-gray-700 w-[180px] min-h-[50px] hover:bg-blue-50/50 rounded-xl px-4 py-2 text-sm transition-all border border-transparent hover:border-blue-100 cursor-pointer resize break-words whitespace-pre-wrap leading-tight focus:outline-none focus:border-blue-400 focus:bg-white"
+                                                                    />
 
                                                                     <AnimatePresence>
                                                                         {activePicker?.type === 'text' && activePicker.row === idx && activePicker.field === field && (
