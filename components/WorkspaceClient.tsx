@@ -579,8 +579,8 @@ export default function WorkspaceClient() {
                 const newMapping = { ...csvMapping };
                 const searchMapping: { [key: string]: string[] } = {
                     sku: ['sku', 'codice', 'cod', 'item', 'art', 'id'],
-                    title: ['titolo', 'title', 'nome', 'name', 'item name', 'prodotto', 'descrizione'],
-                    docDescription: ['descrizione documentale', 'descrizione estesa', 'descrizione doc', 'estesa', 'description doc'],
+                    title: ['titolo', 'title', 'nome', 'name', 'item name', 'prodotto', 'articolo'],
+                    docDescription: ['descrizione documentale', 'descrizione estesa', 'descrizione doc', 'estesa', 'description doc', 'descrizione'],
                     price: ['prezzo', 'price', 'listino', 'netto'],
                     brand: ['marca', 'brand', 'produttore', 'vendor'],
                     dimensions: ['dimensioni', 'dimensions', 'misura', 'formato', 'size'],
@@ -657,6 +657,21 @@ export default function WorkspaceClient() {
             return;
         }
 
+        // Add global cleanup to master list directly for the price to show perfectly in activePickers
+        if (csvMapping.price) {
+            const priceHeader = csvMapping.price;
+            csvMasterList.forEach(row => {
+                let val = row[priceHeader];
+                if (val && typeof val === 'string') {
+                    if (currencyToClean) {
+                        val = val.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
+                    }
+                    val = val.replace(/â\s*¬/gi, '').replace(/€/g, '').trim();
+                    row[priceHeader] = val;
+                }
+            });
+        }
+
         const newProducts = [...products];
         const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
 
@@ -675,8 +690,12 @@ export default function WorkspaceClient() {
                     const h = csvMapping[field];
                     if (h && match[h] !== undefined && match[h] !== null) {
                         let val = String(match[h]);
-                        if (field === 'price' && currencyToClean) {
-                            val = val.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'gi'), '').trim();
+                        if (field === 'price') {
+                            if (currencyToClean) {
+                                val = val.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
+                            }
+                            // Clean common encoding artifacts like â ¬ (from €)
+                            val = val.replace(/â\s*¬/gi, '').replace(/€/g, '').trim();
                         }
                         (updated as any)[field] = val;
                     }
@@ -717,8 +736,10 @@ export default function WorkspaceClient() {
             if (!exists) {
                 let pPrice = String(row[csvMapping.price] || "");
                 if (currencyToClean) {
-                    pPrice = pPrice.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\\\]/g, '\\\\$&'), 'gi'), '').trim();
+                    pPrice = pPrice.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
                 }
+                // Global price clean
+                pPrice = pPrice.replace(/â\s*¬/gi, '').replace(/€/g, '').trim();
 
                 const newProd: ProductData = {
                     sku: rowSku,
@@ -783,7 +804,16 @@ export default function WorkspaceClient() {
                     // Sync system fields
                     systemFieldsKeys.forEach(field => {
                         const h = csvMapping[field];
-                        if (h && match[h]) (updated as any)[field] = String(match[h]);
+                        if (h && match[h]) {
+                            let val = String(match[h]);
+                            if (field === 'price') {
+                                if (currencyToClean) {
+                                    val = val.replace(new RegExp(currencyToClean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
+                                }
+                                val = val.replace(/â\s*¬/gi, '').replace(/€/g, '').trim();
+                            }
+                            (updated as any)[field] = val;
+                        }
                     });
                     // Sync extras
                     extraColumns.forEach(ex => {
