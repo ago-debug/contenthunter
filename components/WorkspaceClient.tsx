@@ -650,8 +650,11 @@ export default function WorkspaceClient() {
         setIsGeneratingAI(idx);
         toast.loading("L'AI sta scrivendo la descrizione...", { toastId: 'ai-desc' });
         try {
+            // Rimuoviamo il payload enorme delle immagini in base64 per non crashare e sforare i limiti API
+            const { images, ...cleanProductData } = product;
+
             const res = await axios.post("/api/ai/describe", {
-                productData: product,
+                productData: cleanProductData,
                 language: translateTargetLang
             });
             if (res.data.success) {
