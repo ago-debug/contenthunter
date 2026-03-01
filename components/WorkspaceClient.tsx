@@ -1070,7 +1070,16 @@ export default function WorkspaceClient() {
 
                 // SKU Strict: Alphanumeric, length 6-20, NO SPACES allowed
                 if (skuPattern.test(text) && text.length >= 6 && !text.includes(" ")) {
-                    // We found a potential SKU seed
+                    // Controllo di sicurezza: verifichiamo se lo SKU esiste nel listino caricato
+                    // Se non c'è nel listino, lo ignoriamo come richiesto dall'utente
+                    const lowerText = text.toLowerCase();
+                    const existsInList = csvMasterList.some(item =>
+                        String(item[csvMapping.sku] || "").toLowerCase() === lowerText
+                    );
+
+                    if (!existsInList) return;
+
+                    // We found a potential SKU seed present in the listino
                     // Look for a Name nearby (next few blocks in same vertical vicinity)
                     const potentialName = blocks.slice(idx + 1, idx + 4)
                         .map(b => b.str)
@@ -1142,14 +1151,18 @@ export default function WorkspaceClient() {
                 if (idx !== -1) {
                     finalProducts[idx] = { ...existing, images: newImages };
                 }
-            } else {
-                finalProducts.push(finding);
-                existingMap.set(lowerSku, finding);
             }
         });
 
+        // Avvisiamo solo sui prodotti effettivi riconosciuti e mappati dal listino
+        let updatedCount = 0;
+        finalProducts.forEach(p => {
+            // Conta un prodotto come toccato dal PDF se ha stringhe d'immagine generate da PDF
+            if (p.images.some(img => img.url.startsWith("PAGE_REF_"))) updatedCount++;
+        });
+
         setProducts(finalProducts);
-        toast.success(`AI Scan: Identificati ${finalProducts.length} asset totali.`);
+        toast.success(`AI Scan: Immagini riconosciute e associate a ${updatedCount} prodotti del listino.`);
     };
 
     const syncToDatabase = async () => {
@@ -1340,13 +1353,15 @@ export default function WorkspaceClient() {
                             <Settings className="w-5 h-5" />
                             Sorgenti Web
                         </button>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className={pdfPages.length === 0 ? "btn-primary flex items-center gap-3 shadow-orange-900/10" : "btn-secondary flex items-center gap-3"}
-                        >
-                            <Upload className="w-5 h-5" />
-                            {pdfPages.length === 0 ? "Carica PDF" : "Cambia PDF"}
-                        </button>
+                        {csvMasterList.length > 0 && (
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className={pdfPages.length === 0 ? "btn-primary flex items-center gap-3 shadow-orange-900/10" : "btn-secondary flex items-center gap-3"}
+                            >
+                                <Upload className="w-5 h-5" />
+                                {pdfPages.length === 0 ? "Carica PDF" : "Cambia PDF"}
+                            </button>
+                        )}
 
                         <button
                             onClick={() => {
