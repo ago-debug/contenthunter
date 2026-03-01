@@ -6,7 +6,7 @@ export async function GET() {
         const catalogues = await prisma.catalog.findMany({
             include: {
                 _count: {
-                    select: { products: true }
+                    select: { entries: true }
                 }
             },
             orderBy: { createdAt: 'desc' }

@@ -15,10 +15,23 @@ model Catalog {
   templateId    Int?
   createdAt     DateTime       @default(now())
   template      Template?      @relation(fields: [templateId], references: [id])
-  products      Product[]
+  entries       CatalogEntry[]
   searchSources SearchSource[]
 
   @@index([templateId], map: "Catalog_templateId_fkey")
+}
+
+model CatalogEntry {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  productId Int
+
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, productId])
+  @@index([productId], map: "CatalogEntry_productId_fkey")
+  @@index([catalogId], map: "CatalogEntry_catalogId_fkey")
 }
 
 model SearchSource {
@@ -57,26 +70,65 @@ model Rule {
 
 model Product {
   id             Int            @id @default(autoincrement())
-  catalogId      Int
   sku            String         @unique
-  description    String?        @db.Text
-  price          String?
-  category       String?
+  parentSku      String?
+  ean            String?        @unique
+  
   brand          String?
-  dimensions     String?
-  weight         String?
-  material       String?
-  bulletPoints   String?        @db.Text
-  otherFields    String?        @db.LongText
+  category       String?
+  
+  texts          ProductText[]
+  prices         ProductPrice[]
+  extraFields    ProductExtra[]
+  images         ProductImage[]
+  catalogs       CatalogEntry[]
+
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  docDescription String?        @db.Text
-  title          String?
-  catalog        Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
-  images         ProductImage[]
 
   @@index([sku])
-  @@index([catalogId], map: "Product_catalogId_fkey")
+}
+
+model ProductText {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  language       String   @default("it")
+  
+  title          String?
+  description    String?  @db.Text
+  docDescription String?  @db.Text
+  bulletPoints   String?  @db.Text
+  seoAiText      String?  @db.Text
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, language])
+  @@index([productId], map: "ProductText_productId_fkey")
+}
+
+model ProductPrice {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  listName       String   @default("default")
+  price          Float
+  currency       String   @default("EUR")
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, listName])
+  @@index([productId], map: "ProductPrice_productId_fkey")
+}
+
+model ProductExtra {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  key            String
+  value          String   @db.Text
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@index([productId], map: "ProductExtra_productId_fkey")
 }
 
 model ProductImage {

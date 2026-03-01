@@ -17,9 +17,18 @@ export async function GET(
         const catalogue = await prisma.catalog.findUnique({
             where: { id },
             include: {
-                products: {
-                    include: { images: true },
-                    orderBy: { createdAt: 'desc' }
+                entries: {
+                    include: {
+                        product: {
+                            include: {
+                                texts: { where: { language: "it" } },
+                                prices: { where: { listName: "default" } },
+                                extraFields: true,
+                                images: true
+                            }
+                        }
+                    },
+                    orderBy: { productId: 'desc' }
                 },
                 searchSources: true
             }
@@ -29,14 +38,47 @@ export async function GET(
             return NextResponse.json({ error: "Catalogue not found" }, { status: 404 });
         }
 
-        // Map back otherFields to extraFields for the frontend
-        const mappedProducts = catalogue.products.map(p => ({
-            ...p,
-            extraFields: p.otherFields ? JSON.parse(p.otherFields) : {}
-        }));
+        const mappedProducts = catalogue.entries.map((entry: any) => {
+            const p = entry.product;
+            const itText = p.texts?.[0] || {};
+            const defPrice = p.prices?.[0] || {};
+
+            const extraObj: Record<string, string> = {};
+            let dimensions = "";
+            let weight = "";
+            let material = "";
+
+            p.extraFields.forEach((ex: any) => {
+                if (ex.key === "dimensions") dimensions = ex.value;
+                else if (ex.key === "weight") weight = ex.value;
+                else if (ex.key === "material") material = ex.value;
+                else extraObj[ex.key] = ex.value;
+            });
+
+            return {
+                id: p.id,
+                sku: p.sku,
+                ean: p.ean,
+                parentSku: p.parentSku,
+                brand: p.brand,
+                category: p.category,
+                title: itText.title || "",
+                description: itText.description || "",
+                docDescription: itText.docDescription || "",
+                bulletPoints: itText.bulletPoints || "",
+                price: defPrice.price !== undefined ? String(defPrice.price) : "",
+                dimensions,
+                weight,
+                material,
+                extraFields: extraObj,
+                images: p.images.map((img: any) => ({ id: img.id.toString(), url: img.imageUrl })),
+                catalogId: id
+            };
+        });
 
         return NextResponse.json({
             ...catalogue,
+            entries: undefined,
             products: mappedProducts
         });
     } catch (err: any) {
