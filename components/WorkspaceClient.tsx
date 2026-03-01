@@ -35,6 +35,8 @@ interface PageData {
 
 interface ProductData {
     sku: string;
+    ean?: string;
+    parentSku?: string;
     title: string;
     description: string;
     docDescription: string;
@@ -64,6 +66,8 @@ export default function WorkspaceClient() {
             setSearchSources(catalogue.searchSources || []);
             setProducts(catalogue.products.map((p: any) => ({
                 sku: p.sku,
+                ean: p.ean || "",
+                parentSku: p.parentSku || "",
                 title: p.title || p.name || "",
                 description: p.description || "",
                 docDescription: p.docDescription || "",
@@ -100,6 +104,8 @@ export default function WorkspaceClient() {
     const [activeField, setActiveField] = useState<keyof ProductData | null>("sku");
     const [currentProduct, setCurrentProduct] = useState<ProductData>({
         sku: "",
+        ean: "",
+        parentSku: "",
         title: "",
         description: "",
         docDescription: "",
@@ -1289,7 +1295,7 @@ export default function WorkspaceClient() {
             setProducts([currentProduct, ...products]);
             toast.success(`Matrix Updated: Record ${currentProduct.sku} verified.`);
             setCurrentProduct({
-                sku: "", title: "", description: "", docDescription: "", price: "", category: "", brand: "",
+                sku: "", ean: "", parentSku: "", title: "", description: "", docDescription: "", price: "", category: "", brand: "",
                 dimensions: "", weight: "", material: "", bulletPoints: "", images: []
             });
         } catch (err) {
@@ -1320,6 +1326,53 @@ export default function WorkspaceClient() {
         } catch (err) {
             console.error(err);
             toast.error("Errore durante il salvataggio");
+        }
+    };
+
+    const saveAllToERP = async () => {
+        if (!products.length) return;
+        if (!confirm(`Sincronizzare ${products.length} record su Database PIM? Questa operazione potrebbe richiedere tempo.`)) return;
+
+        setIsMatchingAssets(true);
+        const toastId = toast.loading(`Sincronizzazione di ${products.length} record in corso...`, { autoClose: false });
+
+        let success = 0;
+        let fail = 0;
+
+        try {
+            let useCatalogId = catalogId;
+            if (!useCatalogId) {
+                const res = await axios.post('/api/catalogues', { name: projectName });
+                useCatalogId = res.data.id;
+                setCatalogId(useCatalogId);
+            }
+
+            for (const p of products) {
+                if (!p.sku) continue;
+                try {
+                    await axios.post("/api/products", { ...p, catalogId: useCatalogId });
+                    success++;
+                } catch (e) {
+                    fail++;
+                    console.error(`Save fail for ${p.sku}`, e);
+                }
+            }
+            toast.update(toastId, {
+                render: `Sincronizzazione completata: ${success} salvati, ${fail} falliti.`,
+                type: "success",
+                isLoading: false,
+                autoClose: 5000
+            });
+        } catch (err) {
+            toast.update(toastId, {
+                render: "Errore durante la sincronizzazione massiva",
+                type: "error",
+                isLoading: false,
+                autoClose: 5000
+            });
+        } finally {
+            setIsMatchingAssets(false);
+            loadERPData();
         }
     };
 
@@ -2696,7 +2749,7 @@ export default function WorkspaceClient() {
                         <div className="main-card p-10 bg-gradient-to-br from-blue-50/50 to-white">
                             <div className="flex flex-col md:flex-row items-center justify-between gap-8">
                                 <div className="flex items-center gap-6">
-                                    <div className="p-5 bg-blue-600 rounded-[2rem] shadow-lg shadow-blue-200">
+                                    <div className="p-5 bg-slate-900 rounded-[2rem] shadow-lg shadow-slate-200">
                                         <HardDrive className="w-8 h-8 text-white" />
                                     </div>
                                     <div>
@@ -2704,7 +2757,7 @@ export default function WorkspaceClient() {
                                             <input
                                                 value={projectName}
                                                 onChange={(e) => setProjectName(e.target.value)}
-                                                className="bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:border-orange-500 text-xl font-bold text-gray-800 outline-none px-2 py-1 transition-all"
+                                                className="bg-transparent border-b-2 border-transparent hover:border-gray-200 focus:border-slate-900 text-xl font-bold text-gray-800 outline-none px-2 py-1 transition-all"
                                                 placeholder="Nome Progetto..."
                                             />
                                             <button
@@ -2720,7 +2773,7 @@ export default function WorkspaceClient() {
                                                         toast.success("Nuovo progetto avviato");
                                                     }
                                                 }}
-                                                className="px-4 py-1.5 text-xs font-black uppercase tracking-widest text-[#E6D3C1] bg-black hover:bg-gray-900 rounded-lg transition-all"
+                                                className="px-4 py-1.5 text-xs font-black uppercase tracking-widest text-slate-400 bg-slate-900 hover:bg-black rounded-lg transition-all"
                                             >
                                                 Nuovo Progetto
                                             </button>
@@ -2733,44 +2786,52 @@ export default function WorkspaceClient() {
                                         onClick={() => csvInputRef.current?.click()}
                                         className="btn-secondary flex items-center gap-3"
                                     >
-                                        <Upload className="w-5 h-5 text-blue-500" />
+                                        <Upload className="w-5 h-5 text-slate-900" />
                                         {csvMasterList.length > 0 ? "Cambia Listino" : "Carica Listino (Excel/CSV)"}
                                     </button>
                                     <button
                                         onClick={bulkMatchSkuAssets}
                                         disabled={isMatchingAssets || products.length === 0}
-                                        className={`px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 transition-all shadow-lg ${isMatchingAssets || products.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-900/10'}`}
+                                        className={`px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 transition-all shadow-lg ${isMatchingAssets || products.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#111827] text-white hover:bg-black shadow-slate-900/10'}`}
                                     >
                                         {isMatchingAssets ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                                         Avvia Associazione Bulk
+                                    </button>
+                                    <button
+                                        onClick={saveAllToERP}
+                                        disabled={isMatchingAssets || products.length === 0}
+                                        className={`px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 transition-all shadow-lg ${isMatchingAssets || products.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-[#111827] text-white hover:bg-black shadow-slate-900/10'}`}
+                                    >
+                                        <Database className="w-5 h-5" />
+                                        Sincronizza TUTTO su ERP
                                     </button>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 pt-12 border-t border-gray-100">
                                 <div className="space-y-4">
-                                    <label className="text-[11px] font-black uppercase tracking-widest text-blue-500 ml-1">Percorso Base Asset</label>
+                                    <label className="text-[11px] font-black uppercase tracking-widest text-[#111827] ml-1">Percorso Base Asset</label>
                                     <div className="relative">
                                         <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                                         <input
                                             value={assetBaseUrl}
                                             onChange={(e) => setAssetBaseUrl(e.target.value)}
                                             placeholder="https://mio-sito.it/foto/ o /public/assets/"
-                                            className="w-full pl-12 pr-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-blue-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                            className="w-full pl-12 pr-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-slate-300 rounded-2xl text-sm font-bold transition-all outline-none"
                                         />
                                     </div>
                                     <p className="text-[9px] text-gray-400 font-bold px-1 italic">
-                                        Tip: L&apos;asset verrà cercato come: <span className="text-blue-600">{assetBaseUrl || '[URL BASE]'}SKU{assetExtension}</span>
+                                        Tip: L&apos;asset verrà cercato come: <span className="text-[#111827]">{assetBaseUrl || '[URL BASE]'}SKU{assetExtension}</span>
                                     </p>
                                 </div>
                                 <div className="space-y-4">
-                                    <label className="text-[11px] font-black uppercase tracking-widest text-blue-500 ml-1">Estensione File</label>
+                                    <label className="text-[11px] font-black uppercase tracking-widest text-[#111827] ml-1">Estensione File</label>
                                     <div className="flex items-center gap-3">
                                         {[".jpg", ".png", ".webp", ".pdf"].map(ext => (
                                             <button
                                                 key={ext}
                                                 onClick={() => setAssetExtension(ext)}
-                                                className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${assetExtension === ext ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-blue-200'}`}
+                                                className={`flex-1 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border ${assetExtension === ext ? 'bg-[#111827] border-[#111827] text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-slate-300'}`}
                                             >
                                                 {ext}
                                             </button>

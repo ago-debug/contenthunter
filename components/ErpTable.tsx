@@ -257,14 +257,14 @@ export default function ErpTable() {
         <button
             onClick={() => setActiveTab(id)}
             className={`flex items-center gap-2 px-8 py-4 text-[11px] font-bold uppercase tracking-widest transition-all border-b-2 relative ${activeTab === id
-                ? 'border-blue-600 text-blue-700 bg-white'
+                ? 'border-[#111827] text-[#111827] bg-white'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
         >
-            {Icon && <Icon className={`w-4 h-4 ${activeTab === id ? 'text-blue-600' : 'text-gray-300'}`} />}
+            {Icon && <Icon className={`w-4 h-4 ${activeTab === id ? 'text-[#111827]' : 'text-gray-300'}`} />}
             {label}
             {activeTab === id && (
-                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-600" />
+                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#111827]" />
             )}
         </button>
     );
@@ -282,7 +282,7 @@ export default function ErpTable() {
                     <div className="flex items-center gap-6 px-4 border-r border-gray-100 mr-2">
                         <div className="text-center">
                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Prodotti</p>
-                            <p className="text-lg font-black text-blue-600 leading-tight">{products.length}</p>
+                            <p className="text-lg font-black text-[#111827] leading-tight">{products.length}</p>
                         </div>
                         <div className="text-center">
                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Brand</p>
@@ -295,7 +295,7 @@ export default function ErpTable() {
                     </div>
 
                     <div className="relative group flex-1 min-w-[300px]">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#111827] transition-colors" />
                         <input
                             type="text"
                             placeholder="Cerca per SKU, Title, Brand, EAV..."

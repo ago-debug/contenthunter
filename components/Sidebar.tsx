@@ -52,7 +52,7 @@ export default function Sidebar() {
                 </div>
                 <div>
                     <h1 className="text-lg font-black tracking-tight text-slate-900 leading-none">
-                        Content<span className="text-blue-600">Hunter</span>
+                        Content<span className="text-slate-900">Hunter</span>
                     </h1>
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-1">Enterprise PIM</p>
                 </div>
@@ -73,15 +73,15 @@ export default function Sidebar() {
                                         key={iIdx}
                                         href={item.href}
                                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all group ${isActive
-                                            ? 'bg-slate-50 text-slate-900 border border-slate-100'
+                                            ? 'bg-slate-100 text-slate-900 border border-slate-200'
                                             : 'text-slate-400 hover:bg-slate-50/50 hover:text-slate-600'
                                             }`}
                                     >
-                                        <div className={`p-1.5 rounded-lg transition-all ${isActive ? 'bg-white shadow-sm text-blue-600 border border-blue-50' : 'text-slate-300 group-hover:text-slate-500'}`}>
+                                        <div className={`p-1.5 rounded-lg transition-all ${isActive ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-300 group-hover:text-slate-500'}`}>
                                             <Icon className="w-3.5 h-3.5" />
                                         </div>
                                         <span className="tracking-tight">{item.label}</span>
-                                        {isActive && <div className="ml-auto w-1 h-1 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.5)]"></div>}
+                                        {isActive && <div className="ml-auto w-1 h-1 rounded-full bg-slate-900 shadow-[0_0_8px_rgba(0,0,0,0.2)]"></div>}
                                     </Link>
                                 );
                             })}
