@@ -290,14 +290,34 @@ export default function ErpTable() {
             const res = await axios.get(`/api/catalogues/deep-search`, {
                 params: { q: query, catalogId: selectedProduct.catalogId }
             });
-            setPdfSearchResults(res.data || []);
-            if (res.data.length > 0) {
-                toast.success(`Trovate ${res.data.length} corrispondenze nei PDF`, { toastId });
+            const results = res.data || [];
+            setPdfSearchResults(results);
+
+            if (results.length > 0) {
+                toast.update(toastId, {
+                    render: `Trovate ${results.length} corrispondenze nei PDF`,
+                    type: "success",
+                    isLoading: false,
+                    autoClose: 3000
+                });
             } else {
-                toast.warning("Nessuna corrispondenza trovata nei documenti PDF storici", { toastId });
+                toast.update(toastId, {
+                    render: "Nessuna corrispondenza trovata nei documenti PDF storici",
+                    type: "warning",
+                    isLoading: false,
+                    autoClose: 3000
+                });
             }
-        } catch (err) {
-            toast.error("Errore durante il Deep Scan del PDF", { toastId });
+        } catch (err: any) {
+            console.error("Deep search UI error:", err);
+            const errMsg = err.response?.data?.message || err.message || "Errore sconosciuto";
+            toast.update(toastId, {
+                render: `Errore durante il Deep Scan del PDF: ${errMsg}`,
+                type: "error",
+                isLoading: false,
+                autoClose: 5000
+            });
+            setPdfSearchResults([]);
         } finally {
             setIsSearchingPdf(false);
         }

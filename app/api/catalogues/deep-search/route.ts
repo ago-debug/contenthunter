@@ -1,29 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "../../../../lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
+    console.log("INCOMING Deep Search Request: ", req.url);
     try {
         const { searchParams } = new URL(req.url);
         const query = searchParams.get("q");
-        const catalogId = searchParams.get("catalogId");
+        const catalogIdStr = searchParams.get("catalogId");
 
         if (!query) {
+            console.error("Deep search missing query");
             return NextResponse.json({ error: "Search query required" }, { status: 400 });
         }
 
+        const queryObj: any = {
+            AND: [
+                {
+                    text: {
+                        contains: query
+                    }
+                }
+            ]
+        };
+
+        if (catalogIdStr && catalogIdStr !== 'null' && !isNaN(parseInt(catalogIdStr))) {
+            queryObj.AND.push({ catalogId: parseInt(catalogIdStr) });
+        }
+
+        console.log("Deep search DB query parameters:", queryObj);
+
         // Search in the text of the PDF pages
         const matches = await (prisma as any).pdfPage.findMany({
-            where: {
-                AND: [
-                    catalogId && catalogId !== 'null' ? { catalogId: parseInt(catalogId) } : {},
-                    {
-                        text: {
-                            contains: query,
-                            mode: 'insensitive'
-                        }
-                    }
-                ]
-            },
+            where: queryObj,
             include: {
                 catalog: {
                     select: { name: true }
@@ -32,26 +40,44 @@ export async function GET(req: NextRequest) {
             take: 20
         });
 
+        console.log(`Found ${matches.length} matches in DB`);
+
         const formatted = matches.map((m: any) => {
-            const lowerText = m.text.toLowerCase();
+            let parsedSubImages = [];
+            try {
+                if (m.subImages) {
+                    parsedSubImages = JSON.parse(m.subImages);
+                }
+            } catch (e) {
+                console.warn("JSON parse error for subImages in page", m.id);
+            }
+
+            const lowerText = (m.text || "").toLowerCase();
             const lowerQuery = query.toLowerCase();
             const index = lowerText.indexOf(lowerQuery);
-            const start = Math.max(0, index - 80);
-            const end = Math.min(m.text.length, index + 120);
+
+            // Fallback to start of text if not found (shouldn't happen with contains)
+            const safeIndex = index === -1 ? 0 : index;
+            const start = Math.max(0, safeIndex - 80);
+            const end = Math.min((m.text || "").length, safeIndex + 120);
 
             return {
                 id: m.id,
-                catalogName: m.catalog.name,
-                pageNumber: m.pageNumber,
-                imageUrl: m.imageUrl,
-                subImages: JSON.parse(m.subImages || "[]"),
-                snippet: m.text.substring(start, end).replace(/\n/g, ' ').trim()
+                catalogName: m.catalog?.name || "Unknown",
+                pageNumber: m.pageNumber || 0,
+                imageUrl: m.imageUrl || "",
+                subImages: parsedSubImages,
+                snippet: (m.text || "").substring(start, end).replace(/\n/g, ' ').trim()
             };
         });
 
         return NextResponse.json(formatted);
     } catch (err: any) {
-        console.error("Deep search error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("CRITICAL Deep search error:", err);
+        return NextResponse.json({
+            error: "Internal Server Error in Deep Search",
+            message: err.message,
+            stack: err.stack
+        }, { status: 500 });
     }
 }
