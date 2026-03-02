@@ -15,10 +15,11 @@ export async function GET(req: NextRequest) {
         const matches = await (prisma as any).pdfPage.findMany({
             where: {
                 AND: [
-                    catalogId ? { catalogId: parseInt(catalogId) } : {},
+                    catalogId && catalogId !== 'null' ? { catalogId: parseInt(catalogId) } : {},
                     {
                         text: {
-                            contains: query
+                            contains: query,
+                            mode: 'insensitive'
                         }
                     }
                 ]
@@ -28,15 +29,15 @@ export async function GET(req: NextRequest) {
                     select: { name: true }
                 }
             },
-            take: 10
+            take: 20
         });
 
         const formatted = matches.map((m: any) => {
             const lowerText = m.text.toLowerCase();
             const lowerQuery = query.toLowerCase();
             const index = lowerText.indexOf(lowerQuery);
-            const start = Math.max(0, index - 50);
-            const end = Math.min(m.text.length, index + 50);
+            const start = Math.max(0, index - 80);
+            const end = Math.min(m.text.length, index + 120);
 
             return {
                 id: m.id,
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
                 pageNumber: m.pageNumber,
                 imageUrl: m.imageUrl,
                 subImages: JSON.parse(m.subImages || "[]"),
-                snippet: m.text.substring(start, end)
+                snippet: m.text.substring(start, end).replace(/\n/g, ' ').trim()
             };
         });
 

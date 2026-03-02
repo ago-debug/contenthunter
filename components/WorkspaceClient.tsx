@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, Info } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, Info, ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -1082,6 +1082,9 @@ export default function WorkspaceClient() {
                         try {
                             const imgObj = await page.objs.get(imgName);
                             if (imgObj && (imgObj.data || imgObj.bitmap)) {
+                                // SKIP small images (icons, logos) - ignore anything smaller than 100x100
+                                if (imgObj.width < 100 || imgObj.height < 100) continue;
+
                                 const imgCanvas = document.createElement("canvas");
                                 const ratio = Math.min(100 / imgObj.width, 100 / imgObj.height, 1);
                                 imgCanvas.width = imgObj.width * ratio;
@@ -1125,7 +1128,7 @@ export default function WorkspaceClient() {
                 });
 
                 textBlocks.forEach((b: TextBlock) => {
-                    const matches = b.str.match(/[A-Z0-9-]{4,}/g);
+                    const matches = b.str.match(/[A-Z0-9-]{3,}/g); // Slightly more relaxed for shorter SKUs
                     if (matches) {
                         matches.forEach((m: string) => {
                             if (!tempSkuMap[m]) tempSkuMap[m] = i - 1;
@@ -2836,16 +2839,19 @@ export default function WorkspaceClient() {
                                                                             </>
                                                                         ) : (
                                                                             <>
-                                                                                <div className="col-span-3 pb-2 flex flex-col gap-2">
-                                                                                    <div className="flex items-center justify-between px-1">
-                                                                                        <label className="flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 transition-colors">
+                                                                                <div className="col-span-3 pb-2 flex flex-col gap-3">
+                                                                                    <div className="flex items-center justify-between px-1 bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                                                                        <label className="flex items-center gap-2 cursor-pointer w-full group">
                                                                                             <input
                                                                                                 type="checkbox"
                                                                                                 checked={useGoogleShopping}
                                                                                                 onChange={(e) => setUseGoogleShopping(e.target.checked)}
-                                                                                                className="w-3.5 h-3.5 text-slate-900 rounded border-gray-300 focus:ring-slate-900"
+                                                                                                className="w-4 h-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500 transition-all"
                                                                                             />
-                                                                                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">Cerca in Google Shopping</span>
+                                                                                            <div className="flex flex-col">
+                                                                                                <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest group-hover:text-orange-600 transition-colors">Google Shopping Integration</span>
+                                                                                                <span className="text-[8px] font-bold text-gray-400">Ricerca avanzata prezzi e asset su SerpApi</span>
+                                                                                            </div>
                                                                                         </label>
                                                                                     </div>
                                                                                     <div className="flex items-center gap-2">
@@ -2911,8 +2917,16 @@ export default function WorkspaceClient() {
                                                                                             className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-900 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
                                                                                         >
                                                                                             <img src={result.url} className="w-full h-full object-contain" />
-                                                                                            {result.productData && (
-                                                                                                <div className="absolute top-0 right-0 bg-slate-900 text-white text-[8px] font-black px-1.5 py-0.5 rounded-bl-lg">SHOPPING</div>
+                                                                                            {(result.productData || useGoogleShopping) && (
+                                                                                                <div className="absolute top-0 right-0 bg-slate-900 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg flex items-center gap-1">
+                                                                                                    <ShoppingCart className="w-2.5 h-2.5" />
+                                                                                                    SHOPPING
+                                                                                                </div>
+                                                                                            )}
+                                                                                            {result.source && !result.productData && (
+                                                                                                <div className="absolute top-0 right-0 bg-purple-600 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg">
+                                                                                                    {result.source.substring(0, 10).toUpperCase()}
+                                                                                                </div>
                                                                                             )}
                                                                                         </div>
                                                                                     ))

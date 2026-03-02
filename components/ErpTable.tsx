@@ -3,7 +3,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Search, Plus, X, Edit, Trash2, Box, Package, RefreshCw, Globe, Settings, LayoutGrid, List, Sparkles, History, CheckCircle2, ChevronRight, AlertCircle, Save, Languages } from "lucide-react";
+import {
+    Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List,
+    HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
+    FolderOpen, ChevronLeft, ChevronRight, RefreshCw, Languages, ShoppingCart, Box,
+    LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide
+} from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
 import { SearchableSelect } from "./SearchableSelect";
@@ -694,7 +699,7 @@ export default function ErpTable() {
                                     <TabButton id="seo" label="SEO & AI Content" icon={Sparkles} />
                                     <TabButton id="attributes" label="Specifiche & Bullet" icon={List} />
                                     <TabButton id="woocommerce" label="Omnichannel" icon={Globe} />
-                                    <TabButton id="history" label="Cronologia" icon={History} />
+                                    <TabButton id="history" label="Cronologia" icon={HistoryIcon} />
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
@@ -1046,7 +1051,6 @@ export default function ErpTable() {
                                                                 const localUrl = await saveImageToServer(newImageUrl.trim(), selectedProduct.sku);
                                                                 const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: localUrl }];
                                                                 setSelectedProduct({ ...selectedProduct, images: newImages });
-                                                                setNewImageUrl("");
                                                                 toast.update(toastId, { render: "Immagine accodata.", type: "success", isLoading: false, autoClose: 2000 });
                                                             }
                                                         }}
@@ -1091,6 +1095,12 @@ export default function ErpTable() {
                                                                         <Plus className="w-4 h-4" />
                                                                     </div>
                                                                 </div>
+                                                                {(wImg.productData || wImg.source?.includes('Shop')) && (
+                                                                    <div className="absolute top-0 right-0 bg-slate-900 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg flex items-center gap-1">
+                                                                        <ShoppingCart className="w-2.5 h-2.5" />
+                                                                        SHOPPING
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1347,7 +1357,7 @@ export default function ErpTable() {
                                                     </div>
                                                 ) : productHistory.length === 0 ? (
                                                     <div className="flex flex-col items-center justify-center py-20 opacity-30 gap-4">
-                                                        <History className="w-10 h-10 text-slate-900" />
+                                                        <HistoryIcon className="w-10 h-10 text-slate-900" />
                                                         <p className="text-[10px] font-black uppercase tracking-widest">Nessuna revisione trovata</p>
                                                     </div>
                                                 ) : (
@@ -1361,7 +1371,7 @@ export default function ErpTable() {
                                                                     </div>
                                                                     <div>
                                                                         <div className="flex items-center gap-2">
-                                                                            <CheckCircle2 className="w-3 h-3 text-green-500" />
+                                                                            <Check className="w-4 h-4 text-emerald-500" />
                                                                             <p className="text-xs font-black text-slate-900">{new Date(entry.createdAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                                                                         </div>
                                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Snapshot salvato dopo modifica</p>
