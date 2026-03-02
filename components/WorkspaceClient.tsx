@@ -4495,14 +4495,32 @@ export default function WorkspaceClient() {
                                                 </button>
                                                 <button
                                                     onClick={() => {
-                                                        // Logic to extract sub-images or just set the page as primary image for found SKUs
                                                         const foundSkus = page.text.match(/[A-Z0-9-]{4,}/g) || [];
                                                         if (foundSkus.length === 0) {
-                                                            toast.error("Impossibile estrarre immagini: SKU non identificati");
+                                                            toast.error("Impossibile estrarre immagini: SKU non identificati in questa pagina");
                                                             return;
                                                         }
-                                                        toast.info(`Estrazione asset per: ${foundSkus.join(', ')}`);
-                                                        // ...
+
+                                                        if (!page.subImages || page.subImages.length === 0) {
+                                                            toast.warning("Nessuna sub-immagine estratta automaticamente da questa pagina");
+                                                            return;
+                                                        }
+
+                                                        const updatedProducts = products.map((p: ProductData) => {
+                                                            if (foundSkus.some(s => s.toLowerCase() === p.sku?.toLowerCase())) {
+                                                                const newImgs = page.subImages!.map(si => ({
+                                                                    id: `sub-${Math.random()}`,
+                                                                    url: si.preview // For now using preview, in production would be the full ref
+                                                                }));
+                                                                // Only add if not already there
+                                                                const currentUrls = p.images.map(img => img.url);
+                                                                const filteredNew = newImgs.filter(ni => !currentUrls.includes(ni.url));
+                                                                return { ...p, images: [...p.images, ...filteredNew] };
+                                                            }
+                                                            return p;
+                                                        });
+                                                        setProducts(updatedProducts);
+                                                        toast.success(`Estratti ed associati ${page.subImages.length} asset per i prodotti rilevati`);
                                                     }}
                                                     className="bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase shadow-2xl hover:bg-orange-500 hover:scale-105 active:scale-95 transition-all w-48 border border-orange-400/50"
                                                 >
