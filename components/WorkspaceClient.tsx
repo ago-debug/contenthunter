@@ -128,6 +128,7 @@ export default function WorkspaceClient() {
     const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
     const [csvMapping, setCsvMapping] = useState<{ [key: string]: string }>({
         sku: "SKU",
+        ean: "EAN",
         title: "Titolo",
         docDescription: "Descrizione documentale",
         price: "Prezzo",
@@ -608,6 +609,7 @@ export default function WorkspaceClient() {
                 const newMapping = { ...csvMapping };
                 const searchMapping: { [key: string]: string[] } = {
                     sku: ['sku', 'codice', 'cod', 'item', 'art', 'id'],
+                    ean: ['ean', 'barcode', 'codice a barre', 'gtin'],
                     title: ['titolo', 'title', 'nome', 'name', 'item name', 'prodotto', 'articolo'],
                     docDescription: ['descrizione documentale', 'descrizione estesa', 'descrizione doc', 'estesa', 'description doc', 'descrizione'],
                     price: ['prezzo', 'price', 'listino', 'netto'],
@@ -694,7 +696,11 @@ export default function WorkspaceClient() {
                 })
             });
 
-            if (!response.ok) throw new Error("Errore durante la generazione");
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const detail = errData.details || errData.error || "Errore sconosciuto dal server";
+                throw new Error(`AI FAIL: ${detail}`);
+            }
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
@@ -756,7 +762,7 @@ export default function WorkspaceClient() {
         }
 
         const newProducts = [...products];
-        const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+        const systemFieldsKeys = ['ean', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
 
         // Map existing products
         products.forEach((p, idx) => {

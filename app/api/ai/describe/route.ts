@@ -4,6 +4,7 @@ import { OpenAI } from "openai";
 export async function POST(req: Request) {
     try {
         const body = await req.json();
+        console.log("AI DESCRIBE RECEIVED BODY:", JSON.stringify(body, null, 2));
         const { productData, language = "it" } = body;
 
         if (!productData) {
@@ -43,33 +44,11 @@ FORMATO RICHIESTO:
             temperature: 0.5,
             max_tokens: 800,
             stream: true,
-        }).catch(e => {
-            console.error("OpenAI Direct Call Error:", e);
-            throw e;
         });
 
         console.log("OpenAI Stream initiated successfully");
 
-        const responseStream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
-                try {
-                    for await (const chunk of stream) {
-                        const content = chunk.choices[0]?.delta?.content || "";
-                        if (content) {
-                            controller.enqueue(encoder.encode(content));
-                        }
-                    }
-                } catch (err: any) {
-                    console.error("Stream processing error:", err);
-                    controller.error(err);
-                } finally {
-                    controller.close();
-                }
-            },
-        });
-
-        return new Response(responseStream, {
+        return new Response(stream.toReadableStream(), {
             headers: {
                 "Content-Type": "text/plain; charset=utf-8",
                 "Cache-Control": "no-cache",
@@ -77,11 +56,20 @@ FORMATO RICHIESTO:
             },
         });
     } catch (err: any) {
-        console.error("Full AI Route Error Trace:", err);
+        console.error("AI ROUTE CRITICAL FAILURE:", err);
+        let detail = err.message;
+        if (err.response?.data?.error?.message) {
+            detail = err.response.data.error.message;
+        } else if (err.status === 401) {
+            detail = "API Key non valida o scaduta.";
+        } else if (err.status === 429) {
+            detail = "Limite di quota raggiunto (Quota Exceeded).";
+        }
+
         return NextResponse.json({
-            error: "Errore durante la generazione",
-            details: err.message,
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+            error: "Errore durante la generazione AI",
+            details: detail,
+            code: err.status || 500,
         }, { status: 500 });
     }
 }

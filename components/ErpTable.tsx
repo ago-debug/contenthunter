@@ -123,7 +123,11 @@ export default function ErpTable() {
                 })
             });
 
-            if (!response.ok) throw new Error("Errore durante la generazione");
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                const detail = errData.details || errData.error || "Errore sconosciuto dal server";
+                throw new Error(`AI FAIL: ${detail}`);
+            }
 
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();

@@ -14,24 +14,46 @@ export async function POST(req: NextRequest) {
         }
 
         const cleanSku = sku.toString().trim();
+        const cleanEan = ean ? ean.toString().trim() : null;
 
-        // 1. Crate or Update base Product HUB
-        const product = await prisma.product.upsert({
-            where: { sku: cleanSku },
-            update: {
-                brand: brand || null,
-                category: category || null,
-                ean: ean || null,
-                parentSku: parentSku || null
-            },
-            create: {
-                sku: cleanSku,
-                brand: brand || null,
-                category: category || null,
-                ean: ean || null,
-                parentSku: parentSku || null
-            },
-        });
+        // 1. Find existing product by EAN or SKU
+        let existingProduct = null;
+        if (cleanEan) {
+            existingProduct = await prisma.product.findUnique({
+                where: { ean: cleanEan }
+            });
+        }
+
+        if (!existingProduct) {
+            existingProduct = await prisma.product.findUnique({
+                where: { sku: cleanSku }
+            });
+        }
+
+        // 2. Create or Update base Product HUB
+        let product;
+        if (existingProduct) {
+            product = await prisma.product.update({
+                where: { id: existingProduct.id },
+                data: {
+                    sku: cleanSku, // Allow SKU update if found by EAN
+                    brand: brand || undefined,
+                    category: category || undefined,
+                    ean: cleanEan || undefined,
+                    parentSku: parentSku || undefined
+                },
+            });
+        } else {
+            product = await prisma.product.create({
+                data: {
+                    sku: cleanSku,
+                    brand: brand || null,
+                    category: category || null,
+                    ean: cleanEan || null,
+                    parentSku: parentSku || null
+                },
+            });
+        }
 
         // 2. Upsert Italian texts
         if (title || description || docDescription || bulletPoints) {
