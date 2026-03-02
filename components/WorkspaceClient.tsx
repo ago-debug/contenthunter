@@ -165,6 +165,17 @@ export default function WorkspaceClient() {
     const [skuToPageMap, setSkuToPageMap] = useState<{ [sku: string]: number }>({});
     const [newFieldName, setNewFieldName] = useState("");
 
+    const saveImageToServer = async (url: string, sku: string): Promise<string> => {
+        if (!url || url.startsWith('PAGE_REF_')) return url;
+        try {
+            const resp = await axios.post('/api/storage/save-image', { imageUrl: url, sku });
+            return resp.data.localUrl;
+        } catch (err) {
+            console.error("Failed to save image to server:", err);
+            return url;
+        }
+    };
+
     // New ERP and Search States
     const [searchSources, setSearchSources] = useState<any[]>([]);
     const [showSettings, setShowSettings] = useState(false);
@@ -693,12 +704,15 @@ export default function WorkspaceClient() {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    accumulated += decoder.decode(value, { stream: true });
+                    const text = decoder.decode(value, { stream: true });
+                    accumulated += text;
 
                     // Update the product description in real-time
                     setProducts(prev => {
                         const next = [...prev];
-                        if (next[idx]) next[idx] = { ...next[idx], description: accumulated };
+                        if (next[idx]) {
+                            next[idx] = { ...next[idx], description: accumulated };
+                        }
                         return next;
                     });
                 }
@@ -1078,11 +1092,12 @@ export default function WorkspaceClient() {
                         imgCtx.putImageData(imageData, 0, 0);
                     }
                     const hdUrl = imgCanvas.toDataURL("image/jpeg", 0.9);
+                    const localUrl = await saveImageToServer(hdUrl, products[productIdx]?.sku || 'extracted');
 
                     setProducts(prev => {
                         const next = [...prev];
                         const newImages = [...next[productIdx].images];
-                        newImages[slot] = { id: Math.random().toString(), url: hdUrl };
+                        newImages[slot] = { id: Math.random().toString(), url: localUrl };
                         next[productIdx] = { ...next[productIdx], images: newImages };
                         return next;
                     });
@@ -1439,42 +1454,53 @@ export default function WorkspaceClient() {
     return (
         <div className="p-8 md:p-12 space-y-12">
             {/* Header / Page Identity */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-                <div className="space-y-2">
-                    <h1 className="text-4xl font-black tracking-tight text-[#111827]">
-                        Workspace <span className="text-gray-300">/</span> Anagrafica
-                    </h1>
-                    <p className="text-gray-500 font-medium tracking-tight">
-                        Inserimento e interrogazione documenti PDF per mappatura SKU.
-                    </p>
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 py-6 border-b border-gray-100 bg-white/50 backdrop-blur-xl sticky top-0 z-50 -mx-8 px-8">
+                <div className="space-y-3 flex-1">
+                    <div className="flex items-center gap-3">
+                        <Package className="w-8 h-8 text-orange-600" />
+                        <h1 className="text-4xl font-black tracking-tight text-[#111827]">
+                            <input
+                                value={projectName}
+                                onChange={(e) => setProjectName(e.target.value)}
+                                placeholder="Nome Progetto / Catalogo..."
+                                className="bg-transparent border-none outline-none focus:ring-0 p-0 w-full hover:bg-gray-50/50 rounded transition-colors"
+                            />
+                        </h1>
+                    </div>
+                    <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500" /> Fonte Primaria: File CSV/Excel</span>
+                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-gray-300" /> Fonte Secondaria: Documento PDF</span>
+                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-300" /> Ricerca: Web & Shopping</span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setShowSettings(true)}
-                            className="btn-secondary flex items-center gap-3"
-                        >
-                            <Settings className="w-5 h-5" />
-                            Sorgenti Web
-                        </button>
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className={pdfPages.length === 0 ? "btn-primary flex items-center gap-3 shadow-orange-900/10" : "btn-secondary flex items-center gap-3"}
-                        >
-                            <Upload className="w-5 h-5" />
-                            {pdfPages.length === 0 ? "Carica PDF" : "Cambia PDF"}
-                        </button>
-
+                    <div className="flex items-center bg-gray-100/50 p-1.5 rounded-2xl border border-gray-200 shadow-inner">
                         <button
                             onClick={() => {
                                 if (csvMasterList.length > 0) setShowMapping(!showMapping);
                                 else csvInputRef.current?.click();
                             }}
-                            className="bg-white border border-[#E5E7EB] text-[#4B5563] px-6 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 hover:bg-gray-50 transition-all"
+                            className={`px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 transition-all ${csvMasterList.length === 0 ? "bg-orange-600 text-white shadow-lg shadow-orange-900/10 scale-105" : "bg-white text-gray-600 border border-gray-200"}`}
                         >
-                            <FileText className="w-5 h-5 text-orange-400" />
-                            {csvMasterList.length > 0 ? (showMapping ? "Nascondi Mapping" : "Configura Mapping") : "Carica Listino (Opzionale)"}
+                            <FileText className={`w-4 h-4 ${csvMasterList.length === 0 ? "text-white" : "text-orange-500"}`} />
+                            {csvMasterList.length > 0 ? (showMapping ? "Nascondi Mapping" : "Mapping Listino") : "1. Carica Listino (Excel)"}
+                        </button>
+
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className={`px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 transition-all ${pdfPages.length === 0 && csvMasterList.length > 0 ? "bg-slate-900 text-white shadow-lg" : "text-gray-500 hover:text-slate-900"}`}
+                        >
+                            <Upload className="w-4 h-4" />
+                            {pdfPages.length === 0 ? "2. Carica PDF" : "PDF Caricato"}
+                        </button>
+
+                        <button
+                            onClick={() => setShowSettings(true)}
+                            className="px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 text-gray-500 hover:text-slate-900 transition-all"
+                        >
+                            <Globe className="w-4 h-4 text-blue-400" />
+                            3. Sorgenti Web
                         </button>
                     </div>
 
@@ -2458,8 +2484,37 @@ export default function WorkspaceClient() {
                                                                 >
                                                                     <div className="flex items-center justify-between mb-4 bg-gray-50 p-1 rounded-xl border border-gray-100">
                                                                         <button
+                                                                            onClick={() => {
+                                                                                const input = document.createElement('input');
+                                                                                input.type = 'file';
+                                                                                input.accept = 'image/*';
+                                                                                input.onchange = async (e: any) => {
+                                                                                    const file = e.target.files[0];
+                                                                                    if (file) {
+                                                                                        const reader = new FileReader();
+                                                                                        reader.onload = async (evt) => {
+                                                                                            const dataUrl = evt.target?.result as string;
+                                                                                            const localUrl = await saveImageToServer(dataUrl, p.sku);
+                                                                                            const newProducts = [...products];
+                                                                                            const newImages = [...p.images];
+                                                                                            newImages[slot] = { id: Math.random().toString(), url: localUrl };
+                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                            setProducts(newProducts);
+                                                                                            setActivePicker(null);
+                                                                                        };
+                                                                                        reader.readAsDataURL(file);
+                                                                                    }
+                                                                                };
+                                                                                input.click();
+                                                                            }}
+                                                                            className="flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[9px] font-bold text-gray-400 hover:text-orange-600 hover:bg-white transition-all"
+                                                                        >
+                                                                            <FolderOpen className="w-3 h-3" />
+                                                                            FILE
+                                                                        </button>
+                                                                        <button
                                                                             onClick={() => setPickerSourceMode('pdf')}
-                                                                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'pdf' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-400 hover:text-gray-600'}`}
                                                                         >
                                                                             <FileText className="w-3 h-3" />
                                                                             PDF
@@ -2470,7 +2525,7 @@ export default function WorkspaceClient() {
                                                                                 setPickerSearchQuery(p.sku);
                                                                                 if (webResults.length === 0) handleWebSearch(p, p.sku);
                                                                             }}
-                                                                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[10px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400 hover:text-gray-600'}`}
+                                                                            className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg text-[9px] font-bold transition-all ${pickerSourceMode === 'web' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400 hover:text-gray-600'}`}
                                                                         >
                                                                             <Globe className="w-3 h-3" />
                                                                             WEB
@@ -2651,29 +2706,36 @@ export default function WorkspaceClient() {
                                                                                             key={rIdx}
                                                                                             onMouseEnter={() => setPreviewImage(result.url)}
                                                                                             onMouseLeave={() => setPreviewImage(null)}
-                                                                                            onClick={(e) => {
+                                                                                            onClick={async (e) => {
                                                                                                 e.stopPropagation();
-                                                                                                const newProducts = [...products];
-                                                                                                const newImages = [...p.images];
-                                                                                                newImages[slot] = { id: Math.random().toString(), url: result.url };
+                                                                                                const toastId = toast.loading("Salvataggio immagine sul server...");
+                                                                                                try {
+                                                                                                    const localUrl = await saveImageToServer(result.url, p.sku);
+                                                                                                    const newProducts = [...products];
+                                                                                                    const newImages = [...p.images];
+                                                                                                    newImages[slot] = { id: Math.random().toString(), url: localUrl };
 
-                                                                                                let updatedProduct = { ...p, images: newImages.filter(Boolean) };
-                                                                                                if (result.productData) {
-                                                                                                    let updatedSomething = false;
-                                                                                                    if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
-                                                                                                        updatedProduct.price = result.productData.price;
-                                                                                                        updatedSomething = true;
+                                                                                                    let updatedProduct = { ...p, images: newImages.filter(Boolean) };
+                                                                                                    if (result.productData) {
+                                                                                                        let updatedSomething = false;
+                                                                                                        if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
+                                                                                                            updatedProduct.price = result.productData.price;
+                                                                                                            updatedSomething = true;
+                                                                                                        }
+                                                                                                        if (result.productData.description && !updatedProduct.description) {
+                                                                                                            updatedProduct.description = result.productData.description;
+                                                                                                            updatedSomething = true;
+                                                                                                        }
+                                                                                                        if (updatedSomething) toast.success("Dati aggiornati automaticamente da Shopping!");
                                                                                                     }
-                                                                                                    if (result.productData.description && !updatedProduct.description) {
-                                                                                                        updatedProduct.description = result.productData.description;
-                                                                                                        updatedSomething = true;
-                                                                                                    }
-                                                                                                    if (updatedSomething) toast.success("Dati aggiornati automaticamente da Shopping!");
+
+                                                                                                    newProducts[idx] = updatedProduct;
+                                                                                                    setProducts(newProducts);
+                                                                                                    toast.update(toastId, { render: "Immagine salvata!", type: "success", isLoading: false, autoClose: 2000 });
+                                                                                                    setActivePicker(null);
+                                                                                                } catch (err) {
+                                                                                                    toast.update(toastId, { render: "Errore nel salvataggio locale", type: "error", isLoading: false, autoClose: 2000 });
                                                                                                 }
-
-                                                                                                newProducts[idx] = updatedProduct;
-                                                                                                setProducts(newProducts);
-                                                                                                setActivePicker(null);
                                                                                             }}
                                                                                             className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-900 cursor-pointer transition-all hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative bg-white"
                                                                                         >

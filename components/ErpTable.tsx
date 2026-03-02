@@ -22,6 +22,17 @@ export default function ErpTable() {
     const [pdfSearchResults, setPdfSearchResults] = useState<any[]>([]);
     const [isSearchingPdf, setIsSearchingPdf] = useState(false);
 
+    const saveImageToServer = async (url: string, sku: string): Promise<string> => {
+        if (!url || url.startsWith('PAGE_REF_')) return url;
+        try {
+            const resp = await axios.post('/api/storage/save-image', { imageUrl: url, sku });
+            return resp.data.localUrl;
+        } catch (err) {
+            console.error("Failed to save image to server:", err);
+            return url;
+        }
+    };
+
     const CorporateImage = ({ src, alt, className }: { src: string | any, alt: string, className?: string }) => {
         const [error, setError] = useState(false);
         const isInvalid = !src || (typeof src === 'string' && src.startsWith("PAGE_REF_"));
@@ -724,8 +735,8 @@ export default function ErpTable() {
                                                                     {res.subImages?.map((sub: any, sIdx: number) => (
                                                                         <div
                                                                             key={sIdx}
-                                                                            onClick={() => {
-                                                                                const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: sub.preview }];
+                                                                            onClick={async () => {
+                                                                                const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: await saveImageToServer(sub.preview, selectedProduct.sku) }];
                                                                                 setSelectedProduct({ ...selectedProduct, images: newImages });
                                                                                 toast.success("Asset PDF recuperato!");
                                                                             }}
@@ -754,12 +765,14 @@ export default function ErpTable() {
                                                             className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-slate-200 transition-all text-xs"
                                                         />
                                                         <button
-                                                            onClick={() => {
+                                                            onClick={async () => {
                                                                 if (newImageUrl.trim()) {
-                                                                    const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: newImageUrl.trim() }];
+                                                                    const toastId = toast.loading("Salvataggio locale...");
+                                                                    const localUrl = await saveImageToServer(newImageUrl.trim(), selectedProduct.sku);
+                                                                    const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: localUrl }];
                                                                     setSelectedProduct({ ...selectedProduct, images: newImages });
                                                                     setNewImageUrl("");
-                                                                    toast.success("Immagine accodata.");
+                                                                    toast.update(toastId, { render: "Immagine accodata.", type: "success", isLoading: false, autoClose: 2000 });
                                                                 }
                                                             }}
                                                             className="px-5 py-3 bg-[#111827] text-white font-black rounded-xl shadow-lg hover:bg-black transition-all"
@@ -789,11 +802,13 @@ export default function ErpTable() {
                                                         <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-6">
                                                             {webImages.map((wImg: any, idx: number) => (
                                                                 <div key={idx} className="relative aspect-square w-28 h-28 shrink-0 rounded-2xl overflow-hidden border border-gray-100 group bg-gray-50 cursor-pointer hover:border-slate-900 shadow-sm"
-                                                                    onClick={() => {
+                                                                    onClick={async () => {
                                                                         const url = typeof wImg === 'string' ? wImg : wImg.url;
-                                                                        const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url }];
+                                                                        const toastId = toast.loading("Salvataggio locale...");
+                                                                        const localUrl = await saveImageToServer(url, selectedProduct.sku);
+                                                                        const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: localUrl }];
                                                                         setSelectedProduct({ ...selectedProduct, images: newImages });
-                                                                        toast.success("Risorsa accodata.");
+                                                                        toast.update(toastId, { render: "Risorsa accodata.", type: "success", isLoading: false, autoClose: 2000 });
                                                                     }}>
                                                                     <CorporateImage src={typeof wImg === 'string' ? wImg : wImg.url} alt="Web Match" className="w-full h-full object-contain p-2" />
                                                                     <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">

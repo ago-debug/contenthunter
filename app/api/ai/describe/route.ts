@@ -26,8 +26,10 @@ FORMATO RICHIESTO:
 - Markdown pulito.
 `;
 
+        console.log("AI Describe Request for SKU:", productData.sku);
         if (!process.env.OPENAI_API_KEY) {
-            return NextResponse.json({ error: "API Key mancante." }, { status: 500 });
+            console.error("CRITICAL: OPENAI_API_KEY is not defined in process.env");
+            return NextResponse.json({ error: "API Key mancante sul server." }, { status: 500 });
         }
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -41,7 +43,12 @@ FORMATO RICHIESTO:
             temperature: 0.5,
             max_tokens: 800,
             stream: true,
+        }).catch(e => {
+            console.error("OpenAI Direct Call Error:", e);
+            throw e;
         });
+
+        console.log("OpenAI Stream initiated successfully");
 
         const responseStream = new ReadableStream({
             async start(controller) {
@@ -53,7 +60,8 @@ FORMATO RICHIESTO:
                             controller.enqueue(encoder.encode(content));
                         }
                     }
-                } catch (err) {
+                } catch (err: any) {
+                    console.error("Stream processing error:", err);
                     controller.error(err);
                 } finally {
                     controller.close();
@@ -69,7 +77,11 @@ FORMATO RICHIESTO:
             },
         });
     } catch (err: any) {
-        console.error("OpenAI Error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("Full AI Route Error Trace:", err);
+        return NextResponse.json({
+            error: "Errore durante la generazione",
+            details: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }, { status: 500 });
     }
 }
