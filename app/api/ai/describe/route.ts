@@ -12,19 +12,28 @@ export async function POST(req: Request) {
         }
 
         const prompt = `
-Sei un copywriter e-commerce senior. Genera una descrizione prodotto professionale, SEO ed accattivante in ${language}.
-Sii estremamente rapido e conciso, evita introduzioni inutili.
+Sei un copywriter e-commerce senior. Genera una scheda prodotto professionale in ${language}.
+Identifica e separa i dati tecnici dai testi di marketing.
 
 Dati di input:
 SKU: ${productData.sku || ''}
 Titolo: ${productData.title || ''}
-Fornito dal PDF: ${productData.docDescription || ''}
+Descrizione Tecnica/PDF: ${productData.docDescription || ''}
 Brand/Cat: ${productData.brand || ''} / ${productData.category || ''}
 
-FORMATO RICHIESTO:
-- 3 paragrafi brevi e incisivi.
-- Un breve elenco puntato 'Caratteristiche Premium'.
-- Markdown pulito.
+FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
+
+---DESCRIPTION---
+[Scrivi qui 3 paragrafi brevi e incisivi di copywriting emozionale, SEO oriented]
+
+---TECHNICAL_FIELDS---
+Colore: [Valore]
+Materiale: [Valore]
+Design: [Descrivi lo stile in poche parole]
+Consigli: [Suggerimenti d'uso]
+Dimensioni: [Estrai se presente, es. cm 45x32]
+Peso: [Estrai se presente, es. 1.5kg]
+Circonferenza: [Estrai se presente]
 `;
 
         console.log("AI Describe Request for SKU:", productData.sku);

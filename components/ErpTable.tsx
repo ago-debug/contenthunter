@@ -139,11 +139,49 @@ export default function ErpTable() {
                     if (done) break;
                     const text = decoder.decode(value, { stream: true });
                     accumulated += text;
-                    setSelectedProduct((prev: any) => prev ? { ...prev, description: accumulated } : null);
+
+                    // Parse parts using regex
+                    const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+                    const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
+
+                    let newDescription = "";
+                    let parsedFields: Record<string, string> = {};
+
+                    if (descMatch) {
+                        newDescription = descMatch[1].trim();
+                    }
+
+                    if (fieldsMatch) {
+                        const fieldsText = fieldsMatch[1].trim();
+                        const lines = fieldsText.split('\n');
+                        lines.forEach(line => {
+                            const [k, ...v] = line.split(':');
+                            if (k && v.length > 0) {
+                                const key = k.trim();
+                                const val = v.join(':').trim();
+                                if (val && !val.includes('[Valore]')) {
+                                    parsedFields[key] = val;
+                                }
+                            }
+                        });
+                    }
+
+                    setSelectedProduct((prev: any) => {
+                        if (!prev) return null;
+                        return {
+                            ...prev,
+                            description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
+                            extraFields: {
+                                ...(prev.extraFields || {}),
+                                ...parsedFields
+                            }
+                        };
+                    });
                 }
             }
 
-            toast.success("Descrizione completata!", { toastId });
+            toast.dismiss(toastId);
+            toast.success("Scheda Prodotto generata!");
         } catch (error: any) {
             console.error("AI Generation Error:", error);
             toast.error("Errore di connessione o generazione: " + error.message, { toastId });

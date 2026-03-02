@@ -713,18 +713,51 @@ export default function WorkspaceClient() {
                     const text = decoder.decode(value, { stream: true });
                     accumulated += text;
 
-                    // Update the product description in real-time
+                    // Parse parts using delimiters
+                    const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+                    const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
+
+                    let newDescription = "";
+                    let parsedFields: Record<string, string> = {};
+
+                    if (descMatch) {
+                        newDescription = descMatch[1].trim();
+                    }
+
+                    if (fieldsMatch) {
+                        const fieldsText = fieldsMatch[1].trim();
+                        const lines = fieldsText.split('\n');
+                        lines.forEach(line => {
+                            const [k, ...v] = line.split(':');
+                            if (k && v.length > 0) {
+                                const key = k.trim();
+                                const val = v.join(':').trim();
+                                if (val && !val.includes('[Valore]')) {
+                                    parsedFields[key] = val;
+                                }
+                            }
+                        });
+                    }
+
                     setProducts(prev => {
                         const next = [...prev];
                         if (next[idx]) {
-                            next[idx] = { ...next[idx], description: accumulated };
+                            next[idx] = {
+                                ...next[idx],
+                                description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
+                                extraFields: {
+                                    ...(next[idx].extraFields || {}),
+                                    ...parsedFields
+                                }
+                            };
                         }
                         return next;
                     });
                 }
             }
 
-            toast.success("Descrizione magica generata!", { toastId });
+            toast.dismiss(toastId);
+            toast.success("Scheda Prodotto generata!");
         } catch (error: any) {
             console.error(error);
             const msg = error.message || "Errore di connessione";
