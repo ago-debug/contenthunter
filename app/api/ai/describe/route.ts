@@ -21,7 +21,12 @@ Titolo: ${productData.title || ''}
 Descrizione Tecnica/PDF: ${productData.docDescription || ''}
 Brand/Cat: ${productData.brand || ''} / ${productData.category || ''}
 
+Nelle tue elaborazioni, fai affidamento esclusivamente sui dati forniti o su fatti di cui hai certezza assoluta (100%). Non inventare informazioni tecniche, specifiche o varianti inesistenti.
+
 FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
+
+---SHORT_DESCRIPTION---
+[Scrivi qui 1 paragrafo breve, max 2-3 frasi, per meta description o estratto rapido SEO, evidenziando il valore del prodotto]
 
 ---DESCRIPTION---
 [Scrivi qui 3 paragrafi brevi e incisivi di copywriting emozionale, SEO oriented]

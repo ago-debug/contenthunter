@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const {
             sku, title, description, docDescription, price, category, brand,
-            dimensions, weight, material, bulletPoints, images, extraFields, catalogId, ean, parentSku
+            dimensions, weight, material, bulletPoints, seoAiText, images, extraFields, catalogId, ean, parentSku
         } = body;
 
         if (!sku) {
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Upsert Italian texts
-        if (title || description || docDescription || bulletPoints) {
+        if (title !== undefined || description !== undefined || docDescription !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
             await prisma.productText.upsert({
                 where: {
                     productId_language: { productId: product.id, language: "it" }
@@ -65,7 +65,8 @@ export async function POST(req: NextRequest) {
                     title: title || null,
                     description: description || null,
                     docDescription: docDescription || null,
-                    bulletPoints: bulletPoints || null
+                    bulletPoints: bulletPoints || null,
+                    seoAiText: seoAiText || null
                 },
                 create: {
                     productId: product.id,
@@ -73,7 +74,8 @@ export async function POST(req: NextRequest) {
                     title: title || null,
                     description: description || null,
                     docDescription: docDescription || null,
-                    bulletPoints: bulletPoints || null
+                    bulletPoints: bulletPoints || null,
+                    seoAiText: seoAiText || null
                 }
             });
         }
@@ -162,6 +164,7 @@ export async function POST(req: NextRequest) {
                     description: description || null,
                     docDescription: docDescription || null,
                     bulletPoints: bulletPoints || null,
+                    seoAiText: seoAiText || null,
                     price: price, // stored as provided
                     extraFields: extraFields || {},
                     timestamp: new Date().toISOString()
@@ -225,6 +228,7 @@ export async function GET(req: NextRequest) {
                 description: itText.description || "",
                 docDescription: itText.docDescription || "",
                 bulletPoints: itText.bulletPoints || "",
+                seoAiText: itText.seoAiText || "",
                 // Maps Price
                 price: defPrice.price !== undefined ? String(defPrice.price) : "",
                 // Maps Legacy Extra

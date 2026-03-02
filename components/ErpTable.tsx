@@ -162,14 +162,26 @@ export default function ErpTable() {
                     accumulated += text;
 
                     // Parse parts using regex
+                    const shortDescMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
                     const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+                    const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
                     const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
 
+                    let newShortDescription = "";
                     let newDescription = "";
+                    let newBullets = "";
                     let parsedFields: Record<string, string> = {};
+
+                    if (shortDescMatch) {
+                        newShortDescription = shortDescMatch[1].trim();
+                    }
 
                     if (descMatch) {
                         newDescription = descMatch[1].trim();
+                    }
+
+                    if (bulletMatch) {
+                        newBullets = bulletMatch[1].trim();
                     }
 
                     if (fieldsMatch) {
@@ -191,7 +203,9 @@ export default function ErpTable() {
                         if (!prev) return null;
                         return {
                             ...prev,
+                            seoAiText: newShortDescription || prev.seoAiText,
                             description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
+                            bulletPoints: newBullets || prev.bulletPoints,
                             extraFields: {
                                 ...(prev.extraFields || {}),
                                 ...parsedFields
@@ -888,7 +902,7 @@ export default function ErpTable() {
                                             <div className="space-y-6">
                                                 <div>
                                                     <div className="flex justify-between items-center mb-3">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Lungo)</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Breve & SEO)</label>
                                                         <button
                                                             onClick={handleGenerateAIDescription}
                                                             disabled={isGeneratingAI}
@@ -897,6 +911,15 @@ export default function ErpTable() {
                                                             {isGeneratingAI ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                                                             Genera con AI
                                                         </button>
+                                                    </div>
+                                                    <textarea
+                                                        value={selectedProduct.seoAiText || ""}
+                                                        onChange={e => setSelectedProduct({ ...selectedProduct, seoAiText: e.target.value })}
+                                                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold text-gray-800 min-h-[100px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all resize-y custom-scrollbar text-sm leading-relaxed mb-6"
+                                                        placeholder="L'estratto breve o meta description apparirà qui..."
+                                                    />
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Lungo)</label>
                                                     </div>
                                                     <textarea
                                                         value={selectedProduct.description || ""}

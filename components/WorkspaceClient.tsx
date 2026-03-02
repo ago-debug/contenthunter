@@ -49,6 +49,7 @@ interface ProductData {
     weight: string;
     material: string;
     bulletPoints: string;
+    seoAiText?: string;
     images: ProductImage[];
     extraFields?: { [key: string]: string };
 }
@@ -140,8 +141,8 @@ export default function WorkspaceClient() {
         weight: "Peso",
         material: "Materiale",
         category: "Categoria",
-        bulletPoints: "Caratteristiche principali / bullet point",
-        description: "Analisi AI",
+        description: "Analisi AI (Lungo)",
+        seoAiText: "Analisi AI (Breve)",
         image1: "Link Immagine 1",
         image2: "Link Immagine 2"
     });
@@ -535,7 +536,7 @@ export default function WorkspaceClient() {
         return encodeURI(`${processedBase}${sku.trim()}${ext}`);
     };
 
-    const systemFieldsToSync = ['brand', 'dimensions', 'weight', 'material', 'category', 'bulletPoints', 'description'];
+    const systemFieldsToSync = ['brand', 'dimensions', 'weight', 'material', 'category', 'bulletPoints', 'description', 'seoAiText'];
     const activeMappedFields = systemFieldsToSync.filter(f => csvMapping[f] && csvHeaders.includes(csvMapping[f]));
 
     const allDynamicColumns = [
@@ -743,13 +744,19 @@ export default function WorkspaceClient() {
                     accumulated += text;
 
                     // Parse parts using delimiters
+                    const shortDescMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
                     const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
                     const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
                     const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
 
+                    let newShortDescription = "";
                     let newDescription = "";
                     let newBullets = "";
                     let parsedFields: Record<string, string> = {};
+
+                    if (shortDescMatch) {
+                        newShortDescription = shortDescMatch[1].trim();
+                    }
 
                     if (descMatch) {
                         newDescription = descMatch[1].trim();
@@ -779,6 +786,7 @@ export default function WorkspaceClient() {
                         if (next[idx]) {
                             next[idx] = {
                                 ...next[idx],
+                                seoAiText: newShortDescription || next[idx].seoAiText,
                                 description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
                                 bulletPoints: newBullets || next[idx].bulletPoints,
                                 extraFields: {
@@ -831,7 +839,7 @@ export default function WorkspaceClient() {
         }
 
         const newProducts = [...products];
-        const systemFieldsKeys = ['ean', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+        const systemFieldsKeys = ['ean', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
 
         // Map existing products
         products.forEach((p, idx) => {
@@ -903,6 +911,7 @@ export default function WorkspaceClient() {
                     sku: rowSku,
                     title: String(row[csvMapping.title] || ""),
                     description: String(row[csvMapping.description] || ""),
+                    seoAiText: String(row[csvMapping.seoAiText] || ""),
                     docDescription: String(row[csvMapping.docDescription] || ""),
                     price: pPrice,
                     category: String(row[csvMapping.category] || "Generale"),
@@ -944,7 +953,7 @@ export default function WorkspaceClient() {
         let assetsCount = 0;
         let dataCount = 0;
 
-        const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+        const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
         const skuMappedField = csvMapping.sku;
 
         const newProducts = products.map(p => {
@@ -1392,7 +1401,7 @@ export default function WorkspaceClient() {
             setProducts([currentProduct, ...products]);
             toast.success(`Matrix Updated: Record ${currentProduct.sku} verified.`);
             setCurrentProduct({
-                sku: "", ean: "", parentSku: "", title: "", description: "", docDescription: "", price: "", category: "", brand: "",
+                sku: "", ean: "", parentSku: "", title: "", description: "", seoAiText: "", docDescription: "", price: "", category: "", brand: "",
                 dimensions: "", weight: "", material: "", bulletPoints: "", images: []
             });
         } catch (err) {
@@ -1513,7 +1522,8 @@ export default function WorkspaceClient() {
                 "Brand": p.brand,
                 "Descrizione Documentale": p.docDescription,
                 "Caratteristiche principali / bullet point": p.bulletPoints,
-                "Analisi AI": p.description
+                "Analisi AI (Breve)": p.seoAiText,
+                "Analisi AI (Lungo)": p.description
             };
 
             // Add images URLs

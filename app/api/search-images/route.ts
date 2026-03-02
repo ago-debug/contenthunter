@@ -381,7 +381,41 @@ export async function GET(request: Request) {
             } catch (err: any) {
                 console.warn("Google Shopping extraction error:", err.message);
             }
-        } else if (serpApiKey && allImages.length < 3) {
+        } else if (useShopping) {
+            // STRATEGY 2B: Fallback Google Shopping Scraping with Cheerio
+            try {
+                const url = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=shop`;
+                const response = await axios.get(url, { headers: BROWSER_HEADERS });
+                const $ = cheerio.load(response.data);
+                const shoppingResults: any[] = [];
+
+                $(".sh-dgr__content").each((i, el) => {
+                    if (i >= 10) return;
+                    let imgUrl = $(el).find("img").attr("src");
+                    if (!imgUrl || !imgUrl.startsWith("http")) {
+                        imgUrl = $(el).find("img").attr("data-src") || "";
+                    }
+                    if (!imgUrl) return;
+
+                    shoppingResults.push({
+                        id: `cheerio-shop-${Math.random().toString(36).slice(2)}`,
+                        url: imgUrl,
+                        title: $(el).find("h3").text(),
+                        source: "Google Shopping (Scraped)",
+                        productData: {
+                            title: $(el).find("h3").text(),
+                            price: $(el).find("span[data-price]").text() || $(el).find(".a8Pemb").text() || "",
+                            source: "Google Shopping (Scraped)"
+                        }
+                    });
+                });
+                allImages.push(...shoppingResults);
+            } catch (err: any) {
+                console.warn("Cheerio Google Shopping fallback error:", err.message);
+            }
+        }
+
+        if (serpApiKey && allImages.length < 3) {
             // STRATEGY 3: SerpApi Google Images as supplement/fallback
             let finalQuery = query;
             if (sourceList.length > 0) {
@@ -408,17 +442,19 @@ export async function GET(request: Request) {
             return NextResponse.json({ images: allImages.slice(0, 20) });
         }
 
-        // FALLBACK: high-quality mock results so UI stays functional
-        await new Promise(resolve => setTimeout(resolve, 600));
-        const mockResults = [
-            { id: '1', url: `https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop`, title: query },
-            { id: '2', url: `https://images.unsplash.com/photo-1493663284031-b7e3caef15a7?q=80&w=800&auto=format&fit=crop`, title: query },
-            { id: '3', url: `https://images.unsplash.com/photo-1540574163026-643ea20ade25?q=80&w=800&auto=format&fit=crop`, title: query },
-            { id: '4', url: `https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?q=80&w=800&auto=format&fit=crop`, title: query },
-            { id: '5', url: `https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop`, title: query },
-            { id: '6', url: `https://images.unsplash.com/photo-1523755231516-e43fd2e8dca5?q=80&w=800&auto=format&fit=crop`, title: query },
-        ];
-        return NextResponse.json({ images: mockResults, debug: { note: 'mock - configure SERPAPI_KEY or add source URLs' } });
+        // FALLBACK: high-quality mock results so UI stays functional if everything fails
+        if (allImages.length === 0) {
+            await new Promise(resolve => setTimeout(resolve, 600));
+            const mockResults = [
+                { id: '1', url: `https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop`, title: query },
+                { id: '2', url: `https://images.unsplash.com/photo-1493663284031-b7e3caef15a7?q=80&w=800&auto=format&fit=crop`, title: query },
+                { id: '3', url: `https://images.unsplash.com/photo-1540574163026-643ea20ade25?q=80&w=800&auto=format&fit=crop`, title: query },
+                { id: '4', url: `https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?q=80&w=800&auto=format&fit=crop`, title: query },
+                { id: '5', url: `https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop`, title: query },
+                { id: '6', url: `https://images.unsplash.com/photo-1523755231516-e43fd2e8dca5?q=80&w=800&auto=format&fit=crop`, title: query },
+            ];
+            return NextResponse.json({ images: mockResults, debug: { note: 'mock - configure SERPAPI_KEY or add source URLs' } });
+        }
 
     } catch (error: any) {
         console.error("Web search API error:", error.message);
