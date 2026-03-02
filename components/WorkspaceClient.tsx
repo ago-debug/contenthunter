@@ -67,6 +67,7 @@ export default function WorkspaceClient() {
             setCatalogId(catalogue.id);
             setSearchSources(catalogue.searchSources || []);
             setProducts(catalogue.products.map((p: any) => ({
+                id: p.id,
                 sku: p.sku,
                 ean: p.ean || "",
                 parentSku: p.parentSku || "",
