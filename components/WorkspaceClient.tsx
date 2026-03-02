@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -29,8 +29,10 @@ interface TextBlock {
 
 interface PageData {
     imageUrl: string;
+    text: string;
     textBlocks: TextBlock[];
     subImages?: { preview: string; ref: string }[];
+    pageNumber: number;
 }
 
 interface ProductData {
@@ -143,7 +145,9 @@ export default function WorkspaceClient() {
     });
     const [showMapping, setShowMapping] = useState(false);
     const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
-    const [activePicker, setActivePicker] = useState<{ type: 'text' | 'image', row: number, field: string } | null>(null);
+    const [activePicker, setActivePicker] = useState<{ type: 'text' | 'image' | 'pdf', row: number, field: string } | null>(null);
+    const [isQuickPdfOpen, setIsQuickPdfOpen] = useState(false);
+    const [pdfSearchFocus, setPdfSearchFocus] = useState<string | null>(null);
     const [pickerSearch, setPickerSearch] = useState("");
     const [displayLimit, setDisplayLimit] = useState(30);
     const [isAddingColumn, setIsAddingColumn] = useState(false);
@@ -387,6 +391,22 @@ export default function WorkspaceClient() {
                 }
             });
 
+            // Extract extra premium fields
+            const premiumFields = ['Materiale', 'Colore', 'Dimensioni', 'Peso', 'Design', 'Consigli', 'Circonferenza'];
+            premiumFields.forEach(f => {
+                const key = f.toLowerCase();
+                if (bestData[key] && !updatedProduct.extraFields?.[f]) {
+                    updatedProduct.extraFields = {
+                        ...(updatedProduct.extraFields || {}),
+                        [f]: bestData[key]
+                    };
+                    if (!allDynamicColumns.some(c => c.label === f)) {
+                        setExtraColumns(prev => [...prev, f]);
+                    }
+                    updatedFields++;
+                }
+            });
+
             if (updatedFields > 0) {
                 const newProducts = [...products];
                 newProducts[idx] = updatedProduct;
@@ -413,6 +433,11 @@ export default function WorkspaceClient() {
 
     const handleSmartSearch = (product: any, idx: number, source: 'pdf' | 'folder' | 'web' | 'google_shopping') => {
         const q = getSearchQuery(product);
+        if (source === 'pdf') {
+            setIsQuickPdfOpen(true);
+            setPdfSearchFocus(product.sku);
+            return;
+        }
         if (source === 'google_shopping') {
             window.open(`https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`, '_blank');
             return;
@@ -1061,8 +1086,10 @@ export default function WorkspaceClient() {
 
                 pages.push({
                     imageUrl: canvas.toDataURL("image/jpeg", 0.5),
+                    text: textBlocks.map(b => b.str).join(" "),
                     textBlocks,
-                    subImages
+                    subImages,
+                    pageNumber: i
                 });
 
                 // Index SKUs on this page for smart positioning
@@ -1491,90 +1518,67 @@ export default function WorkspaceClient() {
     };
 
     return (
-        <div className="p-8 md:p-12 space-y-12">
+        <div className="p-4 md:p-6 space-y-6">
             {/* Header / Page Identity */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 py-6 border-b border-gray-100 bg-white/50 backdrop-blur-xl sticky top-0 z-50 -mx-8 px-8">
-                <div className="space-y-3 flex-1">
-                    <div className="flex items-center gap-3">
-                        <Package className="w-8 h-8 text-orange-600" />
-                        <h1 className="text-4xl font-black tracking-tight text-[#111827]">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 border-b border-gray-100 bg-white/50 backdrop-blur-xl sticky top-0 z-50 -mx-6 px-6">
+                <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                        <Package className="w-5 h-5 text-orange-600" />
+                        <h1 className="text-xl font-black tracking-tight text-[#111827]">
                             <input
                                 value={projectName}
                                 onChange={(e) => setProjectName(e.target.value)}
-                                placeholder="Nome Progetto / Catalogo..."
+                                placeholder="Nome Progetto..."
                                 className="bg-transparent border-none outline-none focus:ring-0 p-0 w-full hover:bg-gray-50/50 rounded transition-colors"
                             />
                         </h1>
                     </div>
-                    <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-orange-500" /> Fonte Primaria: File CSV/Excel</span>
-                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-gray-300" /> Fonte Secondaria: Documento PDF</span>
-                        <span className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-blue-300" /> Ricerca: Web & Shopping</span>
+                    <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-wider text-gray-400">
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-orange-500" /> CSV</span>
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-300" /> PDF</span>
+                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-300" /> WEB</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-gray-100/50 p-1.5 rounded-2xl border border-gray-200 shadow-inner">
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-gray-100/50 p-1 rounded-xl border border-gray-200 shadow-inner">
                         <button
                             onClick={() => {
                                 if (csvMasterList.length > 0) setShowMapping(!showMapping);
                                 else csvInputRef.current?.click();
                             }}
-                            className={`px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 transition-all ${csvMasterList.length === 0 ? "bg-orange-600 text-white shadow-lg shadow-orange-900/10 scale-105" : "bg-white text-gray-600 border border-gray-200"}`}
+                            className={`px-4 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-2 transition-all ${csvMasterList.length === 0 ? "bg-orange-600 text-white shadow-lg" : "bg-white text-gray-600 border border-gray-200"}`}
                         >
-                            <FileText className={`w-4 h-4 ${csvMasterList.length === 0 ? "text-white" : "text-orange-500"}`} />
-                            {csvMasterList.length > 0 ? (showMapping ? "Nascondi Mapping" : "Mapping Listino") : "1. Carica Listino (Excel)"}
+                            <FileText className={`w-3.5 h-3.5 ${csvMasterList.length === 0 ? "text-white" : "text-orange-500"}`} />
+                            {csvMasterList.length > 0 ? (showMapping ? "Nascondi Mapping" : "Mapping") : "1. Listino"}
                         </button>
 
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className={`px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 transition-all ${pdfPages.length === 0 && csvMasterList.length > 0 ? "bg-slate-900 text-white shadow-lg" : "text-gray-500 hover:text-slate-900"}`}
+                            className={`px-4 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-2 transition-all ${pdfPages.length === 0 && csvMasterList.length > 0 ? "bg-slate-900 text-white shadow-lg" : "text-gray-500 hover:text-slate-900"}`}
                         >
-                            <Upload className="w-4 h-4" />
-                            {pdfPages.length === 0 ? "2. Carica PDF" : "PDF Caricato"}
+                            <Upload className="w-3.5 h-3.5" />
+                            {pdfPages.length === 0 ? "2. PDF" : "PDF OK"}
                         </button>
 
                         <button
                             onClick={() => setShowSettings(true)}
-                            className="px-6 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest flex items-center gap-3 text-gray-500 hover:text-slate-900 transition-all"
+                            className="px-4 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest flex items-center gap-2 text-gray-400 hover:text-slate-900 transition-all font-mono"
                         >
-                            <Globe className="w-4 h-4 text-blue-400" />
-                            3. Sorgenti Web
+                            <Globe className="w-3.5 h-3.5 text-blue-400" />
+                            Sorgenti
                         </button>
                     </div>
 
-                    <div className="flex items-center gap-3 border-l border-gray-100 pl-4 w-full md:w-auto overflow-x-auto custom-scrollbar shrink-0">
+                    <div className="flex items-center gap-2 border-l border-gray-100 pl-3">
                         <button
                             onClick={syncToDatabase}
-                            className="bg-orange-600 text-white px-8 py-3.5 rounded-xl font-bold text-sm flex items-center gap-3 hover:bg-orange-700 transition-all shadow-lg shadow-orange-900/10 shrink-0"
+                            className="bg-orange-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-orange-700 transition-all shadow-md shadow-orange-900/10"
                         >
-                            <Sparkles className="w-5 h-5" />
+                            <Sparkles className="w-4 h-4" />
                             Salva
                         </button>
-                        <button onClick={exportToExcel} className="btn-secondary flex items-center gap-3 shrink-0">
-                            <FileDown className="w-5 h-5" />
-                            Esporta Excel
-                        </button>
-                        <button
-                            onClick={() => {
-                                if (confirm("Reset workspace? Questo cancellerà anche i salvataggi locali.")) {
-                                    setPdfPages([]);
-                                    setCurrentPdfUrl(null);
-                                    setCatalogId(null);
-                                    setProducts([]);
-                                    setCsvMasterList([]);
-                                    setCsvHeaders([]);
-                                    localStorage.removeItem("pdf_catalog_id");
-                                    localStorage.removeItem("pdf_catalog_products");
-                                }
-                            }}
-                            className="px-6 py-3.5 bg-red-50 text-red-600 border border-red-200 font-bold text-sm rounded-xl flex items-center gap-3 hover:bg-red-100 transition-colors shadow-sm shrink-0"
-                        >
-                            <Trash2 className="w-5 h-5 text-red-500" />
-                            Elimina e Inizia da Capo
-                        </button>
                     </div>
-
                 </div>
             </div>
 
@@ -2044,48 +2048,47 @@ export default function WorkspaceClient() {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="bg-gray-50/50 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                            <th className="px-8 py-4">SKU Code</th>
-                                            <th className="px-8 py-4">Titolo</th>
-                                            <th className="px-8 py-4">Desc. Documentale</th>
+                                        <tr className="bg-gray-50/50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                                            <th className="px-6 py-3">SKU Code</th>
+                                            <th className="px-6 py-3">Titolo</th>
+                                            <th className="px-6 py-3">Desc. Documentale</th>
                                             {allDynamicColumns.map(col => (
-                                                <th key={col.key} className="px-8 py-4">{col.label}</th>
+                                                <th key={col.key} className="px-6 py-3">{col.label}</th>
                                             ))}
-                                            <th className="px-4 py-4">IMG 1</th>
-                                            <th className="px-4 py-4">IMG 2</th>
-                                            <th className="px-4 py-4">IMG 3</th>
-                                            <th className="px-4 py-4">IMG 4</th>
-                                            <th className="px-8 py-4 text-right">Valutazione</th>
+                                            <th className="px-2 py-3 text-center">IMG 1</th>
+                                            <th className="px-2 py-3 text-center">IMG 2</th>
+                                            <th className="px-2 py-3 text-center">IMG 3</th>
+                                            <th className="px-2 py-3 text-center">IMG 4</th>
+                                            <th className="px-6 py-3 text-right">Valutazione</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {products.slice(0, displayLimit).map((p, idx) => (
-                                            <tr key={idx} className="hover:bg-gray-50/80 transition-colors">
-                                                <td className="px-8 py-6">
-                                                    <div className="flex flex-col items-start gap-2">
-                                                        <span className="font-mono font-bold text-[#E6D3C1] bg-black px-3 py-1.5 rounded-lg text-sm whitespace-nowrap">{p.sku}</span>
+                                            <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                                                <td className="px-6 py-3">
+                                                    <div className="flex flex-col items-start gap-1.5">
+                                                        <span className="font-mono font-black text-white bg-slate-900 px-2 py-1 rounded text-[10px] tracking-tight whitespace-nowrap">{p.sku}</span>
                                                         <button
                                                             onClick={() => handleAutoFillData(p, idx)}
-                                                            className="text-[10px] font-bold text-slate-900 hover:text-slate-800 flex items-center gap-1.5 transition-colors whitespace-nowrap bg-slate-50 hover:bg-slate-200 px-2 py-1 rounded-md border border-slate-200"
-                                                            title="Cerca dati mancanti su Web (Google Shopping & Scraping)"
+                                                            className="text-[8px] font-black uppercase tracking-wider text-slate-900 hover:text-white flex items-center gap-1 transition-all whitespace-nowrap bg-slate-50 hover:bg-slate-900 px-2 py-0.5 rounded border border-slate-200"
                                                         >
-                                                            <Sparkles className="w-3 h-3" />
+                                                            <Sparkles className="w-2.5 h-2.5" />
                                                             Auto-Compila
                                                         </button>
-                                                        <div className="flex flex-col gap-1 w-full mt-1">
-                                                            <div className="flex gap-1 w-full">
-                                                                <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1 rounded hover:bg-orange-100 font-bold tracking-wider">PDF</button>
-                                                                <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-green-50 text-green-600 border border-green-100 py-1 rounded hover:bg-green-100 font-bold tracking-wider">DRIVE</button>
+                                                        <div className="flex flex-col gap-0.5 w-full mt-0.5">
+                                                            <div className="flex gap-0.5 w-full">
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[7px] bg-white border border-gray-100 py-0.5 rounded hover:bg-orange-50 font-black text-gray-400 hover:text-orange-600 transition-colors">PDF</button>
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[7px] bg-white border border-gray-100 py-0.5 rounded hover:bg-green-50 font-black text-gray-400 hover:text-green-600 transition-colors">DRIVE</button>
                                                             </div>
-                                                            <div className="flex gap-1 w-full">
-                                                                <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[8px] bg-slate-50 text-slate-900 border border-slate-200 py-1 rounded hover:bg-slate-200 font-bold tracking-wider">WEB</button>
-                                                                <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[8px] bg-purple-50 text-purple-600 border border-purple-100 py-1 rounded hover:bg-purple-100 font-bold tracking-wider">SHOP</button>
+                                                            <div className="flex gap-0.5 w-full">
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'web')} className="flex-1 text-[7px] bg-white border border-gray-100 py-0.5 rounded hover:bg-slate-100 font-black text-gray-400 hover:text-slate-900 transition-colors">WEB</button>
+                                                                <button onClick={() => handleSmartSearch(p, idx, 'google_shopping')} className="flex-1 text-[7px] bg-white border border-gray-100 py-0.5 rounded hover:bg-purple-50 font-black text-gray-400 hover:text-purple-600 transition-colors">SHOP</button>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-8 py-6">
-                                                    <div className="flex flex-col gap-2 relative">
+                                                <td className="px-6 py-3">
+                                                    <div className="flex flex-col gap-1 relative">
                                                         <div className="flex items-center gap-2 group/input">
                                                             <textarea
                                                                 rows={2}
@@ -2097,7 +2100,7 @@ export default function WorkspaceClient() {
                                                                 }}
                                                                 onFocus={() => setActivePicker({ type: 'text', row: idx, field: 'title' })}
                                                                 placeholder="Titolo..."
-                                                                className="bg-transparent font-bold text-gray-900 border-b border-dashed border-gray-200 focus:border-orange-400 focus:outline-none text-sm w-full resize-none break-words whitespace-pre-wrap leading-tight"
+                                                                className="bg-transparent font-bold text-[#111827] border-b border-transparent hover:border-gray-100 focus:border-orange-400 focus:outline-none text-[12px] w-full resize-none break-words whitespace-pre-wrap leading-tight transition-all"
                                                             />
                                                             <button
                                                                 onMouseEnter={() => setActivePicker({ type: 'text', row: idx, field: 'title' })}
@@ -3566,14 +3569,14 @@ export default function WorkspaceClient() {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left">
                                     <thead>
-                                        <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
-                                            <th className="px-8 py-5">SKU</th>
-                                            <th className="px-8 py-5">Prodotto</th>
-                                            <th className="px-8 py-5">Categoria</th>
-                                            <th className="px-8 py-5">Brand</th>
-                                            <th className="px-8 py-5">Prezzo</th>
-                                            <th className="px-8 py-5">Catalogo Ref</th>
-                                            <th className="px-8 py-5 text-right">Azioni</th>
+                                        <tr className="bg-gray-50/50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                                            <th className="px-6 py-3">SKU</th>
+                                            <th className="px-6 py-3">Prodotto</th>
+                                            <th className="px-6 py-3">Categoria</th>
+                                            <th className="px-6 py-3">Brand</th>
+                                            <th className="px-6 py-3">Prezzo</th>
+                                            <th className="px-6 py-3">Catalogo Ref</th>
+                                            <th className="px-6 py-3 text-right">Azioni</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
@@ -3593,33 +3596,33 @@ export default function WorkspaceClient() {
                                                         p.category?.toLowerCase().includes(search);
                                                 })
                                                 .map((res: any, idx) => (
-                                                    <tr key={idx} className="hover:bg-gray-50/80 transition-colors group">
-                                                        <td className="px-8 py-5">
-                                                            <span className="font-mono font-bold text-sm bg-gray-900 text-orange-200 px-3 py-1.5 rounded-lg border border-white/10">{res.sku}</span>
+                                                    <tr key={idx} className="hover:bg-gray-50/50 transition-colors group">
+                                                        <td className="px-6 py-3">
+                                                            <span className="font-mono font-black text-[10px] bg-slate-900 text-white px-2 py-1 rounded tracking-tight">{res.sku}</span>
                                                         </td>
-                                                        <td className="px-8 py-5">
-                                                            <div className="flex items-center gap-4">
-                                                                <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-100">
-                                                                    {res.images?.[0] ? <img src={res.images[0].imageUrl} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-gray-300" />}
+                                                        <td className="px-6 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden border border-gray-100">
+                                                                    {res.images?.[0] ? <img src={res.images[0].imageUrl} className="w-full h-full object-cover" /> : <Package className="w-4 h-4 text-gray-300" />}
                                                                 </div>
                                                                 <div>
-                                                                    <p className="text-sm font-bold text-[#111827]">{res.title}</p>
-                                                                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-tighter">Aggiornato 2h ago</p>
+                                                                    <p className="text-[11px] font-black text-[#111827]">{res.title}</p>
+                                                                    <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Update 2h ago</p>
                                                                 </div>
                                                             </div>
                                                         </td>
-                                                        <td className="px-8 py-5">
-                                                            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-slate-50 text-slate-900 rounded-full">{res.category || 'N/A'}</span>
+                                                        <td className="px-6 py-3">
+                                                            <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 bg-slate-50 text-slate-900 rounded-full border border-gray-100">{res.category || 'N/A'}</span>
                                                         </td>
-                                                        <td className="px-8 py-5 text-sm font-bold text-gray-500">{res.brand || '---'}</td>
-                                                        <td className="px-8 py-5 font-mono font-black text-sm text-[#111827]">€ {res.price || '0.00'}</td>
-                                                        <td className="px-8 py-5">
+                                                        <td className="px-6 py-3 text-[11px] font-bold text-gray-500">{res.brand || '---'}</td>
+                                                        <td className="px-6 py-3 font-mono font-black text-[11px] text-[#111827]">€ {res.price || '0.00'}</td>
+                                                        <td className="px-6 py-3">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="w-2 h-2 rounded-full bg-orange-400" />
-                                                                <span className="text-xs font-bold text-gray-400">#CAT-0{res.catalogId}</span>
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider">#CAT-0{res.catalogId}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-8 py-5 text-right">
+                                                        <td className="px-6 py-3 text-right">
                                                             <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                                 <button
                                                                     onClick={() => setEditingProduct({ ...res, images: res.images || [] })}
@@ -3821,66 +3824,121 @@ export default function WorkspaceClient() {
                             initial={{ x: "100%", opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "100%", opacity: 0 }}
-                            className="h-full w-full max-w-2xl bg-white rounded-[40px] shadow-2xl border border-white/20 flex flex-col overflow-hidden"
+                            className="h-full w-full max-w-xl bg-white shadow-2xl border-l border-gray-100 flex flex-col overflow-hidden"
                         >
-                            <div className="p-10 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
-                                <div className="flex items-center gap-6">
-                                    <div className="p-4 bg-white rounded-3xl shadow-sm border border-gray-100">
-                                        <Package className="w-8 h-8 text-orange-600" />
+                            <div className="p-6 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-gray-100">
+                                        <Package className="w-6 h-6 text-slate-900" />
                                     </div>
                                     <div>
-                                        <h2 className="text-2xl font-black text-[#111827]">Edit Registry Entry</h2>
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{editingProduct.sku}</p>
+                                        <h2 className="text-lg font-black text-[#111827] uppercase tracking-tight">Edit Master Registry</h2>
+                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{editingProduct.sku}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setEditingProduct(null)} className="p-4 hover:bg-white rounded-2xl text-gray-400 transition-all">
-                                    <X className="w-6 h-6" />
+                                <button onClick={() => setEditingProduct(null)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-all">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-12 space-y-10 custom-scrollbar">
-                                <div className="grid grid-cols-2 gap-8">
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Titolo Prodotto</label>
+                            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-1 col-span-2">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Titolo Prodotto</label>
                                         <input
                                             value={editingProduct.title || editingProduct.name || ""}
                                             onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
-                                            className="w-full px-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-[13px] font-bold transition-all outline-none"
                                         />
                                     </div>
 
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Descrizione Documentale</label>
+                                    <div className="space-y-1 col-span-2">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Descrizione Documentale</label>
                                         <textarea
-                                            rows={5}
+                                            rows={2}
                                             value={editingProduct.docDescription || ""}
                                             onChange={(e) => setEditingProduct({ ...editingProduct, docDescription: e.target.value })}
-                                            className="w-full px-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-2xl text-xs transition-all outline-none min-h-[100px]"
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs leading-tight transition-all outline-none resize-none"
                                         />
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Prezzo (€)</label>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Prezzo (€)</label>
                                         <input
                                             value={editingProduct.price}
                                             onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                                            className="w-full px-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs font-bold outline-none"
                                         />
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Categoria</label>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Categoria</label>
                                         <input
                                             value={editingProduct.category}
                                             onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                                            className="w-full px-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs font-bold outline-none"
                                         />
                                     </div>
-                                    <div className="space-y-3">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Brand</label>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Brand</label>
                                         <input
                                             value={editingProduct.brand}
                                             onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
-                                            className="w-full px-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-2xl text-sm font-bold transition-all outline-none"
+                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs font-bold outline-none"
                                         />
+                                    </div>
+                                </div>
+
+                                {/* Premium Features (Extra Fields) */}
+                                <div className="space-y-4 pt-4 border-t border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#111827]">Caratteristiche Premium</h3>
+                                        <button
+                                            onClick={() => {
+                                                const fieldName = prompt("Nome della nuova caratteristica (es: Materiale, Colore):");
+                                                if (fieldName) {
+                                                    const updatedExtra = { ...editingProduct.extraFields, [fieldName]: "" };
+                                                    setEditingProduct({ ...editingProduct, extraFields: updatedExtra });
+                                                    if (!extraColumns.includes(fieldName)) {
+                                                        setExtraColumns([...extraColumns, fieldName]);
+                                                    }
+                                                }
+                                            }}
+                                            className="text-[9px] font-black uppercase text-orange-600 hover:text-orange-700 underline"
+                                        >
+                                            + Aggiungi Campo
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {Object.entries(editingProduct.extraFields || {}).map(([key, value]) => (
+                                            <div key={key} className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">{key}</label>
+                                                    <button
+                                                        onClick={() => {
+                                                            const newKey = prompt("Rinomina campo:", key);
+                                                            if (newKey && newKey !== key) {
+                                                                const { [key]: val, ...rest } = editingProduct.extraFields;
+                                                                setEditingProduct({ ...editingProduct, extraFields: { ...rest, [newKey]: val } });
+                                                                setExtraColumns(extraColumns.map(c => c === key ? newKey : c));
+                                                            }
+                                                        }}
+                                                        className="text-[8px] text-gray-300 hover:text-orange-400"
+                                                    >
+                                                        Rinomina
+                                                    </button>
+                                                </div>
+                                                <input
+                                                    value={value as string}
+                                                    onChange={(e) => {
+                                                        const updatedExtra = { ...editingProduct.extraFields, [key]: e.target.value };
+                                                        setEditingProduct({ ...editingProduct, extraFields: updatedExtra });
+                                                    }}
+                                                    className="w-full px-4 py-2 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-400 rounded-lg text-xs font-medium outline-none transition-all"
+                                                />
+                                            </div>
+                                        ))}
+                                        {(!editingProduct.extraFields || Object.keys(editingProduct.extraFields).length === 0) && (
+                                            <p className="col-span-2 text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest border-2 border-dashed border-gray-50 rounded-xl">Nessuna caratteristica premium definita</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -3976,6 +4034,112 @@ export default function WorkspaceClient() {
                     </motion.div>
                 )}
             </AnimatePresence>
+            {/* Persistent PDF QuickView Side Panel */}
+            <AnimatePresence>
+                {isQuickPdfOpen && (
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        className="fixed top-0 right-0 h-full w-[500px] bg-white shadow-2xl z-[3000] border-l border-gray-100 flex flex-col overflow-hidden"
+                    >
+                        <div className="p-4 bg-gray-900 border-b border-white/10 flex items-center justify-between text-white">
+                            <div className="flex items-center gap-3">
+                                <FileText className="w-4 h-4 text-orange-400" />
+                                <h3 className="text-xs font-black uppercase tracking-widest">PDF Content Library</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setPdfSearchFocus(null)}
+                                    className="p-1 px-3 bg-white/10 rounded-full text-[9px] font-black uppercase hover:bg-white/20 transition-all"
+                                >
+                                    Reset View
+                                </button>
+                                <button
+                                    onClick={() => setIsQuickPdfOpen(false)}
+                                    className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-3 bg-slate-50 border-b border-gray-100 flex items-center gap-3">
+                            <div className="relative flex-1">
+                                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    placeholder="Libera ricerca nel documento..."
+                                    value={pdfSearchFocus || ""}
+                                    onChange={(e) => setPdfSearchFocus(e.target.value)}
+                                    className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-[10px] font-bold outline-none focus:border-orange-400"
+                                />
+                            </div>
+                            <span className="text-[9px] font-black text-gray-400 uppercase">{pdfPages.length} Pagine</span>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 space-y-8 custom-scrollbar bg-gray-50/30">
+                            {pdfPages
+                                .filter(page => {
+                                    if (!pdfSearchFocus) return true;
+                                    const search = pdfSearchFocus.toLowerCase();
+                                    return page.text.toLowerCase().includes(search);
+                                })
+                                .map((page, idx) => (
+                                    <div key={idx} className="space-y-4">
+                                        <div className="flex items-center justify-between px-2">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pagina {page.pageNumber}</span>
+                                            <button
+                                                onClick={() => {
+                                                    // Quick extraction logic
+                                                    toast.info("Analisi pagina in corso...");
+                                                }}
+                                                className="text-[9px] font-black uppercase text-orange-600 hover:underline"
+                                            >
+                                                Analizza Pagina
+                                            </button>
+                                        </div>
+                                        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden group/page relative">
+                                            <img
+                                                src={page.imageUrl}
+                                                className="w-full h-auto cursor-zoom-in group-hover/page:opacity-90 transition-all"
+                                                onClick={() => setPreviewImage(page.imageUrl)}
+                                            />
+                                            {/* Page Mini-Overlay for Data Mapping */}
+                                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/page:opacity-100 transition-all flex items-center justify-center gap-4">
+                                                <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-xl hover:scale-105 transition-all">Sincronizza Dati</button>
+                                                <button className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-xl hover:scale-105 transition-all">Extraxt Images</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                            {pdfPages.length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center p-12 text-center opacity-40">
+                                    <AlertTriangle className="w-12 h-12 mb-4 text-gray-300" />
+                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">Nessun PDF caricato</p>
+                                    <p className="text-[10px] font-bold text-gray-300 mt-2 leading-relaxed">Carica un file documentale per sbloccare la ricerca intelligente.</p>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Quick PDF Trigger Button (Sticky Floating) */}
+            <div className="fixed bottom-8 right-8 z-[2001] flex flex-col gap-3">
+                <button
+                    onClick={() => setIsQuickPdfOpen(!isQuickPdfOpen)}
+                    className="p-4 bg-gray-900 text-white rounded-full shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:scale-110 active:scale-95 transition-all group"
+                >
+                    <FileText className={`w-6 h-6 ${isQuickPdfOpen ? 'text-orange-400' : 'text-white'}`} />
+                    <span className="absolute right-full mr-4 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-gray-900 text-[10px] font-black uppercase tracking-widest text-white rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all">
+                        {isQuickPdfOpen ? 'Chiudi Documento' : 'Sfoglia PDF Catalogo'}
+                    </span>
+                    {pdfPages.length > 0 && !isQuickPdfOpen && (
+                        <span className="absolute -top-1 -right-1 w-5 h-5 bg-orange-600 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">{pdfPages.length}</span>
+                    )}
+                </button>
+            </div>
         </div >
     );
 }
