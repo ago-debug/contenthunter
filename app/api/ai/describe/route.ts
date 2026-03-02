@@ -48,7 +48,26 @@ FORMATO RICHIESTO:
 
         console.log("OpenAI Stream initiated successfully");
 
-        return new Response(stream.toReadableStream(), {
+        const responseStream = new ReadableStream({
+            async start(controller) {
+                const encoder = new TextEncoder();
+                try {
+                    for await (const chunk of stream) {
+                        const content = chunk.choices[0]?.delta?.content || "";
+                        if (content) {
+                            controller.enqueue(encoder.encode(content));
+                        }
+                    }
+                } catch (err: any) {
+                    console.error("Stream processing error:", err);
+                    controller.error(err);
+                } finally {
+                    controller.close();
+                }
+            },
+        });
+
+        return new Response(responseStream, {
             headers: {
                 "Content-Type": "text/plain; charset=utf-8",
                 "Cache-Control": "no-cache",
