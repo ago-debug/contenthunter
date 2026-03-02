@@ -42,7 +42,7 @@ export default function ErpTable() {
         }
     };
 
-    const CorporateImage = ({ src, alt, className }: { src: string | any, alt: string, className?: string }) => {
+    const CorporateImage = ({ src, alt, className }: { src: any, alt: string, className?: string }) => {
         const [error, setError] = useState(false);
         const isInvalid = !src || (typeof src === 'string' && src.startsWith("PAGE_REF_"));
         if (error || isInvalid) return (
@@ -223,7 +223,7 @@ export default function ErpTable() {
                     if (fieldsMatch) {
                         const fieldsText = fieldsMatch[1].trim();
                         const lines = fieldsText.split('\n');
-                        lines.forEach(line => {
+                        lines.forEach((line: string) => {
                             const [k, ...v] = line.split(':');
                             if (k && v.length > 0) {
                                 const key = k.trim();
@@ -329,8 +329,8 @@ export default function ErpTable() {
         }
     };
 
-    const uniqueBrands = Array.from(new Set(products.map(p => p.brand).filter(Boolean)));
-    const uniqueCategories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+    const uniqueBrands = Array.from(new Set(products.map((p: any) => p.brand).filter(Boolean)));
+    const uniqueCategories = Array.from(new Set(products.map((p: any) => p.category).filter(Boolean)));
 
     const handleSave = async () => {
         if (!selectedProduct) return;
@@ -361,7 +361,7 @@ export default function ErpTable() {
         setIsSearchingWeb(false);
     };
 
-    const filteredProducts = products.filter(p => {
+    const filteredProducts = products.filter((p: any) => {
         const term = searchTerm.toLowerCase();
 
         const matchesBrand = brandFilter === "all" || p.brand === brandFilter;
@@ -391,9 +391,9 @@ export default function ErpTable() {
         return false;
     });
 
-    const TabButton = ({ id, label, icon: Icon }: any) => (
+    const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: any }) => (
         <button
-            onClick={() => setActiveTab(id)}
+            onClick={() => setActiveTab(id as 'info' | 'images' | 'seo' | 'attributes' | 'woocommerce' | 'history')}
             className={`flex items-center gap-2 px-8 py-4 text-[11px] font-bold uppercase tracking-widest transition-all border-b-2 relative ${activeTab === id
                 ? 'border-[#111827] text-[#111827] bg-white'
                 : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -533,7 +533,7 @@ export default function ErpTable() {
                                             checked={selectedIds.includes(p.id)}
                                             onChange={(e) => {
                                                 if (e.target.checked) setSelectedIds([...selectedIds, p.id]);
-                                                else setSelectedIds(selectedIds.filter(id => id !== p.id));
+                                                else setSelectedIds(selectedIds.filter((id: number) => id !== p.id));
                                             }}
                                         />
                                     </td>
@@ -640,7 +640,7 @@ export default function ErpTable() {
                                     <TabButton id="history" label="Cronologia" icon={History} />
                                 </div>
                                 <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                    {['it', 'en', 'fr', 'de', 'es'].map(lang => (
+                                    {['it', 'en', 'fr', 'de', 'es'].map((lang: string) => (
                                         <button
                                             key={lang}
                                             onClick={() => setEditLang(lang)}
@@ -690,7 +690,7 @@ export default function ErpTable() {
                                                         <div>
                                                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">TAG Prodotto</label>
                                                             <MultiSearchableSelect
-                                                                options={allTags.map(t => ({ value: t.id, label: t.name }))}
+                                                                options={allTags.map((t: any) => ({ value: t.id, label: t.name }))}
                                                                 value={selectedProduct.productTags?.map((pt: any) => pt.tagId) || []}
                                                                 onChange={(newTagIds) => {
                                                                     const newProductTags = newTagIds.map(tid => ({ tagId: tid }));
@@ -717,7 +717,7 @@ export default function ErpTable() {
                                                             <div>
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 ml-1 mb-2 block">Livello 1 (Root)</label>
                                                                 <SearchableSelect
-                                                                    options={allCategories.filter(c => !c.parentId).map(c => ({ value: c.id, label: c.name }))}
+                                                                    options={allCategories.filter((c: any) => !c.parentId).map((c: any) => ({ value: c.id, label: c.name }))}
                                                                     value={selectedProduct.categoryId || null}
                                                                     onAddNew={(name) => handleAddCategory(name, null, 1)}
                                                                     onChange={(val) => {
@@ -734,7 +734,7 @@ export default function ErpTable() {
                                                             <div>
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 ml-1 mb-2 block">Livello 2 (Sub)</label>
                                                                 <SearchableSelect
-                                                                    options={allCategories.filter(c => c.parentId === selectedProduct.categoryId).map(c => ({ value: c.id, label: c.name }))}
+                                                                    options={allCategories.filter((c: any) => c.parentId === selectedProduct.categoryId).map((c: any) => ({ value: c.id, label: c.name }))}
                                                                     value={selectedProduct.subCategoryId || null}
                                                                     onAddNew={(name) => handleAddCategory(name, selectedProduct.categoryId, 2)}
                                                                     onChange={(val) => {
@@ -751,7 +751,7 @@ export default function ErpTable() {
                                                             <div>
                                                                 <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 ml-1 mb-2 block">Livello 3 (Sub-Sub)</label>
                                                                 <SearchableSelect
-                                                                    options={allCategories.filter(c => c.parentId === selectedProduct.subCategoryId).map(c => ({ value: c.id, label: c.name }))}
+                                                                    options={allCategories.filter((c: any) => c.parentId === selectedProduct.subCategoryId).map((c: any) => ({ value: c.id, label: c.name }))}
                                                                     value={selectedProduct.subSubCategoryId || null}
                                                                     onAddNew={(name) => handleAddCategory(name, selectedProduct.subCategoryId, 3)}
                                                                     onChange={(val) => {
@@ -804,7 +804,7 @@ export default function ErpTable() {
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Genitore Varianti (SKU)</label>
                                                         <SearchableSelect
-                                                            options={products.map((p) => ({
+                                                            options={products.map((p: any) => ({
                                                                 value: p.sku,
                                                                 label: p.sku,
                                                                 subLabel: p.title || p.ean
@@ -1181,7 +1181,7 @@ export default function ErpTable() {
                                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Extra Dynamics Specifications</p>
                                                     </div>
                                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                                        {Object.entries(selectedProduct.extraFields).map(([key, value]) => (
+                                                        {Object.entries(selectedProduct.extraFields).map(([key, value]: [string, any]) => (
                                                             <div key={key} className="space-y-2">
                                                                 <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1 block">{key}</label>
                                                                 <input
@@ -1243,7 +1243,7 @@ export default function ErpTable() {
                                                 <Settings className="w-3 h-3 text-slate-400" /> Field Mapping Preview
                                             </h4>
                                             <div className="space-y-3">
-                                                {['post_title', 'post_content', '_regular_price', '_sku', '_stock'].map(field => (
+                                                {['post_title', 'post_content', '_regular_price', '_sku', '_stock'].map((field: string) => (
                                                     <div key={field} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-blue-200 transition-all group">
                                                         <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{field.replace('_', ' ')}</span>
                                                         <div className="h-px bg-gray-200 flex-1 mx-4 opacity-40"></div>
@@ -1283,7 +1283,7 @@ export default function ErpTable() {
                                                     </div>
                                                 ) : (
                                                     <div className="grid grid-cols-1 gap-4">
-                                                        {productHistory.map((entry, idx) => (
+                                                        {productHistory.map((entry: any, idx: number) => (
                                                             <div key={entry.id} className="group flex items-center justify-between p-6 bg-slate-50/50 hover:bg-white border border-gray-100 rounded-3xl transition-all hover:shadow-xl hover:border-slate-200">
                                                                 <div className="flex items-center gap-6">
                                                                     <div className="flex flex-col items-center justify-center w-14 h-14 bg-white rounded-2xl shadow-sm border border-slate-100 font-black text-slate-900">
@@ -1413,7 +1413,7 @@ export default function ErpTable() {
                                         <div className="p-6 bg-green-50 border border-green-100 rounded-3xl">
                                             <p className="text-[10px] font-black text-green-700 uppercase mb-3">Canali WooCommerce Rilevati:</p>
                                             <div className="flex flex-wrap gap-2">
-                                                {wooFields.slice(0, 10).map(f => (
+                                                {wooFields.slice(0, 10).map((f: string) => (
                                                     <span key={f} className="text-[9px] font-bold bg-white px-2 py-1 rounded-lg border border-green-200 text-green-600 uppercase italic">{f}</span>
                                                 ))}
                                                 <span className="text-[9px] font-bold text-green-400">... altri {wooFields.length - 10} campi</span>

@@ -220,8 +220,8 @@ export default function WorkspaceClient() {
                     setPickerPageIdx(skuToPageMap[product.sku]);
                 } else {
                     // One-time search if not indexed
-                    const pageIdx = pdfPages.findIndex(page =>
-                        page.textBlocks.some(block =>
+                    const pageIdx = pdfPages.findIndex((page: PageData) =>
+                        page.textBlocks.some((block: TextBlock) =>
                             block.str.toLowerCase().includes(product.sku.toLowerCase())
                         )
                     );
@@ -576,7 +576,7 @@ export default function WorkspaceClient() {
                 if (products.length > 0) {
                     const sanitized = products.map((p, pIdx) => ({
                         ...p,
-                        images: (p.images || []).map(img => ({
+                        images: (p.images || []).map((img: ProductImage) => ({
                             ...img,
                             url: img.url && typeof img.url === 'string' && img.url.startsWith("data:image") ? "LOCAL_SESSION_ASSET" : img.url
                         }))
@@ -900,7 +900,7 @@ export default function WorkspaceClient() {
                 });
 
                 // CSV images should be AT THE FRONT (Highest priority)
-                const existingFiltered = updated.images.filter(img => !csvImages.some(cImg => cImg.url === img.url));
+                const existingFiltered = updated.images.filter((img: ProductImage) => !csvImages.some((cImg: ProductImage) => cImg.url === img.url));
                 updated.images = [...csvImages, ...existingFiltered];
                 newProducts[idx] = updated;
             }
@@ -911,7 +911,7 @@ export default function WorkspaceClient() {
             const rowSku = String(row[skuMappedField] || "").trim();
             if (!rowSku) return;
 
-            const exists = newProducts.some(p => p.sku.trim().toLowerCase() === rowSku.toLowerCase());
+            const exists = newProducts.some((p: ProductData) => p.sku.trim().toLowerCase() === rowSku.toLowerCase());
             if (!exists) {
                 let pPrice = String(row[csvMapping.price] || "");
                 if (currencyToClean) {
@@ -969,7 +969,7 @@ export default function WorkspaceClient() {
         const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
         const skuMappedField = csvMapping.sku;
 
-        const newProducts = products.map(p => {
+        const newProducts = products.map((p: ProductData) => {
             if (!p.sku) return p;
             let updated = { ...p };
             const cleanSku = p.sku.trim();
@@ -1008,7 +1008,7 @@ export default function WorkspaceClient() {
             // 2. Sync Images from Base Folder
             if (assetBaseUrl) {
                 const fullUrl = resolveAssetUrl(assetBaseUrl, cleanSku, assetExtension);
-                const exists = updated.images.some(img => img.url === fullUrl);
+                const exists = updated.images.some((img: ProductImage) => img.url === fullUrl);
                 if (!exists) {
                     assetsCount++;
                     const newImages = [...updated.images];
@@ -1124,10 +1124,10 @@ export default function WorkspaceClient() {
                     };
                 });
 
-                textBlocks.forEach(b => {
+                textBlocks.forEach((b: TextBlock) => {
                     const matches = b.str.match(/[A-Z0-9-]{4,}/g);
                     if (matches) {
-                        matches.forEach(m => {
+                        matches.forEach((m: string) => {
                             if (!tempSkuMap[m]) tempSkuMap[m] = i - 1;
                         });
                     }
@@ -1196,7 +1196,7 @@ export default function WorkspaceClient() {
                     const hdUrl = imgCanvas.toDataURL("image/jpeg", 0.9);
                     const localUrl = await saveImageToServer(hdUrl, products[productIdx]?.sku || 'extracted');
 
-                    setProducts(prev => {
+                    setProducts((prev: ProductData[]) => {
                         const next = [...prev];
                         const newImages = [...next[productIdx].images];
                         newImages[slot] = { id: Math.random().toString(), url: localUrl };
@@ -1291,20 +1291,20 @@ export default function WorkspaceClient() {
 
         // Merge findings with existing products. User edits/CSV mapping ALWAYS wins.
         // Images from Drive/Folder (already in products) WIN over PDF images (placed at the end).
-        const existingMap = new Map(products.map(p => [p.sku.toLowerCase(), p]));
+        const existingMap = new Map(products.map((p: ProductData) => [p.sku.toLowerCase(), p]));
         const finalProducts = [...products];
 
-        findings.forEach(finding => {
+        findings.forEach((finding: ProductData) => {
             const lowerSku = finding.sku.toLowerCase();
             if (existingMap.has(lowerSku)) {
                 const existing = existingMap.get(lowerSku)!;
                 const newImages = [...existing.images];
-                finding.images.forEach(fImg => {
-                    if (!newImages.some(img => img.url === fImg.url)) {
+                finding.images.forEach((fImg: ProductImage) => {
+                    if (!newImages.some((img: ProductImage) => img.url === fImg.url)) {
                         newImages.push(fImg);
                     }
                 });
-                const idx = finalProducts.findIndex(p => p.sku.toLowerCase() === lowerSku);
+                const idx = finalProducts.findIndex((p: ProductData) => p.sku.toLowerCase() === lowerSku);
                 if (idx !== -1) {
                     finalProducts[idx] = { ...existing, images: newImages };
                 }
@@ -1313,9 +1313,9 @@ export default function WorkspaceClient() {
 
         // Avvisiamo solo sui prodotti effettivi riconosciuti e mappati dal listino
         let updatedCount = 0;
-        finalProducts.forEach(p => {
+        finalProducts.forEach((p: ProductData) => {
             // Conta un prodotto come toccato dal PDF se ha stringhe d'immagine generate da PDF
-            if (p.images.some(img => img.url.startsWith("PAGE_REF_"))) updatedCount++;
+            if (p.images.some((img: ProductImage) => img.url.startsWith("PAGE_REF_"))) updatedCount++;
         });
 
         setProducts(finalProducts);
@@ -1338,10 +1338,10 @@ export default function WorkspaceClient() {
 
             for (const product of products) {
                 // Resolve any PAGE_REF_ URLs to actual URLs before saving to DB
-                const resolvedImages = (product.images || []).map(img => ({
+                const resolvedImages = (product.images || []).map((img: ProductImage) => ({
                     ...img,
                     url: resolveImageUrl(img.url)
-                })).filter(img => img.url && !img.url.startsWith("PAGE_REF_"));
+                })).filter((img: ProductImage) => img.url && !img.url.startsWith("PAGE_REF_"));
 
                 await axios.post("/api/products", {
                     ...product,
@@ -1822,7 +1822,7 @@ export default function WorkspaceClient() {
                                     </div>
                                 ) : pdfPages.length > 0 ? (
                                     <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar space-y-12 max-h-[1000px]">
-                                        {pdfPages.map((page, pIdx) => (
+                                        {pdfPages.map((page: PageData, pIdx: number) => (
                                             <div key={pIdx} className="space-y-6">
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
@@ -1837,11 +1837,10 @@ export default function WorkspaceClient() {
                                                         Cattura Immagine
                                                     </button>
                                                 </div>
-
                                                 <div className="relative group rounded-3xl overflow-hidden border border-gray-100 shadow-sm">
                                                     <img src={page.imageUrl} className="w-full h-auto" />
                                                     <div className="absolute inset-0 z-10">
-                                                        {page.textBlocks.map((block, bIdx) => (
+                                                        {page.textBlocks.map((block: TextBlock, bIdx: number) => (
                                                             <div
                                                                 key={bIdx}
                                                                 className="absolute cursor-pointer border-2 border-transparent hover:border-[#E6D3C1] hover:bg-[#E6D3C1]/10 rounded transition-all"
@@ -2272,9 +2271,9 @@ export default function WorkspaceClient() {
                                                                             </div>
                                                                         </div>
                                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
-                                                                            {pickerSourceMode === 'pdf' && pdfPages.flatMap((page, pIdx) => page.textBlocks
-                                                                                .filter(b => b.str.toLowerCase().includes(pickerSearch.toLowerCase()))
-                                                                                .map((block, bIdx) => (
+                                                                            {pickerSourceMode === 'pdf' && pdfPages.flatMap((page: PageData, pIdx: number) => page.textBlocks
+                                                                                .filter((b: TextBlock) => b.str.toLowerCase().includes(pickerSearch.toLowerCase()))
+                                                                                .map((block: TextBlock, bIdx: number) => (
                                                                                     <div
                                                                                         key={`pdf-${pIdx}-${bIdx}`}
                                                                                         onClick={() => {
@@ -2392,9 +2391,9 @@ export default function WorkspaceClient() {
                                                                             </div>
                                                                         </div>
                                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
-                                                                            {pickerSourceMode === 'pdf' && pdfPages.flatMap((page, pIdx) => page.textBlocks
-                                                                                .filter(b => b.str.toLowerCase().includes(pickerSearch.toLowerCase()))
-                                                                                .map((block, bIdx) => (
+                                                                            {pickerSourceMode === 'pdf' && pdfPages.flatMap((page: PageData, pIdx: number) => page.textBlocks
+                                                                                .filter((b: TextBlock) => b.str.toLowerCase().includes(pickerSearch.toLowerCase()))
+                                                                                .map((block: TextBlock, bIdx: number) => (
                                                                                     <div
                                                                                         key={`pdf-${pIdx}-${bIdx}`}
                                                                                         onClick={() => {
@@ -2555,9 +2554,9 @@ export default function WorkspaceClient() {
                                                                             </div>
                                                                         </div>
                                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
-                                                                            {pickerSourceMode === 'pdf' && pdfPages.flatMap((page, pIdx) => page.textBlocks
-                                                                                .filter(b => b.str.toLowerCase().includes(pickerSearch.toLowerCase()))
-                                                                                .map((block, bIdx) => (
+                                                                            {pickerSourceMode === 'pdf' && pdfPages.flatMap((page: PageData, pIdx: number) => page.textBlocks
+                                                                                .filter((b: TextBlock) => b.str.toLowerCase().includes(pickerSearch.toLowerCase()))
+                                                                                .map((block: TextBlock, bIdx: number) => (
                                                                                     <div
                                                                                         key={`pdf-${pIdx}-${bIdx}`}
                                                                                         onClick={() => {
@@ -2768,7 +2767,7 @@ export default function WorkspaceClient() {
                                                                                 </div>
 
                                                                                 {pdfAiMatches ? (
-                                                                                    pdfAiMatches.map((m, mIdx) => (
+                                                                                    pdfAiMatches.map((m: any, mIdx: number) => (
                                                                                         <div
                                                                                             key={`ai-${mIdx}`}
                                                                                             onMouseEnter={() => setPreviewImage(m.preview)}
@@ -2793,26 +2792,28 @@ export default function WorkspaceClient() {
                                                                                 ) : (
                                                                                     pdfPages[pickerPageIdx] && (
                                                                                         <>
-                                                                                            {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
-                                                                                                <div
-                                                                                                    key={`sub-${pickerPageIdx}-${sIdx}`}
-                                                                                                    onMouseEnter={() => setPreviewImage(sImg.preview)}
-                                                                                                    onMouseLeave={() => setPreviewImage(null)}
-                                                                                                    onClick={(e) => {
-                                                                                                        e.stopPropagation();
-                                                                                                        const newProducts = [...products];
-                                                                                                        const newImages = [...p.images];
-                                                                                                        newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
-                                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
-                                                                                                        setProducts(newProducts);
-                                                                                                        extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
-                                                                                                        setActivePicker(null);
-                                                                                                    }}
-                                                                                                    className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-400 cursor-pointer transition-all bg-slate-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
-                                                                                                >
-                                                                                                    <img src={sImg.preview} className="w-full h-full object-contain" />
-                                                                                                </div>
-                                                                                            ))}
+                                                                                            <div className="col-span-3 grid grid-cols-3 gap-2">
+                                                                                                {(pdfPages[pickerPageIdx].subImages || []).map((sImg: any, sIdx: number) => (
+                                                                                                    <div
+                                                                                                        key={`sub-${pickerPageIdx}-${sIdx}`}
+                                                                                                        onMouseEnter={() => setPreviewImage(sImg.preview)}
+                                                                                                        onMouseLeave={() => setPreviewImage(null)}
+                                                                                                        onClick={(e) => {
+                                                                                                            e.stopPropagation();
+                                                                                                            const newProducts = [...products];
+                                                                                                            const newImages = [...p.images];
+                                                                                                            newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
+                                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                            setProducts(newProducts);
+                                                                                                            extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
+                                                                                                            setActivePicker(null);
+                                                                                                        }}
+                                                                                                        className="aspect-square rounded-lg border border-slate-200 overflow-hidden hover:border-slate-400 cursor-pointer transition-all bg-slate-50/30 hover:scale-[1.8] hover:z-[100] hover:shadow-2xl hover:relative"
+                                                                                                    >
+                                                                                                        <img src={sImg.preview} className="w-full h-full object-contain" />
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                            </div>
                                                                                             <div
                                                                                                 onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
                                                                                                 onMouseLeave={() => setPreviewImage(null)}
@@ -3064,7 +3065,7 @@ export default function WorkspaceClient() {
                                 <div className="space-y-4">
                                     <label className="text-[11px] font-black uppercase tracking-widest text-[#111827] ml-1">Estensione File</label>
                                     <div className="flex items-center gap-3">
-                                        {[".jpg", ".png", ".webp", ".pdf"].map(ext => (
+                                        {[".jpg", ".png", ".webp", ".pdf"].map((ext: string) => (
                                             <button
                                                 key={ext}
                                                 onClick={() => setAssetExtension(ext)}
@@ -3124,15 +3125,15 @@ export default function WorkspaceClient() {
                                     </thead>
                                     <tbody className="divide-y divide-gray-50">
                                         {products
-                                            .filter(p => {
+                                            .filter((p: ProductData) => {
                                                 const search = wsSearchTerm.toLowerCase();
                                                 return p.sku.toLowerCase().includes(search) ||
                                                     (p.title && p.title.toLowerCase().includes(search)) ||
                                                     (p.category && p.category.toLowerCase().includes(search));
                                             })
-                                            .slice(0, displayLimit).map((p, idx) => {
+                                            .slice(0, displayLimit).map((p: ProductData, idx: number) => {
                                                 const assetUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
-                                                const isMatched = p.images.some(img => img.url === assetUrl);
+                                                const isMatched = p.images.some((img: ProductImage) => img.url === assetUrl);
 
                                                 return (
                                                     <tr key={idx} className="hover:bg-slate-50/20 transition-colors">
@@ -3240,7 +3241,7 @@ export default function WorkspaceClient() {
                                                                                         const newProducts = [...products];
                                                                                         const newImages = [...p.images];
                                                                                         newImages[slot] = undefined as any;
-                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) as ProductImage[] };
                                                                                         setProducts(newProducts);
                                                                                         setActivePicker(null);
                                                                                     }}
@@ -3281,17 +3282,17 @@ export default function WorkspaceClient() {
                                                                                         </div>
                                                                                         {pdfPages[pickerPageIdx] && (
                                                                                             <>
-                                                                                                {(pdfPages[pickerPageIdx].subImages || []).map((sImg, sIdx) => (
+                                                                                                {(pdfPages[pickerPageIdx].subImages || []).map((sImg: { preview: string; ref: string }, sIdx: number) => (
                                                                                                     <div
                                                                                                         key={`sub-${pickerPageIdx}-${sIdx}`}
                                                                                                         onMouseEnter={() => setPreviewImage(sImg.preview)}
                                                                                                         onMouseLeave={() => setPreviewImage(null)}
-                                                                                                        onClick={(e) => {
+                                                                                                        onClick={(e: React.MouseEvent) => {
                                                                                                             e.stopPropagation();
                                                                                                             const newProducts = [...products];
                                                                                                             const newImages = [...p.images];
                                                                                                             newImages[slot] = { id: Math.random().toString(), url: sImg.preview };
-                                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                            newProducts[idx] = { ...p, images: newImages.filter(Boolean) as ProductImage[] };
                                                                                                             setProducts(newProducts);
                                                                                                             extractHighResAsset(pickerPageIdx, sImg.ref, idx, slot);
                                                                                                             setActivePicker(null);
@@ -3304,12 +3305,12 @@ export default function WorkspaceClient() {
                                                                                                 <div
                                                                                                     onMouseEnter={() => setPreviewImage(pdfPages[pickerPageIdx].imageUrl)}
                                                                                                     onMouseLeave={() => setPreviewImage(null)}
-                                                                                                    onClick={(e) => {
+                                                                                                    onClick={(e: React.MouseEvent) => {
                                                                                                         e.stopPropagation();
                                                                                                         const newProducts = [...products];
                                                                                                         const newImages = [...p.images];
                                                                                                         newImages[slot] = { id: Math.random().toString(), url: pdfPages[pickerPageIdx].imageUrl };
-                                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) };
+                                                                                                        newProducts[idx] = { ...p, images: newImages.filter(Boolean) as ProductImage[] };
                                                                                                         setProducts(newProducts);
                                                                                                         setActivePicker(null);
                                                                                                     }}
@@ -3357,18 +3358,18 @@ export default function WorkspaceClient() {
                                                                                                 <span className="text-[9px] font-bold text-gray-400 uppercase">Ricerca in corso...</span>
                                                                                             </div>
                                                                                         ) : (
-                                                                                            webResults.map((result, rIdx) => (
+                                                                                            webResults.map((result: any, rIdx: number) => (
                                                                                                 <div
                                                                                                     key={rIdx}
                                                                                                     onMouseEnter={() => setPreviewImage(result.url)}
                                                                                                     onMouseLeave={() => setPreviewImage(null)}
-                                                                                                    onClick={(e) => {
+                                                                                                    onClick={(e: React.MouseEvent) => {
                                                                                                         e.stopPropagation();
                                                                                                         const newProducts = [...products];
                                                                                                         const newImages = [...p.images];
                                                                                                         newImages[slot] = { id: Math.random().toString(), url: result.url };
 
-                                                                                                        let updatedProduct = { ...p, images: newImages.filter(Boolean) };
+                                                                                                        let updatedProduct = { ...p, images: newImages.filter(Boolean) as ProductImage[] };
                                                                                                         if (result.productData) {
                                                                                                             let updatedSomething = false;
                                                                                                             if (result.productData.price && (!updatedProduct.price || updatedProduct.price.trim() === '€ 0.00')) {
@@ -3979,11 +3980,11 @@ export default function WorkspaceClient() {
                                     { id: 'info', label: 'Specifiche Tecniche', icon: Info },
                                     { id: 'images', label: 'Media Assets', icon: ImageIcon },
                                     { id: 'history', label: 'Log Modifiche', icon: History }
-                                ].map((tab: any) => (
+                                ].map((tab: { id: string, label: string, icon: any }) => (
                                     <button
                                         key={tab.id}
                                         onClick={() => {
-                                            setActiveSection(tab.id);
+                                            setActiveSection(tab.id as 'info' | 'images' | 'history');
                                             if (tab.id === 'history' && editingProduct.id) {
                                                 fetchProductHistory(editingProduct.id);
                                             }
@@ -4105,7 +4106,7 @@ export default function WorkspaceClient() {
                                                 </button>
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
-                                                {Object.entries(editingProduct.extraFields || {}).map(([key, value]) => (
+                                                {Object.entries(editingProduct.extraFields || {}).map(([key, value]: [string, any]) => (
                                                     <div key={key} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2 group/field">
                                                         <div className="flex items-center justify-between">
                                                             <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{key}</span>
@@ -4137,13 +4138,13 @@ export default function WorkspaceClient() {
                                 {activeSection === 'images' && (
                                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
                                         <div className="grid grid-cols-3 gap-6">
-                                            {editingProduct.images.map((img: any, i: number) => (
+                                            {editingProduct.images.map((img: ProductImage, i: number) => (
                                                 <div key={i} className="relative aspect-square rounded-3xl overflow-hidden border-2 border-slate-100 group shadow-lg">
-                                                    <img src={img.imageUrl || img.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                    <img src={img.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                                     <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                         <button
                                                             onClick={() => {
-                                                                const newImgs = editingProduct.images.filter((_: any, idx: number) => idx !== i);
+                                                                const newImgs = editingProduct.images.filter((_: ProductImage, idx: number) => idx !== i);
                                                                 setEditingProduct({ ...editingProduct, images: newImgs });
                                                             }}
                                                             className="p-4 bg-white text-red-500 rounded-2xl shadow-2xl hover:scale-110 transition-all"
@@ -4186,7 +4187,7 @@ export default function WorkspaceClient() {
                                                         <p className="text-[10px] font-black uppercase tracking-widest">Nessuna modifica registrata</p>
                                                     </div>
                                                 ) : (
-                                                    productHistory.map((entry, idx) => (
+                                                    productHistory.map((entry: any, idx: number) => (
                                                         <div key={entry.id} className="bg-white p-6 rounded-3xl border border-gray-100 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                                                             <div className="flex items-center gap-6">
                                                                 <div className="w-12 h-12 bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-white font-black">
@@ -4323,12 +4324,12 @@ export default function WorkspaceClient() {
 
                         <div className="flex-1 overflow-y-auto p-4 space-y-8 custom-scrollbar bg-gray-50/30">
                             {pdfPages
-                                .filter(page => {
+                                .filter((page: PageData) => {
                                     if (!pdfSearchFocus) return true;
                                     const search = pdfSearchFocus.toLowerCase();
                                     return page.text.toLowerCase().includes(search);
                                 })
-                                .map((page, idx) => (
+                                .map((page: PageData, idx: number) => (
                                     <div key={idx} className="space-y-4">
                                         <div className="flex items-center justify-between px-2">
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pagina {page.pageNumber}</span>
