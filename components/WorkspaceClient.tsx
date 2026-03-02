@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, Info, ShoppingCart } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, AlertCircle, Info, ShoppingCart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -139,6 +139,9 @@ export default function WorkspaceClient() {
     const [showMapping, setShowMapping] = useState(false);
     const [activePicker, setActivePicker] = useState<{ type: 'text' | 'image' | 'pdf', row: number, field: string } | null>(null);
     const [isQuickPdfOpen, setIsQuickPdfOpen] = useState(false);
+    const [isDeepSearchOpen, setIsDeepSearchOpen] = useState(false);
+    const [isSearchingDeep, setIsSearchingDeep] = useState(false);
+    const [deepSearchResults, setDeepSearchResults] = useState<any[]>([]);
     const [pdfSearchFocus, setPdfSearchFocus] = useState<string | null>(null);
     const [pickerSearch, setPickerSearch] = useState("");
     const [displayLimit, setDisplayLimit] = useState(30);
@@ -368,13 +371,29 @@ export default function WorkspaceClient() {
     const handleAutoFillData = async (product: any, idx: number) => {
         const loadingId = toast.loading(`Ricerca dati per ${product.sku}...`);
         try {
+            let updatedProduct = { ...product };
+            let updatedFields = 0;
+
+            // 1. LOCAL SEARCH in PDF Content (if available)
+            const pdfMatch = pdfPages.find(page => page.text.toLowerCase().includes(product.sku.toLowerCase()));
+            if (pdfMatch && updatedProduct.images.length === 0) {
+                const pageRel = `PAGE_REF_${pdfMatch.pageNumber}`;
+                updatedProduct.images = [{ id: `pdf-${pdfMatch.pageNumber}`, url: pageRel }];
+                updatedFields++;
+
+                // Try to extract a title from the text near the SKU
+                const lines = pdfMatch.text.split('\n');
+                const skuLine = lines.find((l: string) => l.toLowerCase().includes(product.sku.toLowerCase()));
+                if (skuLine && (!updatedProduct.title || updatedProduct.title.trim() === '')) {
+                    updatedProduct.title = skuLine.replace(product.sku, '').replace(/[^a-zA-Z0-9 ]/g, ' ').trim().substring(0, 50);
+                    updatedFields++;
+                }
+            }
+
             const sourcesQuery = searchSources.map(s => s.url).join(',');
             // Enable shopping forcefully if useGoogleShopping is true globally
             const response = await axios.get(`/api/search-images?q=${encodeURIComponent(product.sku)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${useGoogleShopping}`);
             const images = response.data.images || [];
-
-            let updatedProduct = { ...product };
-            let updatedFields = 0;
 
             // Find the best data from all image results
             const bestData = images.reduce((acc: any, img: any) => {
@@ -1386,6 +1405,24 @@ export default function WorkspaceClient() {
                 ...currentProduct,
                 images: [...currentProduct.images, { id: Math.random().toString(), url: imgUrl }]
             });
+        }
+    };
+
+    const handleGlobalDeepSearch = async (sku: string) => {
+        setIsSearchingDeep(true);
+        setIsDeepSearchOpen(true);
+        setPdfSearchFocus(sku);
+        const toastId = 'global-deep-search';
+        toast.loading(`Ricerca SKu ${sku} nei cataloghi storici...`, { toastId });
+        try {
+            const res = await axios.get('/api/catalogues/deep-search', { params: { q: sku } });
+            setDeepSearchResults(res.data || []);
+            toast.update(toastId, { render: `Trovati ${res.data?.length || 0} riferimenti nel database`, type: 'success', isLoading: false, autoClose: 3000 });
+        } catch (err) {
+            console.error("Deep search failed:", err);
+            toast.update(toastId, { render: "Errore nella ricerca profonda", type: 'error', isLoading: false, autoClose: 3000 });
+        } finally {
+            setIsSearchingDeep(false);
         }
     };
 
@@ -3165,7 +3202,8 @@ export default function WorkspaceClient() {
                                                                 </button>
                                                                 <div className="flex flex-col gap-1 w-full mt-1">
                                                                     <div className="flex gap-1 w-full">
-                                                                        <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1.5 rounded hover:bg-orange-100 font-bold tracking-wider transition-all hover:shadow-sm">PDF</button>
+                                                                        <button onClick={() => handleSmartSearch(p, idx, 'pdf')} className="flex-1 text-[8px] bg-orange-50 text-orange-600 border border-orange-100 py-1.5 rounded hover:bg-orange-100 font-bold tracking-wider transition-all hover:shadow-sm" title="Search in CURRENT PDF">PDF</button>
+                                                                        <button onClick={() => handleGlobalDeepSearch(p.sku)} className="flex-1 text-[8px] bg-indigo-50 text-indigo-600 border border-indigo-100 py-1.5 rounded hover:bg-indigo-100 font-black tracking-widest transition-all hover:shadow-sm uppercase" title="Search in ALL CATALOGS (Historical)">Deep</button>
                                                                         <button onClick={() => handleSmartSearch(p, idx, 'folder')} className="flex-1 text-[8px] bg-emerald-50 text-emerald-600 border border-emerald-100 py-1.5 rounded hover:bg-emerald-100 font-bold tracking-wider transition-all hover:shadow-sm">DRIVE</button>
                                                                     </div>
                                                                     <div className="flex gap-1 w-full">
@@ -4398,30 +4436,78 @@ export default function WorkspaceClient() {
                                     const search = pdfSearchFocus.toLowerCase();
                                     return page.text.toLowerCase().includes(search);
                                 })
-                                .map((page: PageData, idx: number) => (
-                                    <div key={idx} className="space-y-4">
+                                .map((page: PageData, pageIdx: number) => (
+                                    <div key={pageIdx} className="space-y-4">
                                         <div className="flex items-center justify-between px-2">
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pagina {page.pageNumber}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pagina {page.pageNumber}</span>
+                                                <span className="text-[8px] font-bold text-gray-300 uppercase italic">ID: {page.pageNumber}_{pdfPages.length}</span>
+                                            </div>
                                             <button
                                                 onClick={() => {
-                                                    // Quick extraction logic
-                                                    toast.info("Analisi pagina in corso...");
+                                                    const foundSkus = page.text.match(/[A-Z0-9-]{4,}/g) || [];
+                                                    const uniqueSkus = Array.from(new Set(foundSkus));
+                                                    if (uniqueSkus.length > 0) {
+                                                        toast.success(`Trovati ${uniqueSkus.length} SKU: ${uniqueSkus.slice(0, 3).join(', ')}...`);
+                                                        setPdfSearchFocus(uniqueSkus[0]);
+                                                    } else {
+                                                        toast.warning("Nessun SKU riconosciuto in questa pagina");
+                                                    }
                                                 }}
-                                                className="text-[9px] font-black uppercase text-orange-600 hover:underline"
+                                                className="text-[9px] font-black uppercase text-orange-600 hover:text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full transition-all border border-orange-100/50"
                                             >
-                                                Analizza Pagina
+                                                Analizza Testo
                                             </button>
                                         </div>
-                                        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden group/page relative">
+                                        <div className="bg-white rounded-[24px] shadow-sm border border-gray-100 overflow-hidden group/page relative ring-1 ring-black/5 hover:ring-orange-400/50 transition-all duration-300">
                                             <img
                                                 src={page.imageUrl}
-                                                className="w-full h-auto cursor-zoom-in group-hover/page:opacity-90 transition-all"
+                                                alt={`Page ${page.pageNumber}`}
+                                                className="w-full h-auto cursor-zoom-in group-hover/page:opacity-90 transition-all duration-500 transform group-hover/page:scale-[1.02]"
                                                 onClick={() => setPreviewImage(page.imageUrl)}
                                             />
                                             {/* Page Mini-Overlay for Data Mapping */}
-                                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover/page:opacity-100 transition-all flex items-center justify-center gap-4">
-                                                <button className="bg-white text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-xl hover:scale-105 transition-all">Sincronizza Dati</button>
-                                                <button className="bg-orange-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase shadow-xl hover:scale-105 transition-all">Extraxt Images</button>
+                                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/page:opacity-100 transition-all duration-300 flex flex-col items-center justify-center gap-3 backdrop-blur-[2px]">
+                                                <button
+                                                    onClick={() => {
+                                                        const foundSkus = page.text.match(/[A-Z0-9-]{4,}/g) || [];
+                                                        const uniqueSkus = Array.from(new Set(foundSkus));
+                                                        if (uniqueSkus.length === 0) {
+                                                            toast.error("Nessun SKU trovato in questa pagina per sincronizzare");
+                                                            return;
+                                                        }
+                                                        const updatedProducts = products.map((p: ProductData) => {
+                                                            if (uniqueSkus.some(s => s.toLowerCase() === p.sku?.toLowerCase())) {
+                                                                // If matched, we add current page as reference if not there
+                                                                const pageRel = `PAGE_REF_${page.pageNumber}`;
+                                                                if (!p.images.some((img: ProductImage) => img.url === pageRel)) {
+                                                                    return { ...p, images: [...p.images, { id: Math.random().toString(), url: pageRel }] };
+                                                                }
+                                                            }
+                                                            return p;
+                                                        });
+                                                        setProducts(updatedProducts);
+                                                        toast.success(`Sincronizzati ${uniqueSkus.length} SKU mappati in questa pagina`);
+                                                    }}
+                                                    className="bg-white text-slate-900 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase shadow-2xl hover:bg-slate-50 hover:scale-105 active:scale-95 transition-all w-48 border border-white/20"
+                                                >
+                                                    Sincronizza Dati
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        // Logic to extract sub-images or just set the page as primary image for found SKUs
+                                                        const foundSkus = page.text.match(/[A-Z0-9-]{4,}/g) || [];
+                                                        if (foundSkus.length === 0) {
+                                                            toast.error("Impossibile estrarre immagini: SKU non identificati");
+                                                            return;
+                                                        }
+                                                        toast.info(`Estrazione asset per: ${foundSkus.join(', ')}`);
+                                                        // ...
+                                                    }}
+                                                    className="bg-orange-600 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase shadow-2xl hover:bg-orange-500 hover:scale-105 active:scale-95 transition-all w-48 border border-orange-400/50"
+                                                >
+                                                    Extract Images
+                                                </button>
                                             </div>
                                         </div>
                                     </div>
@@ -4432,6 +4518,118 @@ export default function WorkspaceClient() {
                                     <AlertTriangle className="w-12 h-12 mb-4 text-gray-300" />
                                     <p className="text-xs font-black uppercase tracking-widest text-gray-400">Nessun PDF caricato</p>
                                     <p className="text-[10px] font-bold text-gray-300 mt-2 leading-relaxed">Carica un file documentale per sbloccare la ricerca intelligente.</p>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+            <AnimatePresence>
+                {isDeepSearchOpen && (
+                    <motion.div
+                        initial={{ x: '100%' }}
+                        animate={{ x: 0 }}
+                        exit={{ x: '100%' }}
+                        className="fixed top-0 right-0 h-full w-[600px] bg-white shadow-2xl z-[3001] border-l border-gray-100 flex flex-col overflow-hidden"
+                    >
+                        <div className="p-4 bg-indigo-900 border-b border-white/10 flex items-center justify-between text-white">
+                            <div className="flex items-center gap-3">
+                                <Search className="w-4 h-4 text-indigo-400" />
+                                <h3 className="text-xs font-black uppercase tracking-widest">Global Historical Records</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => handleGlobalDeepSearch(pdfSearchFocus || "")}
+                                    className="p-1 px-3 bg-white/10 rounded-full text-[9px] font-black uppercase hover:bg-white/20 transition-all flex items-center gap-2"
+                                >
+                                    <RefreshCw className={`w-3 h-3 ${isSearchingDeep ? 'animate-spin' : ''}`} />
+                                    Aggiorna Ricerca
+                                </button>
+                                <button
+                                    onClick={() => setIsDeepSearchOpen(false)}
+                                    className="p-1.5 hover:bg-white/10 rounded-lg transition-all"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-3 bg-indigo-50/30 border-b border-gray-100 flex flex-col gap-2">
+                            <div className="flex items-center gap-3">
+                                <div className="relative flex-1">
+                                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        placeholder="Cerca SKU nel database globale..."
+                                        value={pdfSearchFocus || ""}
+                                        onChange={(e) => setPdfSearchFocus(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleGlobalDeepSearch(pdfSearchFocus || "")}
+                                        className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-[10px] font-bold outline-none focus:border-indigo-400 shadow-sm"
+                                    />
+                                </div>
+                                <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">{deepSearchResults.length} Matches</span>
+                            </div>
+                            <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest px-1">Risultati estratti dai cataloghi sincronizzati in precedenza</p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-10 custom-scrollbar bg-gray-50/20">
+                            {deepSearchResults.map((res: any, idx: number) => (
+                                <div key={idx} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300" style={{ animationDelay: `${idx * 50}ms` }}>
+                                    <div className="flex items-center justify-between px-2">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] font-black text-indigo-900 uppercase tracking-widest">{res.catalogName}</span>
+                                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-tighter">Pagina {res.pageNumber}</span>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                // Function to use this historical image as current product image
+                                                // Find if SKU matches local products
+                                                const matchIdx = products.findIndex(p => p.sku.toLowerCase() === pdfSearchFocus?.toLowerCase());
+                                                if (matchIdx !== -1) {
+                                                    const updated = [...products];
+                                                    updated[matchIdx] = {
+                                                        ...updated[matchIdx],
+                                                        images: [...updated[matchIdx].images, { id: Math.random().toString(), url: res.imageUrl }]
+                                                    };
+                                                    setProducts(updated);
+                                                    toast.success("Immagine storica associata correttamente");
+                                                }
+                                            }}
+                                            className="text-[9px] font-black uppercase text-indigo-600 hover:text-white bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 px-3 py-1.5 rounded-xl transition-all shadow-sm"
+                                        >
+                                            Usa questo Asset
+                                        </button>
+                                    </div>
+                                    <div className="bg-white rounded-[24px] shadow-[0_10px_30px_rgba(0,0,0,0.05)] border border-gray-100 overflow-hidden group/hist relative">
+                                        <img
+                                            src={res.imageUrl}
+                                            className="w-full h-auto cursor-zoom-in group-hover/hist:opacity-90 transition-all duration-500"
+                                            onClick={() => setPreviewImage(res.imageUrl)}
+                                        />
+                                        <div className="p-4 bg-gray-50/80 backdrop-blur-sm border-t border-gray-100">
+                                            <p className="text-[9px] font-bold text-gray-500 italic leading-relaxed">
+                                                Snippet: &quot;{res.snippet}&quot;
+                                            </p>
+                                        </div>
+                                        {/* Page Mini-Overlay */}
+                                        <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover/hist:opacity-100 transition-all flex items-center justify-center pointer-events-none">
+                                            <span className="text-white text-[9px] font-black uppercase tracking-[0.2em] bg-indigo-900 px-6 py-3 rounded-2xl shadow-2xl">Archived Asset</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                            {deepSearchResults.length === 0 && !isSearchingDeep && (
+                                <div className="h-full flex flex-col items-center justify-center p-12 text-center opacity-40">
+                                    <AlertCircle className="w-12 h-12 mb-4 text-gray-300" />
+                                    <p className="text-xs font-black uppercase tracking-widest text-gray-400">Nessun match storico</p>
+                                    <p className="text-[10px] font-bold text-gray-300 mt-2 leading-relaxed">Esegui una ricerca per SKU per trovare riferimenti in cataloghi passati.</p>
+                                </div>
+                            )}
+
+                            {isSearchingDeep && (
+                                <div className="h-full flex flex-col items-center justify-center p-12 text-center">
+                                    <RefreshCw className="w-10 h-10 mb-4 text-indigo-400 animate-spin" />
+                                    <p className="text-xs font-black uppercase tracking-widest text-indigo-900">Interrogazione AI Database...</p>
                                 </div>
                             )}
                         </div>
