@@ -122,16 +122,16 @@ export default function ErpTable() {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    accumulated += decoder.decode(value, { stream: true });
-                    // Update state in real-time
+                    const text = decoder.decode(value, { stream: true });
+                    accumulated += text;
                     setSelectedProduct((prev: any) => prev ? { ...prev, description: accumulated } : null);
                 }
             }
 
             toast.success("Descrizione completata!", { toastId });
         } catch (error: any) {
-            console.error(error);
-            toast.error("Errore di connessione o generazione", { toastId });
+            console.error("AI Generation Error:", error);
+            toast.error("Errore di connessione o generazione: " + error.message, { toastId });
         } finally {
             setIsGeneratingAI(false);
         }
@@ -1086,19 +1086,17 @@ export default function ErpTable() {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <button
-                                        onClick={async () => {
-                                            if (confirm("Eliminare massivamente gli SKU selezionati?")) {
-                                                setIsBulkDeleting(true);
-                                                // Implement endpoint call for bulk delete
-                                                toast.error("Endpoint massivo in configurazione...");
-                                                setIsBulkDeleting(false);
-                                            }
-                                        }}
-                                        className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest"
+                                        onClick={handleBulkDelete}
+                                        disabled={isBulkDeleting}
+                                        className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                     >
-                                        <Trash2 className="w-4 h-4" /> Elimina Massa
+                                        <Trash2 className={`w-4 h-4 ${isBulkDeleting ? 'animate-spin' : ''}`} />
+                                        {isBulkDeleting ? 'Eliminazione...' : 'Elimina Massa'}
                                     </button>
-                                    <button className="flex items-center gap-2 text-slate-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest">
+                                    <button
+                                        onClick={() => toast.info("Funzionalità Sync Woo disponibile a breve.")}
+                                        className="flex items-center gap-2 text-slate-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest"
+                                    >
                                         <RefreshCw className="w-4 h-4" /> Sync Woo
                                     </button>
                                     <button

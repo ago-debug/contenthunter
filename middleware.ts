@@ -4,6 +4,14 @@ export default withAuth({
     pages: {
         signIn: "/login",
     },
+    callbacks: {
+        authorized: ({ req, token }) => {
+            if (req.nextUrl.pathname.startsWith("/api/") && !token) {
+                return false; // Result in 401 if requested from withAuth middleware for APIs
+            }
+            return !!token;
+        }
+    },
     secret: process.env.NEXTAUTH_SECRET || "7f5e8aeb9cdd90123fabcde456890123",
 });
 

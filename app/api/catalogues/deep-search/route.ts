@@ -31,14 +31,22 @@ export async function GET(req: NextRequest) {
             take: 10
         });
 
-        const formatted = matches.map((m: any) => ({
-            id: m.id,
-            catalogName: m.catalog.name,
-            pageNumber: m.pageNumber,
-            imageUrl: m.imageUrl,
-            subImages: JSON.parse(m.subImages || "[]"),
-            snippet: m.text.substring(m.text.indexOf(query) - 50, m.text.indexOf(query) + 50)
-        }));
+        const formatted = matches.map((m: any) => {
+            const lowerText = m.text.toLowerCase();
+            const lowerQuery = query.toLowerCase();
+            const index = lowerText.indexOf(lowerQuery);
+            const start = Math.max(0, index - 50);
+            const end = Math.min(m.text.length, index + 50);
+
+            return {
+                id: m.id,
+                catalogName: m.catalog.name,
+                pageNumber: m.pageNumber,
+                imageUrl: m.imageUrl,
+                subImages: JSON.parse(m.subImages || "[]"),
+                snippet: m.text.substring(start, end)
+            };
+        });
 
         return NextResponse.json(formatted);
     } catch (err: any) {
