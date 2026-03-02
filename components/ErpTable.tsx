@@ -288,7 +288,8 @@ export default function ErpTable() {
 
         try {
             const res = await axios.get(`/api/catalogues/deep-search`, {
-                params: { q: query, catalogId: selectedProduct.catalogId }
+                params: { q: query, catalogId: selectedProduct.catalogId },
+                timeout: 15000 // 15 seconds max for deep DB scan
             });
             const results = res.data || [];
             setPdfSearchResults(results);
