@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Search, Plus, X, Edit, Trash2, Box, Package, RefreshCw, Globe, Settings, LayoutGrid, List, Sparkles, History, CheckCircle2, ChevronRight, AlertCircle, Save } from "lucide-react";
+import { Search, Plus, X, Edit, Trash2, Box, Package, RefreshCw, Globe, Settings, LayoutGrid, List, Sparkles, History, CheckCircle2, ChevronRight, AlertCircle, Save, Languages } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
 import { SearchableSelect } from "./SearchableSelect";
@@ -29,6 +29,7 @@ export default function ErpTable() {
     const [isSearchingPdf, setIsSearchingPdf] = useState(false);
     const [allTags, setAllTags] = useState<any[]>([]);
     const [editLang, setEditLang] = useState<string>("it");
+    const [isTranslating, setIsTranslating] = useState(false);
     const [productTranslations, setProductTranslations] = useState<Record<string, any>>({});
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -347,6 +348,62 @@ export default function ErpTable() {
         }
     };
 
+    const handleTranslateProduct = async () => {
+        if (!selectedProduct) return;
+
+        // Trova una lingua sorgente che abbia del contenuto. Preferisci 'it' se presente.
+        const sourceLang = selectedProduct.translations?.['it']?.title ? 'it' : (Object.keys(selectedProduct.translations || {}).find(l => selectedProduct.translations[l]?.title) || 'it');
+
+        if (sourceLang === editLang) {
+            toast.warning("Nessuna lingua sorgente diversa trovata (o lingua uguale)");
+            return;
+        }
+
+        setIsTranslating(true);
+        const toastId = 'translate-erp';
+        toast.loading(`Mappando PIM da ${sourceLang.toUpperCase()} a ${editLang.toUpperCase()}...`, { toastId });
+
+        try {
+            const dataToTranslate = {
+                title: selectedProduct.translations?.[sourceLang]?.title || "",
+                description: selectedProduct.translations?.[sourceLang]?.description || "",
+                seoAiText: selectedProduct.translations?.[sourceLang]?.seoAiText || "",
+                bulletPoints: selectedProduct.translations?.[sourceLang]?.bulletPoints || ""
+            };
+
+            const response = await fetch("/api/ai/translate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    textData: dataToTranslate,
+                    targetLanguage: editLang
+                })
+            });
+
+            if (!response.ok) throw new Error("Errore API Traduzione");
+
+            const translated = await response.json();
+
+            setSelectedProduct((prev: any) => {
+                if (!prev) return null;
+                const tt = { ...(prev.translations || {}) };
+                tt[editLang] = {
+                    ...tt[editLang],
+                    ...translated
+                };
+                return { ...prev, translations: tt };
+            });
+
+            toast.dismiss(toastId);
+            toast.success(`Traduzione ${editLang.toUpperCase()} completata!`);
+        } catch (error: any) {
+            toast.dismiss(toastId);
+            toast.error("Errore traduzione: " + error.message);
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
     const searchWebImages = async (query: string) => {
         if (!query.trim()) return;
         setIsSearchingWeb(true);
@@ -639,16 +696,28 @@ export default function ErpTable() {
                                     <TabButton id="woocommerce" label="Omnichannel" icon={Globe} />
                                     <TabButton id="history" label="Cronologia" icon={History} />
                                 </div>
-                                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                    {['it', 'en', 'fr', 'de', 'es'].map((lang: string) => (
+                                <div className="flex items-center gap-4">
+                                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                        {['it', 'en', 'fr', 'de', 'es'].map((lang: string) => (
+                                            <button
+                                                key={lang}
+                                                onClick={() => setEditLang(lang)}
+                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editLang === lang ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                                            >
+                                                {lang}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {editLang !== "it" && (
                                         <button
-                                            key={lang}
-                                            onClick={() => setEditLang(lang)}
-                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editLang === lang ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                                            onClick={handleTranslateProduct}
+                                            disabled={isTranslating}
+                                            className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
                                         >
-                                            {lang}
+                                            {isTranslating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Languages className="w-3 h-3" />}
+                                            Traduci Tutto
                                         </button>
-                                    ))}
+                                    )}
                                 </div>
                             </div>
 
