@@ -148,6 +148,27 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 8. Log modification to History
+        await prisma.productHistory.create({
+            data: {
+                productId: product.id,
+                data: {
+                    sku: cleanSku,
+                    ean: cleanEan,
+                    parentSku: parentSku || null,
+                    brand: brand || null,
+                    category: category || null,
+                    title: title || null,
+                    description: description || null,
+                    docDescription: docDescription || null,
+                    bulletPoints: bulletPoints || null,
+                    price: price, // stored as provided
+                    extraFields: extraFields || {},
+                    timestamp: new Date().toISOString()
+                } as any
+            }
+        });
+
         return NextResponse.json({ success: true, productId: product.id });
     } catch (err: any) {
         console.error("Product save error details:", err);

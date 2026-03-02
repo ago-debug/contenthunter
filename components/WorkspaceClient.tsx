@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, Info } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -134,12 +134,13 @@ export default function WorkspaceClient() {
         title: "Titolo",
         docDescription: "Descrizione documentale",
         price: "Prezzo",
-        brand: "Marca",
+        brand: "Brand",
         dimensions: "Dimensioni",
         weight: "Peso",
         material: "Materiale",
         category: "Categoria",
-        description: "Descrizione estesa",
+        bulletPoints: "Caratteristiche principali / bullet point",
+        description: "Analisi AI",
         image1: "Link Immagine 1",
         image2: "Link Immagine 2"
     });
@@ -188,6 +189,8 @@ export default function WorkspaceClient() {
     const [assetExtension, setAssetExtension] = useState(".jpg");
     const [isMatchingAssets, setIsMatchingAssets] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any | null>(null);
+    const [productHistory, setProductHistory] = useState<any[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [erpSearchQuery, setErpSearchQuery] = useState("");
     const [pickerSearchQuery, setPickerSearchQuery] = useState("");
     const [useGoogleShopping, setUseGoogleShopping] = useState(false);
@@ -542,7 +545,7 @@ export default function WorkspaceClient() {
                 weight: 'Peso',
                 material: 'Materiale',
                 category: 'Categoria',
-                bulletPoints: 'Descrizione Note',
+                bulletPoints: 'Caratteristiche principali / bullet point',
                 description: 'Analisi AI'
             };
             return { key: f, label: labels[f] || f, isSystem: true };
@@ -740,13 +743,19 @@ export default function WorkspaceClient() {
 
                     // Parse parts using delimiters
                     const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+                    const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
                     const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
 
                     let newDescription = "";
+                    let newBullets = "";
                     let parsedFields: Record<string, string> = {};
 
                     if (descMatch) {
                         newDescription = descMatch[1].trim();
+                    }
+
+                    if (bulletMatch) {
+                        newBullets = bulletMatch[1].trim();
                     }
 
                     if (fieldsMatch) {
@@ -770,6 +779,7 @@ export default function WorkspaceClient() {
                             next[idx] = {
                                 ...next[idx],
                                 description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
+                                bulletPoints: newBullets || next[idx].bulletPoints,
                                 extraFields: {
                                     ...(next[idx].extraFields || {}),
                                     ...parsedFields
@@ -1390,6 +1400,19 @@ export default function WorkspaceClient() {
         }
     };
 
+    const fetchProductHistory = async (id: string) => {
+        setIsLoadingHistory(true);
+        try {
+            const res = await axios.get(`/api/products/${id}/history`);
+            setProductHistory(res.data);
+        } catch (err) {
+            console.error("Error fetching history:", err);
+            toast.error("Errore nel caricamento della cronologia");
+        } finally {
+            setIsLoadingHistory(false);
+        }
+    };
+
     const updateProductInERP = async (updatedProduct: any) => {
         try {
             let useCatalogId = updatedProduct.catalogId || catalogId;
@@ -1488,7 +1511,7 @@ export default function WorkspaceClient() {
                 "Categoria": p.category,
                 "Brand": p.brand,
                 "Descrizione Documentale": p.docDescription,
-                "Note/Descrizione Estesa": p.bulletPoints,
+                "Caratteristiche principali / bullet point": p.bulletPoints,
                 "Analisi AI": p.description
             };
 
@@ -1896,7 +1919,7 @@ export default function WorkspaceClient() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-gray-700 ml-1">Descrizione Estesa / Note</label>
+                                            <label className="text-xs font-bold text-gray-700 ml-1">Caratteristiche principali / bullet point</label>
                                             <textarea
                                                 className="clean-input min-h-[150px] resize-none"
                                                 placeholder="Inserisci qui i dettagli catturati dal PDF..."
@@ -3819,175 +3842,260 @@ export default function WorkspaceClient() {
             {/* Edit Product Modal */}
             <AnimatePresence>
                 {editingProduct && (
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-xl z-[2000] flex items-center justify-end p-6">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-2xl z-[2000] flex items-center justify-end p-6">
                         <motion.div
                             initial={{ x: "100%", opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "100%", opacity: 0 }}
-                            className="h-full w-full max-w-xl bg-white shadow-2xl border-l border-gray-100 flex flex-col overflow-hidden"
+                            className="h-full w-full max-w-2xl bg-white shadow-2xl rounded-[3rem] border border-gray-100 flex flex-col overflow-hidden"
                         >
-                            <div className="p-6 border-b border-gray-100 bg-gray-50/30 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2.5 bg-white rounded-xl shadow-sm border border-gray-100">
-                                        <Package className="w-6 h-6 text-slate-900" />
+                            <div className="p-10 border-b border-gray-100 bg-white flex items-center justify-between">
+                                <div className="flex items-center gap-6">
+                                    <div className="p-4 bg-slate-900 rounded-[1.5rem] shadow-xl shadow-slate-200">
+                                        <Package className="w-8 h-8 text-white" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-black text-[#111827] uppercase tracking-tight">Edit Master Registry</h2>
-                                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{editingProduct.sku}</p>
+                                        <div className="flex items-center gap-3">
+                                            <h2 className="text-2xl font-black text-[#111827] uppercase tracking-tighter">Master PIM Editor</h2>
+                                            <span className="bg-emerald-50 text-emerald-600 text-[9px] font-black px-2 py-0.5 rounded-full border border-emerald-100 uppercase tracking-widest">Live Sync</span>
+                                        </div>
+                                        <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-widest">Gestione Anagrafica Centrale • SKU: {editingProduct.sku}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setEditingProduct(null)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 transition-all">
-                                    <X className="w-5 h-5" />
+                                <button
+                                    onClick={() => setEditingProduct(null)}
+                                    className="p-3 bg-gray-50 hover:bg-red-50 hover:text-red-500 rounded-2xl text-gray-400 transition-all border border-gray-100"
+                                >
+                                    <X className="w-6 h-6" />
                                 </button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <div className="space-y-1 col-span-2">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Titolo Prodotto</label>
-                                        <input
-                                            value={editingProduct.title || editingProduct.name || ""}
-                                            onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-[13px] font-bold transition-all outline-none"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-1 col-span-2">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Descrizione Documentale</label>
-                                        <textarea
-                                            rows={2}
-                                            value={editingProduct.docDescription || ""}
-                                            onChange={(e) => setEditingProduct({ ...editingProduct, docDescription: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs leading-tight transition-all outline-none resize-none"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Prezzo (€)</label>
-                                        <input
-                                            value={editingProduct.price}
-                                            onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs font-bold outline-none"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Categoria</label>
-                                        <input
-                                            value={editingProduct.category}
-                                            onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs font-bold outline-none"
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Brand</label>
-                                        <input
-                                            value={editingProduct.brand}
-                                            onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
-                                            className="w-full px-4 py-2 bg-white border border-gray-200 focus:border-orange-400 rounded-lg text-xs font-bold outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Premium Features (Extra Fields) */}
-                                <div className="space-y-4 pt-4 border-t border-gray-100">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#111827]">Caratteristiche Premium</h3>
-                                        <button
-                                            onClick={() => {
-                                                const fieldName = prompt("Nome della nuova caratteristica (es: Materiale, Colore):");
-                                                if (fieldName) {
-                                                    const updatedExtra = { ...editingProduct.extraFields, [fieldName]: "" };
-                                                    setEditingProduct({ ...editingProduct, extraFields: updatedExtra });
-                                                    if (!extraColumns.includes(fieldName)) {
-                                                        setExtraColumns([...extraColumns, fieldName]);
-                                                    }
-                                                }
-                                            }}
-                                            className="text-[9px] font-black uppercase text-orange-600 hover:text-orange-700 underline"
-                                        >
-                                            + Aggiungi Campo
-                                        </button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        {Object.entries(editingProduct.extraFields || {}).map(([key, value]) => (
-                                            <div key={key} className="space-y-2">
-                                                <div className="flex items-center justify-between">
-                                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">{key}</label>
-                                                    <button
-                                                        onClick={() => {
-                                                            const newKey = prompt("Rinomina campo:", key);
-                                                            if (newKey && newKey !== key) {
-                                                                const { [key]: val, ...rest } = editingProduct.extraFields;
-                                                                setEditingProduct({ ...editingProduct, extraFields: { ...rest, [newKey]: val } });
-                                                                setExtraColumns(extraColumns.map(c => c === key ? newKey : c));
-                                                            }
-                                                        }}
-                                                        className="text-[8px] text-gray-300 hover:text-orange-400"
-                                                    >
-                                                        Rinomina
-                                                    </button>
-                                                </div>
-                                                <input
-                                                    value={value as string}
-                                                    onChange={(e) => {
-                                                        const updatedExtra = { ...editingProduct.extraFields, [key]: e.target.value };
-                                                        setEditingProduct({ ...editingProduct, extraFields: updatedExtra });
-                                                    }}
-                                                    className="w-full px-4 py-2 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-400 rounded-lg text-xs font-medium outline-none transition-all"
-                                                />
-                                            </div>
-                                        ))}
-                                        {(!editingProduct.extraFields || Object.keys(editingProduct.extraFields).length === 0) && (
-                                            <p className="col-span-2 text-center py-4 text-[10px] text-gray-300 font-bold uppercase tracking-widest border-2 border-dashed border-gray-50 rounded-xl">Nessuna caratteristica premium definita</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Descrizione Estesa</label>
-                                    <textarea
-                                        rows={5}
-                                        value={editingProduct.description}
-                                        onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
-                                        className="w-full px-6 py-4 bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-2xl text-sm font-medium transition-all outline-none resize-none"
-                                    />
-                                </div>
-
-                                <div className="space-y-6">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-gray-400">Asset Immagini</label>
-                                    <div className="grid grid-cols-4 gap-4">
-                                        {editingProduct.images.map((img: any, i: number) => (
-                                            <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-gray-100 group">
-                                                <img src={img.imageUrl || img.url} className="w-full h-full object-cover" />
-                                                <button
-                                                    onClick={() => {
-                                                        const newImgs = editingProduct.images.filter((_: any, idx: number) => idx !== i);
-                                                        setEditingProduct({ ...editingProduct, images: newImgs });
-                                                    }}
-                                                    className="absolute top-2 right-2 p-2 bg-white/90 backdrop-blur rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                                                >
-                                                    <Trash2 className="w-3 h-3 text-red-500" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        <button className="aspect-square rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center text-gray-300 hover:border-orange-200 hover:text-orange-500 transition-all">
-                                            <Plus className="w-6 h-6" />
-                                        </button>
-                                    </div>
-                                </div>
+                            {/* Modal Tabs Selection */}
+                            <div className="px-10 py-6 bg-white border-b border-gray-50 flex items-center gap-2">
+                                {[
+                                    { id: 'info', label: 'Specifiche Tecniche', icon: Info },
+                                    { id: 'images', label: 'Media Assets', icon: ImageIcon },
+                                    { id: 'history', label: 'Log Modifiche', icon: History }
+                                ].map((tab: any) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => {
+                                            setActiveSection(tab.id);
+                                            if (tab.id === 'history' && editingProduct.id) {
+                                                fetchProductHistory(editingProduct.id);
+                                            }
+                                        }}
+                                        className={`px-6 py-3 rounded-2xl flex items-center gap-3 transition-all ${activeSection === tab.id
+                                            ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 -translate-y-0.5'
+                                            : 'bg-white text-gray-400 hover:bg-gray-50 border border-transparent hover:border-gray-200'
+                                            }`}
+                                    >
+                                        <tab.icon className={`w-4 h-4 ${activeSection === tab.id ? 'text-white' : 'text-gray-300'}`} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{tab.label}</span>
+                                    </button>
+                                ))}
                             </div>
 
-                            <div className="p-10 border-t border-gray-100 bg-gray-50/30 flex items-center justify-between">
+                            <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar bg-white">
+                                {activeSection === 'info' && (
+                                    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="grid grid-cols-2 gap-8">
+                                            <div className="space-y-2 col-span-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Titolo Prodotto</label>
+                                                <input
+                                                    value={editingProduct.title || editingProduct.name || ""}
+                                                    onChange={(e) => setEditingProduct({ ...editingProduct, title: e.target.value })}
+                                                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-2xl text-[14px] font-black text-slate-900 transition-all outline-none shadow-sm"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2 col-span-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Descrizione Documentale</label>
+                                                <textarea
+                                                    rows={3}
+                                                    value={editingProduct.docDescription || ""}
+                                                    onChange={(e) => setEditingProduct({ ...editingProduct, docDescription: e.target.value })}
+                                                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-2xl text-xs leading-relaxed font-bold text-slate-700 transition-all outline-none resize-none shadow-sm"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Prezzo (€)</label>
+                                                <input
+                                                    value={editingProduct.price}
+                                                    onChange={(e) => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                                                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-emerald-500 rounded-2xl text-[14px] font-black text-emerald-600 outline-none transition-all shadow-sm"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Categoria Market</label>
+                                                <input
+                                                    value={editingProduct.category}
+                                                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                                                    className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-2xl text-xs font-black uppercase tracking-wider text-slate-900 outline-none transition-all shadow-sm"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Caratteristiche principali / bullet point</label>
+                                            <textarea
+                                                rows={6}
+                                                value={editingProduct.bulletPoints}
+                                                onChange={(e) => setEditingProduct({ ...editingProduct, bulletPoints: e.target.value })}
+                                                className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-[2rem] text-sm font-bold text-slate-700 transition-all outline-none resize-none shadow-sm leading-relaxed"
+                                                placeholder="Inserisci qui i punti chiave del prodotto..."
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2 pb-10">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Attributi Tecnici Dinamici</label>
+                                                <button
+                                                    onClick={() => {
+                                                        const fieldName = prompt("Nome del nuovo attributo (es: Materiale, Voltaggio):");
+                                                        if (fieldName) {
+                                                            const updatedExtra = { ...editingProduct.extraFields, [fieldName]: "" };
+                                                            setEditingProduct({ ...editingProduct, extraFields: updatedExtra });
+                                                            if (!extraColumns.includes(fieldName)) {
+                                                                setExtraColumns([...extraColumns, fieldName]);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="p-2 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all"
+                                                >
+                                                    <Plus className="w-4 h-4 text-slate-900" />
+                                                </button>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                {Object.entries(editingProduct.extraFields || {}).map(([key, value]) => (
+                                                    <div key={key} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 space-y-2 group/field">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{key}</span>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const { [key]: _, ...rest } = editingProduct.extraFields;
+                                                                    setEditingProduct({ ...editingProduct, extraFields: rest });
+                                                                }}
+                                                                className="opacity-0 group-hover/field:opacity-100 p-1 hover:text-red-500 transition-all"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                        <input
+                                                            value={value as string}
+                                                            onChange={(e) => {
+                                                                const updatedExtra = { ...editingProduct.extraFields, [key]: e.target.value };
+                                                                setEditingProduct({ ...editingProduct, extraFields: updatedExtra });
+                                                            }}
+                                                            className="w-full bg-white border border-gray-100 rounded-xl px-3 py-2 text-[11px] font-bold text-slate-800 outline-none focus:border-slate-900 transition-all shadow-sm"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeSection === 'images' && (
+                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="grid grid-cols-3 gap-6">
+                                            {editingProduct.images.map((img: any, i: number) => (
+                                                <div key={i} className="relative aspect-square rounded-3xl overflow-hidden border-2 border-slate-100 group shadow-lg">
+                                                    <img src={img.imageUrl || img.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <button
+                                                            onClick={() => {
+                                                                const newImgs = editingProduct.images.filter((_: any, idx: number) => idx !== i);
+                                                                setEditingProduct({ ...editingProduct, images: newImgs });
+                                                            }}
+                                                            className="p-4 bg-white text-red-500 rounded-2xl shadow-2xl hover:scale-110 transition-all"
+                                                        >
+                                                            <Trash2 className="w-6 h-6" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button className="aspect-square rounded-3xl border-3 border-dashed border-gray-100 flex flex-col items-center justify-center gap-3 text-gray-300 hover:border-slate-300 hover:text-slate-400 transition-all hover:bg-gray-50/50">
+                                                <Plus className="w-10 h-10" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Aggiungi Asset</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeSection === 'history' && (
+                                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="bg-slate-50/50 p-8 rounded-[2rem] border border-gray-100">
+                                            <div className="flex items-center justify-between mb-8">
+                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Modifiche Storiche</h4>
+                                                <button
+                                                    onClick={() => editingProduct.id && fetchProductHistory(editingProduct.id)}
+                                                    className="p-2 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all"
+                                                >
+                                                    <RefreshCw className={`w-4 h-4 ${isLoadingHistory ? 'animate-spin' : ''}`} />
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {isLoadingHistory ? (
+                                                    <div className="py-20 flex flex-col items-center justify-center opacity-30 gap-4">
+                                                        <RefreshCw className="w-8 h-8 animate-spin" />
+                                                        <span className="text-[10px] font-black uppercase">Sincronizzazione log...</span>
+                                                    </div>
+                                                ) : productHistory.length === 0 ? (
+                                                    <div className="py-20 flex flex-col items-center justify-center opacity-20 gap-4">
+                                                        <History className="w-12 h-12" />
+                                                        <p className="text-[10px] font-black uppercase tracking-widest">Nessuna modifica registrata</p>
+                                                    </div>
+                                                ) : (
+                                                    productHistory.map((entry, idx) => (
+                                                        <div key={entry.id} className="bg-white p-6 rounded-3xl border border-gray-100 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+                                                            <div className="flex items-center gap-6">
+                                                                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex flex-col items-center justify-center text-white font-black">
+                                                                    <span className="text-[8px] opacity-40 leading-none mb-1">REV</span>
+                                                                    <span className="text-sm">#{productHistory.length - idx}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-black text-slate-900">{new Date(entry.createdAt).toLocaleString('it-IT')}</p>
+                                                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Stato snapshot archiviato</p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (confirm("Ripristinare questo stato precedente?")) {
+                                                                        setEditingProduct({ ...editingProduct, ...entry.data });
+                                                                        setActiveSection('info');
+                                                                        toast.success("Dati ripristinati con successo!");
+                                                                    }
+                                                                }}
+                                                                className="px-6 py-3 bg-gray-50 hover:bg-slate-900 hover:text-white rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-gray-100 hover:border-slate-900 shadow-sm"
+                                                            >
+                                                                Ripristina
+                                                            </button>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-10 border-t border-gray-100 bg-white flex items-center justify-between z-20">
                                 <button
                                     onClick={() => setEditingProduct(null)}
-                                    className="px-8 py-4 text-sm font-bold text-gray-400 hover:text-gray-600 transition-all"
+                                    className="px-10 py-5 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-red-500 transition-all italic underline decoration-2 underline-offset-8"
                                 >
-                                    Annulla Modifiche
+                                    Esci senza salvare
                                 </button>
                                 <button
                                     onClick={() => updateProductInERP(editingProduct)}
-                                    className="btn-primary px-12"
+                                    className="px-12 py-5 bg-slate-900 hover:bg-black text-white rounded-[1.5rem] font-black uppercase text-[11px] tracking-[0.2em] shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex items-center gap-4 hover:scale-[1.02] active:scale-95 transition-all"
                                 >
-                                    Aggiorna Database
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                    Push to Registry
                                 </button>
                             </div>
                         </motion.div>

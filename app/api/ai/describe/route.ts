@@ -26,14 +26,14 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 ---DESCRIPTION---
 [Scrivi qui 3 paragrafi brevi e incisivi di copywriting emozionale, SEO oriented]
 
+---BULLET_POINTS---
+[Estrai 5-8 punti chiave tecnici del prodotto, uno per riga, stile bullet point]
+
 ---TECHNICAL_FIELDS---
 Colore: [Valore]
 Materiale: [Valore]
-Design: [Descrivi lo stile in poche parole]
-Consigli: [Suggerimenti d'uso]
-Dimensioni: [Estrai se presente, es. cm 45x32]
-Peso: [Estrai se presente, es. 1.5kg]
-Circonferenza: [Estrai se presente]
+Dimensioni: [Valore]
+Peso: [Valore]
 `;
 
         console.log("AI Describe Request for SKU:", productData.sku);

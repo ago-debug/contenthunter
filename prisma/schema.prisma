@@ -83,11 +83,22 @@ model Product {
   extraFields    ProductExtra[]
   images         ProductImage[]
   catalogs       CatalogEntry[]
+  history        ProductHistory[]
 
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   @@index([sku])
+}
+
+model ProductHistory {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  data      Json
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
 }
 
 model ProductText {
