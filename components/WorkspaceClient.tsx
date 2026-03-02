@@ -8,6 +8,9 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
+import EdgeScroll from "./EdgeScroll";
+import { useCatalog } from "./CatalogContext";
+import { SearchableSelect } from "./SearchableSelect";
 
 // Configure PDF.js worker for production
 if (typeof window !== "undefined") {
@@ -50,6 +53,9 @@ interface ProductData {
     material: string;
     bulletPoints: string;
     seoAiText?: string;
+    categoryId?: number | null;
+    subCategoryId?: number | null;
+    subSubCategoryId?: number | null;
     images: ProductImage[];
     extraFields?: { [key: string]: string };
 }
@@ -100,30 +106,24 @@ export default function WorkspaceClient() {
         }
     };
 
-    const [catalogId, setCatalogId] = useState<number | null>(null);
-    const [pdfPages, setPdfPages] = useState<PageData[]>([]);
+    const {
+        catalogId, setCatalogId,
+        products, setProducts,
+        pdfPages, setPdfPages,
+        skuToPageMap, setSkuToPageMap,
+        currentPdfUrl, setCurrentPdfUrl,
+        isProcessing, setIsProcessing
+    } = useCatalog();
+
     const [wsSearchTerm, setWsSearchTerm] = useState("");
     const [isSyncingPages, setIsSyncingPages] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
     const [activeField, setActiveField] = useState<keyof ProductData | null>("sku");
     const [currentProduct, setCurrentProduct] = useState<ProductData>({
-        sku: "",
-        ean: "",
-        parentSku: "",
-        title: "",
-        description: "",
-        docDescription: "",
-        price: "",
-        category: "",
-        brand: "",
-        dimensions: "",
-        weight: "",
-        material: "",
-        bulletPoints: "",
-        images: []
+        sku: "", ean: "", parentSku: "", title: "", description: "", docDescription: "",
+        price: "", category: "", brand: "", dimensions: "", weight: "", material: "",
+        bulletPoints: "", images: []
     });
 
-    const [products, setProducts] = useState<ProductData[]>([]);
     const [allDBProducts, setAllDBProducts] = useState<any[]>([]);
     const [currentView, setCurrentView] = useState<'workspace' | 'erp' | 'asset-matcher'>('workspace');
     const [isLoadingERP, setIsLoadingERP] = useState(false);
@@ -131,23 +131,12 @@ export default function WorkspaceClient() {
     const [extraColumns, setExtraColumns] = useState<string[]>([]);
     const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
     const [csvMapping, setCsvMapping] = useState<{ [key: string]: string }>({
-        sku: "SKU",
-        ean: "EAN",
-        title: "Titolo",
-        docDescription: "Descrizione documentale",
-        price: "Prezzo",
-        brand: "Brand",
-        dimensions: "Dimensioni",
-        weight: "Peso",
-        material: "Materiale",
-        category: "Categoria",
-        description: "Analisi AI (Lungo)",
-        seoAiText: "Analisi AI (Breve)",
-        image1: "Link Immagine 1",
-        image2: "Link Immagine 2"
+        sku: "SKU", ean: "EAN", title: "Titolo", docDescription: "Descrizione documentale",
+        price: "Prezzo", brand: "Brand", dimensions: "Dimensioni", weight: "Peso",
+        material: "Materiale", category: "Categoria", description: "Analisi AI (Lungo)",
+        seoAiText: "Analisi AI (Breve)", image1: "Link Immagine 1", image2: "Link Immagine 2"
     });
     const [showMapping, setShowMapping] = useState(false);
-    const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
     const [activePicker, setActivePicker] = useState<{ type: 'text' | 'image' | 'pdf', row: number, field: string } | null>(null);
     const [isQuickPdfOpen, setIsQuickPdfOpen] = useState(false);
     const [pdfSearchFocus, setPdfSearchFocus] = useState<string | null>(null);
@@ -157,11 +146,11 @@ export default function WorkspaceClient() {
     const [newColumnName, setNewColumnName] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [activeSection, setActiveSection] = useState<'info' | 'images' | 'history'>('info');
+    const [projectName, setProjectName] = useState("Nuovo Progetto");
 
     const [currencyToClean, setCurrencyToClean] = useState<string>("");
     const [translateTargetLang, setTranslateTargetLang] = useState<string>("en");
     const [translateTargetField, setTranslateTargetField] = useState<string>("all");
-    const [projectName, setProjectName] = useState("Nuovo Progetto");
     const [isTranslating, setIsTranslating] = useState(false);
     const [isGeneratingAI, setIsGeneratingAI] = useState<number | null>(null);
     const [pickerSourceMode, setPickerSourceMode] = useState<'pdf' | 'web' | 'file' | 'folder'>('pdf');
@@ -170,7 +159,6 @@ export default function WorkspaceClient() {
     const [isSearchingWeb, setIsSearchingWeb] = useState(false);
     const [isSearchingPdfAi, setIsSearchingPdfAi] = useState(false);
     const [pdfAiMatches, setPdfAiMatches] = useState<{ pageIdx: number, preview: string, ref: string, score: number }[] | null>(null);
-    const [skuToPageMap, setSkuToPageMap] = useState<{ [sku: string]: number }>({});
     const [newFieldName, setNewFieldName] = useState("");
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -194,6 +182,31 @@ export default function WorkspaceClient() {
     const [productHistory, setProductHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [erpSearchQuery, setErpSearchQuery] = useState("");
+    const [allCategories, setAllCategories] = useState<any[]>([]);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/categories?all=true');
+            setAllCategories(res.data);
+        } catch (err) { }
+    };
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    const handleAddCategory = async (name: string, parentId: number | null, level: 1 | 2 | 3) => {
+        try {
+            const res = await axios.post('/api/categories', { name, parentId });
+            setAllCategories([...allCategories, res.data]);
+            if (level === 1) setCurrentProduct({ ...currentProduct, categoryId: res.data.id, subCategoryId: null, subSubCategoryId: null });
+            if (level === 2) setCurrentProduct({ ...currentProduct, subCategoryId: res.data.id, subSubCategoryId: null });
+            if (level === 3) setCurrentProduct({ ...currentProduct, subSubCategoryId: res.data.id });
+            toast.success("Categoria creata!");
+        } catch (err) {
+            toast.error("Errore creazione categoria");
+        }
+    };
     const [pickerSearchQuery, setPickerSearchQuery] = useState("");
     const [useGoogleShopping, setUseGoogleShopping] = useState(false);
 
@@ -1025,22 +1038,30 @@ export default function WorkspaceClient() {
             normalizedUrl = '/' + normalizedUrl;
         }
 
+        // Evitiamo di riprocessare se abbiamo già le pagine in Context per questa URL
+        if (pdfPages.length > 0 && currentPdfUrl === normalizedUrl) {
+            setIsProcessing(false);
+            return;
+        }
+
         setCurrentPdfUrl(normalizedUrl);
         try {
-            // Bypass Nginx/Nextjs 404 caching bugs for dynamically created files
             const storageUrl = `/api/storage?path=${encodeURIComponent(normalizedUrl)}`;
-            // Se abbiamo i dati in RAM (durante l'upload), saltiamo network del PDF!
             const loadingTask = pdfjsLib.getDocument(localData ? { data: localData } : storageUrl);
             const pdf = await loadingTask.promise;
             const pages: PageData[] = [];
-
-            // Temporary map to build during extraction
             const tempSkuMap: { [sku: string]: number } = {};
 
+            const toastId = toast.loading(`Analisi PDF in corso: 0/${pdf.numPages} pagine...`, { position: "bottom-left" });
+
             for (let i = 1; i <= pdf.numPages; i++) {
+                if (i % 5 === 0) {
+                    toast.update(toastId, { render: `Analisi PDF in corso: ${i}/${pdf.numPages} pagine...` });
+                    await new Promise(r => setTimeout(r, 0));
+                }
+
                 const page = await pdf.getPage(i);
-                // SHARP BUT FAST: Scale 1.5 is ideal for workspace preview
-                const viewport = page.getViewport({ scale: 1.5 });
+                const viewport = page.getViewport({ scale: 1.2 });
                 const canvas = document.createElement("canvas");
                 const context = canvas.getContext("2d");
                 if (!context) continue;
@@ -1050,7 +1071,6 @@ export default function WorkspaceClient() {
 
                 await page.render({ canvasContext: context, viewport, canvas: canvas } as any).promise;
 
-                // Scan for sub-images to create low-res picker thumbnails
                 const subImages: { preview: string; ref: string }[] = [];
                 const ops = await page.getOperatorList();
 
@@ -1063,7 +1083,7 @@ export default function WorkspaceClient() {
                             const imgObj = await page.objs.get(imgName);
                             if (imgObj && (imgObj.data || imgObj.bitmap)) {
                                 const imgCanvas = document.createElement("canvas");
-                                const ratio = Math.min(120 / imgObj.width, 120 / imgObj.height, 1);
+                                const ratio = Math.min(100 / imgObj.width, 100 / imgObj.height, 1);
                                 imgCanvas.width = imgObj.width * ratio;
                                 imgCanvas.height = imgObj.height * ratio;
                                 const imgCtx = imgCanvas.getContext("2d");
@@ -1083,12 +1103,12 @@ export default function WorkspaceClient() {
                                         }
                                     }
                                     subImages.push({
-                                        preview: imgCanvas.toDataURL("image/jpeg", 0.4),
+                                        preview: imgCanvas.toDataURL("image/jpeg", 0.3),
                                         ref: imgName
                                     });
                                 }
                             }
-                        } catch (e) { console.warn(e); }
+                        } catch (e) { }
                     }
                 }
 
@@ -1104,27 +1124,28 @@ export default function WorkspaceClient() {
                     };
                 });
 
+                textBlocks.forEach(b => {
+                    const matches = b.str.match(/[A-Z0-9-]{4,}/g);
+                    if (matches) {
+                        matches.forEach(m => {
+                            if (!tempSkuMap[m]) tempSkuMap[m] = i - 1;
+                        });
+                    }
+                });
+
                 pages.push({
-                    imageUrl: canvas.toDataURL("image/jpeg", 0.5),
+                    imageUrl: canvas.toDataURL("image/jpeg", 0.45),
                     text: textBlocks.map(b => b.str).join(" "),
                     textBlocks,
                     subImages,
                     pageNumber: i
                 });
-
-                // Index SKUs on this page for smart positioning
-                textBlocks.forEach(block => {
-                    const text = block.str.trim();
-                    const skuPattern = /[A-Z0-9\-]{6,20}/;
-                    if (skuPattern.test(text) && text.length >= 6 && !text.includes(" ")) {
-                        if (tempSkuMap[text] === undefined) {
-                            tempSkuMap[text] = i - 1;
-                        }
-                    }
-                });
             }
+
             setPdfPages(pages);
             setSkuToPageMap(tempSkuMap);
+            toast.dismiss(toastId);
+            toast.success(`Analisi completata: ${pages.length} pagine processate.`);
 
             // Trigger Automatic Identification Brain
             setTimeout(() => {
@@ -1132,11 +1153,6 @@ export default function WorkspaceClient() {
             }, 1000);
         } catch (err: any) {
             console.error("PDF processing error:", err);
-            if (err.name === 'MissingPDFException' && !normalizedUrl.includes('/public/')) {
-                console.log("Retrying with /public prefix...");
-                extractFromPdf('/public' + normalizedUrl);
-                return;
-            }
         } finally {
             setIsProcessing(false);
         }
@@ -1917,27 +1933,105 @@ export default function WorkspaceClient() {
                                                     onChange={(e) => setCurrentProduct({ ...currentProduct, price: e.target.value })}
                                                 />
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-700 ml-1">Categoria</label>
-                                                <input
-                                                    className="clean-input"
-                                                    placeholder="Seleziona..."
-                                                    value={currentProduct.category}
-                                                    onFocus={() => setActiveField('category')}
-                                                    onChange={(e) => setCurrentProduct({ ...currentProduct, category: e.target.value })}
-                                                />
+                                            <div className="space-y-4 pt-4 border-t border-gray-50">
+                                                <h5 className="text-[10px] font-black uppercase tracking-widest text-[#111827]">Classificazione Categorie</h5>
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Livello 1 (Root)</label>
+                                                        <SearchableSelect
+                                                            options={allCategories.filter(c => !c.parentId).map(c => ({ value: c.id, label: c.name }))}
+                                                            value={currentProduct.categoryId || null}
+                                                            onAddNew={(name) => handleAddCategory(name, null, 1)}
+                                                            onChange={(val) => {
+                                                                setCurrentProduct({
+                                                                    ...currentProduct,
+                                                                    categoryId: val ? Number(val) : null,
+                                                                    subCategoryId: null,
+                                                                    subSubCategoryId: null
+                                                                });
+                                                            }}
+                                                            placeholder="Categoria Root..."
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Livello 2 (Sub)</label>
+                                                        <SearchableSelect
+                                                            options={allCategories.filter(c => c.parentId === currentProduct.categoryId).map(c => ({ value: c.id, label: c.name }))}
+                                                            value={currentProduct.subCategoryId || null}
+                                                            onAddNew={(name) => handleAddCategory(name, currentProduct.categoryId || null, 2)}
+                                                            onChange={(val) => {
+                                                                setCurrentProduct({
+                                                                    ...currentProduct,
+                                                                    subCategoryId: val ? Number(val) : null,
+                                                                    subSubCategoryId: null
+                                                                });
+                                                            }}
+                                                            placeholder="Sottocategoria..."
+                                                            disabled={!currentProduct.categoryId}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Livello 3 (Sub-Sub)</label>
+                                                        <SearchableSelect
+                                                            options={allCategories.filter(c => c.parentId === currentProduct.subCategoryId).map(c => ({ value: c.id, label: c.name }))}
+                                                            value={currentProduct.subSubCategoryId || null}
+                                                            onAddNew={(name) => handleAddCategory(name, currentProduct.subCategoryId || null, 3)}
+                                                            onChange={(val) => {
+                                                                setCurrentProduct({
+                                                                    ...currentProduct,
+                                                                    subSubCategoryId: val ? Number(val) : null
+                                                                });
+                                                            }}
+                                                            placeholder="LVL 3..."
+                                                            disabled={!currentProduct.subCategoryId}
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-xs font-bold text-gray-700 ml-1">Caratteristiche principali / bullet point</label>
-                                            <textarea
-                                                className="clean-input min-h-[150px] resize-none"
-                                                placeholder="Inserisci qui i dettagli catturati dal PDF..."
-                                                value={currentProduct.bulletPoints}
-                                                onFocus={() => setActiveField('bulletPoints')}
-                                                onChange={(e) => setCurrentProduct({ ...currentProduct, bulletPoints: e.target.value })}
-                                            />
+                                        <div className="space-y-3 pt-2 border-t border-slate-100">
+                                            <div className="flex items-center justify-between">
+                                                <label className="text-xs font-black uppercase tracking-widest text-[#111827] ml-1">Caratteristiche / Bullet points</label>
+                                                <button
+                                                    onClick={() => {
+                                                        const arr = (currentProduct.bulletPoints || "").split('\n').filter(b => b.trim());
+                                                        arr.push("- ");
+                                                        setCurrentProduct({ ...currentProduct, bulletPoints: arr.join('\n') });
+                                                    }}
+                                                    className="px-2 py-1 bg-[#111827]/10 hover:bg-[#111827]/20 text-[#111827] text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-1 transition-all"
+                                                >
+                                                    <Plus className="w-3 h-3" /> Aggiungi
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2 max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+                                                {((currentProduct.bulletPoints || "").split('\n').filter(b => b.trim()).length === 0 ? [""] : (currentProduct.bulletPoints || "").split('\n').filter(b => b.trim())).map((bullet, idx) => (
+                                                    <div key={idx} className="flex gap-2 group">
+                                                        <div className="w-6 h-6 rounded bg-[#111827]/5 flex items-center justify-center text-[#111827] font-black text-[9px] mt-1 shrink-0">{idx + 1}</div>
+                                                        <input
+                                                            className="clean-input flex-1 !p-2 !text-xs !bg-white focus:!ring-1 focus:!ring-[#111827]"
+                                                            placeholder={`Bullet ${idx + 1}...`}
+                                                            value={bullet.replace(/^-\s*/, '')}
+                                                            onFocus={() => setActiveField('bulletPoints')}
+                                                            onChange={(e) => {
+                                                                const arr = (currentProduct.bulletPoints || "").split('\n').filter(b => b.trim());
+                                                                arr[idx] = e.target.value ? `- ${e.target.value}` : "";
+                                                                setCurrentProduct({ ...currentProduct, bulletPoints: arr.join('\n') });
+                                                            }}
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                const arr = (currentProduct.bulletPoints || "").split('\n').filter(b => b.trim());
+                                                                arr.splice(idx, 1);
+                                                                setCurrentProduct({ ...currentProduct, bulletPoints: arr.join('\n') });
+                                                            }}
+                                                            className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-all"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         <div className="space-y-4">
@@ -3600,7 +3694,7 @@ export default function WorkspaceClient() {
                                 </button>
                             </div>
 
-                            <div className="overflow-x-auto">
+                            <EdgeScroll>
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="bg-gray-50/50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
@@ -3679,13 +3773,11 @@ export default function WorkspaceClient() {
                                         )}
                                     </tbody>
                                 </table>
-                            </div>
+                            </EdgeScroll>
                         </div>
                     </motion.div>
                 )}
-            </AnimatePresence>
-
-            {/* MODALS SECTION */}
+            </AnimatePresence>            {/* MODALS SECTION */}
 
             {/* Settings Modal (Search Sources) */}
             <AnimatePresence>
@@ -3949,15 +4041,48 @@ export default function WorkspaceClient() {
                                             </div>
                                         </div>
 
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Caratteristiche principali / bullet point</label>
-                                            <textarea
-                                                rows={6}
-                                                value={editingProduct.bulletPoints}
-                                                onChange={(e) => setEditingProduct({ ...editingProduct, bulletPoints: e.target.value })}
-                                                className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-[2rem] text-sm font-bold text-slate-700 transition-all outline-none resize-none shadow-sm leading-relaxed"
-                                                placeholder="Inserisci qui i punti chiave del prodotto..."
-                                            />
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Caratteristiche principali / bullet point</label>
+                                                <button
+                                                    onClick={() => {
+                                                        const currentBullets = (editingProduct.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                        currentBullets.push("- ");
+                                                        setEditingProduct({ ...editingProduct, bulletPoints: currentBullets.join('\n') });
+                                                    }}
+                                                    className="text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full hover:bg-slate-200 transition-all flex items-center gap-1"
+                                                >
+                                                    <Plus className="w-3 h-3" /> Aggiungi Bullet
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                                {((editingProduct.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "").length === 0 ? [""] : (editingProduct.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "")).map((bullet: string, idx: number) => (
+                                                    <div key={idx} className="flex gap-2 items-center group">
+                                                        <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-black shrink-0 text-[10px]">{idx + 1}</div>
+                                                        <input
+                                                            value={bullet.replace(/^-\s*/, '')}
+                                                            onChange={e => {
+                                                                const val = e.target.value;
+                                                                const arr = (editingProduct.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                arr[idx] = val ? `- ${val}` : "";
+                                                                setEditingProduct({ ...editingProduct, bulletPoints: arr.join('\n') });
+                                                            }}
+                                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-xl text-sm font-bold text-slate-700 transition-all outline-none shadow-sm"
+                                                            placeholder={`Inserisci bullet ${idx + 1}...`}
+                                                        />
+                                                        <button
+                                                            onClick={() => {
+                                                                const arr = (editingProduct.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                arr.splice(idx, 1);
+                                                                setEditingProduct({ ...editingProduct, bulletPoints: arr.join('\n') });
+                                                            }}
+                                                            className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         <div className="space-y-2 pb-10">

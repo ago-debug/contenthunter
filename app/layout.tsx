@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import { AuthProvider } from "@/components/Providers";
+import { CatalogProvider } from "@/components/CatalogContext";
 import LayoutClient from "@/components/LayoutClient";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -27,9 +28,11 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${inter.className} bg-[#F4F5F7]`}>
                 <AuthProvider>
-                    <LayoutClient>
-                        {children}
-                    </LayoutClient>
+                    <CatalogProvider>
+                        <LayoutClient>
+                            {children}
+                        </LayoutClient>
+                    </CatalogProvider>
                 </AuthProvider>
 
                 <ToastContainer

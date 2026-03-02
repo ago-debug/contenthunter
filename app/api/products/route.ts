@@ -134,7 +134,47 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 7. Handle Images
+        // 7. Handle Tags
+        if (body.productTags && Array.isArray(body.productTags)) {
+            await prisma.productTag.deleteMany({
+                where: { productId: product.id }
+            });
+
+            if (body.productTags.length > 0) {
+                await prisma.productTag.createMany({
+                    data: body.productTags.map((pt: any) => ({
+                        productId: product.id,
+                        tagId: parseInt(pt.tagId)
+                    }))
+                });
+            }
+        }
+
+        // 8. Handle Translations
+        if (body.translations && typeof body.translations === 'object') {
+            for (const [lang, data] of Object.entries(body.translations)) {
+                const d = data as any;
+                await prisma.productText.upsert({
+                    where: { productId_language: { productId: product.id, language: lang } },
+                    update: {
+                        title: d.title || null,
+                        description: d.description || null,
+                        bulletPoints: d.bulletPoints || null,
+                        seoAiText: d.seoAiText || null
+                    },
+                    create: {
+                        productId: product.id,
+                        language: lang,
+                        title: d.title || null,
+                        description: d.description || null,
+                        bulletPoints: d.bulletPoints || null,
+                        seoAiText: d.seoAiText || null
+                    }
+                });
+            }
+        }
+
+        // 9. Handle Images
         if (images && Array.isArray(images)) {
             await prisma.productImage.deleteMany({
                 where: { productId: product.id }
@@ -191,16 +231,28 @@ export async function GET(req: NextRequest) {
         const products = await prisma.product.findMany({
             where: catalogId ? { catalogs: { some: { catalogId: parseInt(catalogId) } } } : undefined,
             include: {
-                texts: { where: { language: "it" } },
+                texts: true,
                 prices: { where: { listName: "default" } },
                 extraFields: true,
-                images: { select: { id: true, imageUrl: true } }
+                images: { select: { id: true, imageUrl: true } },
+                tags: { include: { tag: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
 
         const mapped = products.map(p => {
-            const itText = p.texts?.[0] || {};
+            const translations: Record<string, any> = {};
+            p.texts.forEach(t => {
+                translations[t.language] = {
+                    title: t.title,
+                    description: t.description,
+                    bulletPoints: t.bulletPoints,
+                    seoAiText: t.seoAiText,
+                    docDescription: t.docDescription
+                };
+            });
+
+            const itText = translations["it"] || {};
             const defPrice = p.prices?.[0] || {};
 
             // Build the dynamic extra fields object + reconstruct legacy
@@ -223,23 +275,26 @@ export async function GET(req: NextRequest) {
                 parentSku: p.parentSku,
                 brand: p.brand,
                 category: p.category,
-                // Maps Text
+                // Maps Text (defaults to it for compatibility)
                 title: itText.title || "",
                 description: itText.description || "",
                 docDescription: itText.docDescription || "",
                 bulletPoints: itText.bulletPoints || "",
                 seoAiText: itText.seoAiText || "",
-                // Maps Price
+                // Translations 
+                translations,
+                // Price
                 price: defPrice.price !== undefined ? String(defPrice.price) : "",
-                // Maps Legacy Extra
+                // Legacy Extra
                 dimensions,
                 weight,
                 material,
                 // Dynamic Extra
                 extraFields: extraObj,
-                // Maps Images
+                // Images
                 images: p.images.map(img => ({ id: img.id.toString(), url: img.imageUrl })),
-
+                // Tags
+                productTags: p.tags.map(pt => ({ tagId: pt.tagId })),
                 catalogId: catalogId ? parseInt(catalogId) : undefined
             };
         });

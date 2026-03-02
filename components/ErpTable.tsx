@@ -5,9 +5,13 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { Search, Plus, X, Edit, Trash2, Box, Package, RefreshCw, Globe, Settings, LayoutGrid, List, Sparkles, History, CheckCircle2, ChevronRight, AlertCircle, Save } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import EdgeScroll from "./EdgeScroll";
+import { SearchableSelect } from "./SearchableSelect";
+import { MultiSearchableSelect } from "./MultiSearchableSelect";
 
 export default function ErpTable() {
     const [products, setProducts] = useState<any[]>([]);
+    const [allCategories, setAllCategories] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
@@ -23,6 +27,9 @@ export default function ErpTable() {
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [pdfSearchResults, setPdfSearchResults] = useState<any[]>([]);
     const [isSearchingPdf, setIsSearchingPdf] = useState(false);
+    const [allTags, setAllTags] = useState<any[]>([]);
+    const [editLang, setEditLang] = useState<string>("it");
+    const [productTranslations, setProductTranslations] = useState<Record<string, any>>({});
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
         if (!url || url.startsWith('PAGE_REF_')) return url;
@@ -59,10 +66,26 @@ export default function ErpTable() {
     const [isConnectingWoo, setIsConnectingWoo] = useState(false);
     const [isPublishingWoo, setIsPublishingWoo] = useState(false);
 
+    const fetchCategories = async () => {
+        try {
+            const res = await axios.get('/api/categories?all=true');
+            setAllCategories(res.data);
+        } catch (err) { }
+    };
+
+    const fetchTags = async () => {
+        try {
+            const res = await axios.get('/api/tags');
+            setAllTags(res.data);
+        } catch (err) { }
+    };
+
     useEffect(() => {
         const saved = localStorage.getItem("pim_woo_config");
         if (saved) setWooConfig(JSON.parse(saved));
         fetchProducts(); // Initial data load
+        fetchCategories();
+        fetchTags();
     }, []);
 
     const testWooConnection = async () => {
@@ -76,6 +99,19 @@ export default function ErpTable() {
             toast.error(err.response?.data?.error || "Connessione fallita");
         } finally {
             setIsConnectingWoo(false);
+        }
+    };
+
+    const handleAddCategory = async (name: string, parentId: number | null, level: 1 | 2 | 3) => {
+        try {
+            const res = await axios.post('/api/categories', { name, parentId });
+            setAllCategories([...allCategories, res.data]);
+            if (level === 1) setSelectedProduct({ ...selectedProduct, categoryId: res.data.id, subCategoryId: null, subSubCategoryId: null });
+            if (level === 2) setSelectedProduct({ ...selectedProduct, subCategoryId: res.data.id, subSubCategoryId: null });
+            if (level === 3) setSelectedProduct({ ...selectedProduct, subSubCategoryId: res.data.id });
+            toast.success("Categoria creata!");
+        } catch (err) {
+            toast.error("Errore creazione categoria");
         }
     };
 
@@ -201,11 +237,19 @@ export default function ErpTable() {
 
                     setSelectedProduct((prev: any) => {
                         if (!prev) return null;
+                        const tt = { ...(prev.translations || {}) };
+                        if (!tt[editLang]) tt[editLang] = {};
+
+                        tt[editLang] = {
+                            ...tt[editLang],
+                            seoAiText: newShortDescription || tt[editLang].seoAiText,
+                            description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
+                            bulletPoints: newBullets || tt[editLang].bulletPoints,
+                        };
+
                         return {
                             ...prev,
-                            seoAiText: newShortDescription || prev.seoAiText,
-                            description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
-                            bulletPoints: newBullets || prev.bulletPoints,
+                            translations: tt,
                             extraFields: {
                                 ...(prev.extraFields || {}),
                                 ...parsedFields
@@ -442,7 +486,7 @@ export default function ErpTable() {
                         <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">PIM Inventory Engine / Realtime Sync</span>
                     </div>
                 </div>
-                <div className="overflow-x-auto">
+                <EdgeScroll>
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400">
                             <tr>
@@ -527,7 +571,7 @@ export default function ErpTable() {
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </EdgeScroll>
             </div>
 
             {/* Modale Modifica */}
@@ -585,18 +629,30 @@ export default function ErpTable() {
                                 </div>
                             </div>
 
-                            {/* PIM Tabs */}
-                            <div className="flex px-4 bg-white border-b border-gray-200 sticky top-0 z-10 overflow-x-auto no-scrollbar">
-                                <TabButton id="info" label="Generale" icon={Package} />
-                                <TabButton id="images" label="Media Assets" icon={Box} />
-                                <TabButton id="seo" label="Marketing & SEO" icon={Globe} />
-                                <TabButton id="attributes" label="Caratteristiche principali / bullet point" icon={Settings} />
-                                <TabButton id="woocommerce" label="Canali Sync" icon={RefreshCw} />
-                                <TabButton id="history" label="Log Modifiche" icon={History} />
+                            {/* Tabs Navigation */}
+                            <div className="px-8 bg-white border-b border-gray-100 flex items-center justify-between">
+                                <div className="flex overflow-x-auto no-scrollbar">
+                                    <TabButton id="info" label="Generale" icon={Package} />
+                                    <TabButton id="images" label="Media & Asset" icon={LayoutGrid} />
+                                    <TabButton id="seo" label="SEO & AI Content" icon={Sparkles} />
+                                    <TabButton id="attributes" label="Specifiche & Bullet" icon={List} />
+                                    <TabButton id="woocommerce" label="Omnichannel" icon={Globe} />
+                                    <TabButton id="history" label="Cronologia" icon={History} />
+                                </div>
+                                <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                    {['it', 'en', 'fr', 'de', 'es'].map(lang => (
+                                        <button
+                                            key={lang}
+                                            onClick={() => setEditLang(lang)}
+                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editLang === lang ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                                        >
+                                            {lang}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* Body Modale */}
-                            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 bg-[#F9FAFB]">
+                            <div className="p-8 overflow-y-auto flex-1 bg-[#F9FAFB] custom-scrollbar">
                                 {activeTab === 'info' && (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-2">
                                         <div className="space-y-6">
@@ -606,29 +662,108 @@ export default function ErpTable() {
                                                 </h4>
                                                 <div className="space-y-5">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Denominazione Articolo</label>
+                                                        <div className="flex justify-between items-center mb-2">
+                                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1">Titolo Prodotto ({editLang})</label>
+                                                            <span className="text-[8px] font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full uppercase">PIM Global Name</span>
+                                                        </div>
                                                         <input
-                                                            value={selectedProduct.title || ""}
-                                                            onChange={e => setSelectedProduct({ ...selectedProduct, title: e.target.value })}
-                                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 focus:border-slate-400 transition-all text-sm"
+                                                            value={selectedProduct.translations?.[editLang]?.title || ""}
+                                                            onChange={e => {
+                                                                const tt = { ...selectedProduct.translations };
+                                                                if (!tt[editLang]) tt[editLang] = {};
+                                                                tt[editLang].title = e.target.value;
+                                                                setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                            }}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-emerald-50 transition-all text-sm shadow-sm"
+                                                            placeholder="Inserisci il titolo della variante..."
                                                         />
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div>
-                                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Categoria PIM</label>
-                                                            <input
-                                                                value={selectedProduct.category || ""}
-                                                                onChange={e => setSelectedProduct({ ...selectedProduct, category: e.target.value })}
-                                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 transition-all text-sm"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Marchio / Brand</label>
+                                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Brand</label>
                                                             <input
                                                                 value={selectedProduct.brand || ""}
                                                                 onChange={e => setSelectedProduct({ ...selectedProduct, brand: e.target.value })}
                                                                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-slate-50/50 transition-all text-sm"
                                                             />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">TAG Prodotto</label>
+                                                            <MultiSearchableSelect
+                                                                options={allTags.map(t => ({ value: t.id, label: t.name }))}
+                                                                value={selectedProduct.productTags?.map((pt: any) => pt.tagId) || []}
+                                                                onChange={(newTagIds) => {
+                                                                    const newProductTags = newTagIds.map(tid => ({ tagId: tid }));
+                                                                    setSelectedProduct({ ...selectedProduct, productTags: newProductTags });
+                                                                }}
+                                                                onAddNew={async (name) => {
+                                                                    try {
+                                                                        const res = await axios.post('/api/tags', { name });
+                                                                        setAllTags([...allTags, res.data]);
+                                                                        const currentTags = selectedProduct.productTags?.map((pt: any) => pt.tagId) || [];
+                                                                        setSelectedProduct({ ...selectedProduct, productTags: [...currentTags.map((tid: any) => ({ tagId: tid })), { tagId: res.data.id }] });
+                                                                    } catch (err) {
+                                                                        toast.error("Errore creazione tag");
+                                                                    }
+                                                                }}
+                                                                placeholder="Associa o crea TAG..."
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-4 pt-4 border-t border-gray-50">
+                                                        <h5 className="text-[10px] font-black uppercase tracking-widest text-gray-400">Classificazione Categorie</h5>
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            <div>
+                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 ml-1 mb-2 block">Livello 1 (Root)</label>
+                                                                <SearchableSelect
+                                                                    options={allCategories.filter(c => !c.parentId).map(c => ({ value: c.id, label: c.name }))}
+                                                                    value={selectedProduct.categoryId || null}
+                                                                    onAddNew={(name) => handleAddCategory(name, null, 1)}
+                                                                    onChange={(val) => {
+                                                                        setSelectedProduct({
+                                                                            ...selectedProduct,
+                                                                            categoryId: val ? Number(val) : null,
+                                                                            subCategoryId: null,
+                                                                            subSubCategoryId: null
+                                                                        });
+                                                                    }}
+                                                                    placeholder="Categoria Root..."
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 ml-1 mb-2 block">Livello 2 (Sub)</label>
+                                                                <SearchableSelect
+                                                                    options={allCategories.filter(c => c.parentId === selectedProduct.categoryId).map(c => ({ value: c.id, label: c.name }))}
+                                                                    value={selectedProduct.subCategoryId || null}
+                                                                    onAddNew={(name) => handleAddCategory(name, selectedProduct.categoryId, 2)}
+                                                                    onChange={(val) => {
+                                                                        setSelectedProduct({
+                                                                            ...selectedProduct,
+                                                                            subCategoryId: val ? Number(val) : null,
+                                                                            subSubCategoryId: null
+                                                                        });
+                                                                    }}
+                                                                    placeholder="Sottocategoria..."
+                                                                    disabled={!selectedProduct.categoryId}
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 ml-1 mb-2 block">Livello 3 (Sub-Sub)</label>
+                                                                <SearchableSelect
+                                                                    options={allCategories.filter(c => c.parentId === selectedProduct.subCategoryId).map(c => ({ value: c.id, label: c.name }))}
+                                                                    value={selectedProduct.subSubCategoryId || null}
+                                                                    onAddNew={(name) => handleAddCategory(name, selectedProduct.subCategoryId, 3)}
+                                                                    onChange={(val) => {
+                                                                        setSelectedProduct({
+                                                                            ...selectedProduct,
+                                                                            subSubCategoryId: val ? Number(val) : null
+                                                                        });
+                                                                    }}
+                                                                    placeholder="Sottocategoria LVL 3..."
+                                                                    disabled={!selectedProduct.subCategoryId}
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -668,10 +803,15 @@ export default function ErpTable() {
                                                 <div className="grid grid-cols-2 gap-5">
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Genitore Varianti (SKU)</label>
-                                                        <input
-                                                            value={selectedProduct.parentSku || ""}
-                                                            onChange={e => setSelectedProduct({ ...selectedProduct, parentSku: e.target.value })}
-                                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono font-bold text-gray-900 focus:outline-none text-sm"
+                                                        <SearchableSelect
+                                                            options={products.map((p) => ({
+                                                                value: p.sku,
+                                                                label: p.sku,
+                                                                subLabel: p.title || p.ean
+                                                            }))}
+                                                            value={selectedProduct.parentSku || null}
+                                                            onChange={(val) => setSelectedProduct({ ...selectedProduct, parentSku: val ? String(val) : "" })}
+                                                            placeholder="Cerca SKU genitore..."
                                                         />
                                                     </div>
                                                     <div>
@@ -902,7 +1042,7 @@ export default function ErpTable() {
                                             <div className="space-y-6">
                                                 <div>
                                                     <div className="flex justify-between items-center mb-3">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Breve & SEO)</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Breve & SEO) ({editLang})</label>
                                                         <button
                                                             onClick={handleGenerateAIDescription}
                                                             disabled={isGeneratingAI}
@@ -913,17 +1053,27 @@ export default function ErpTable() {
                                                         </button>
                                                     </div>
                                                     <textarea
-                                                        value={selectedProduct.seoAiText || ""}
-                                                        onChange={e => setSelectedProduct({ ...selectedProduct, seoAiText: e.target.value })}
+                                                        value={selectedProduct.translations?.[editLang]?.seoAiText || ""}
+                                                        onChange={e => {
+                                                            const tt = { ...selectedProduct.translations };
+                                                            if (!tt[editLang]) tt[editLang] = {};
+                                                            tt[editLang].seoAiText = e.target.value;
+                                                            setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                        }}
                                                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold text-gray-800 min-h-[100px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all resize-y custom-scrollbar text-sm leading-relaxed mb-6"
                                                         placeholder="L'estratto breve o meta description apparirà qui..."
                                                     />
                                                     <div className="flex justify-between items-center mb-3">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Lungo)</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Lungo) ({editLang})</label>
                                                     </div>
                                                     <textarea
-                                                        value={selectedProduct.description || ""}
-                                                        onChange={e => setSelectedProduct({ ...selectedProduct, description: e.target.value })}
+                                                        value={selectedProduct.translations?.[editLang]?.description || ""}
+                                                        onChange={e => {
+                                                            const tt = { ...selectedProduct.translations };
+                                                            if (!tt[editLang]) tt[editLang] = {};
+                                                            tt[editLang].description = e.target.value;
+                                                            setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                        }}
                                                         className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold text-gray-800 min-h-[300px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all resize-y custom-scrollbar text-sm leading-relaxed"
                                                         placeholder="La descrizione professionale apparirà qui..."
                                                     />
@@ -949,16 +1099,57 @@ export default function ErpTable() {
                                                 <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase">Professional PIM Data</span>
                                             </div>
 
-                                            <div className="space-y-6">
-                                                <div>
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-3 block">Caratteristiche principali / bullet point</label>
-                                                    <textarea
-                                                        value={selectedProduct.bulletPoints || ""}
-                                                        onChange={e => setSelectedProduct({ ...selectedProduct, bulletPoints: e.target.value })}
-                                                        rows={6}
-                                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-gray-800 focus:outline-none focus:ring-4 focus:ring-emerald-50 transition-all resize-y custom-scrollbar text-sm leading-relaxed"
-                                                        placeholder="Inserisci qui le caratteristiche salienti..."
-                                                    />
+                                            <div className="space-y-4">
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 block">Caratteristiche principali / bullet point ({editLang})</label>
+                                                    <button
+                                                        onClick={() => {
+                                                            const currentBulletStr = selectedProduct.translations?.[editLang]?.bulletPoints || "";
+                                                            const currentBullets = currentBulletStr.split('\n').filter((b: string) => b.trim() !== "");
+                                                            currentBullets.push("- Nuovo Bullet");
+                                                            const tt = { ...selectedProduct.translations };
+                                                            if (!tt[editLang]) tt[editLang] = {};
+                                                            tt[editLang].bulletPoints = currentBullets.join('\n');
+                                                            setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                        }}
+                                                        className="text-[9px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-all flex items-center gap-1"
+                                                    >
+                                                        <Plus className="w-3 h-3" /> Aggiungi Bullet
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
+                                                    {(selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "").map((bullet: string, idx: number) => (
+                                                        <div key={idx} className="flex gap-3 items-center group bg-slate-50/50 p-2 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
+                                                            <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-black shrink-0 text-[10px] shadow-lg shadow-slate-200">{idx + 1}</div>
+                                                            <input
+                                                                value={bullet.replace(/^-\s*/, '')}
+                                                                onChange={e => {
+                                                                    const val = e.target.value;
+                                                                    const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                    arr[idx] = val ? `- ${val}` : "";
+                                                                    const tt = { ...selectedProduct.translations };
+                                                                    if (!tt[editLang]) tt[editLang] = {};
+                                                                    tt[editLang].bulletPoints = arr.join('\n');
+                                                                    setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                                }}
+                                                                className="w-full px-4 py-3 bg-white border border-slate-100 focus:border-emerald-300 rounded-xl text-sm font-bold text-gray-800 transition-all outline-none shadow-sm"
+                                                                placeholder={`Inserisci bullet ${idx + 1}...`}
+                                                            />
+                                                            <button
+                                                                onClick={() => {
+                                                                    const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                    arr.splice(idx, 1);
+                                                                    const tt = { ...selectedProduct.translations };
+                                                                    if (!tt[editLang]) tt[editLang] = {};
+                                                                    tt[editLang].bulletPoints = arr.join('\n');
+                                                                    setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                                }}
+                                                                className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-50">
@@ -1154,8 +1345,7 @@ export default function ErpTable() {
                             </div>
                         </motion.div>
                     </div>
-                )
-                }
+                )}
             </AnimatePresence>
             {/* WooCommerce Configuration Modal */}
             <AnimatePresence>
@@ -1244,8 +1434,7 @@ export default function ErpTable() {
                         </div>
                     )
                 }
-            </AnimatePresence>
-
+            </AnimatePresence >
             {/* Bulk Action Bar */}
             <AnimatePresence>
                 {
@@ -1283,8 +1472,7 @@ export default function ErpTable() {
                                 </button>
                             </div>
                         </motion.div>
-                    )
-                }
+                    )}
             </AnimatePresence>
         </div>
     );
