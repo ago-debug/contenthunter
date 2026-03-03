@@ -404,11 +404,14 @@ export default function ImportLab() {
         const toastId = toast.loading(`Caricamento PDF: ${file.name}...`);
 
         try {
-            const formData = new FormData();
-            formData.append("file", file);
+            const arrayBuffer = await file.arrayBuffer();
 
-            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, formData, {
-                headers: { "Content-Type": "multipart/form-data" }
+            // Send raw binary to avoid FormData parsing overhead and memory limits in Next.js
+            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, arrayBuffer, {
+                headers: {
+                    "Content-Type": "application/pdf",
+                    "X-File-Name": encodeURIComponent(file.name)
+                }
             });
 
             toast.update(toastId, { render: "PDF caricato con successo!", type: "success", isLoading: false, autoClose: 3000 });
