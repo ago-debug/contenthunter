@@ -112,10 +112,11 @@ export default function ImportLab() {
     const loadPdfPages = async (url: string) => {
         if (!url) return;
 
-        const safeStorageUrl = url.startsWith('/') ? url : `/${url}`;
+        const safeStorageUrl = (url.startsWith('/') ? url.substring(1) : url).split('/').map(s => encodeURIComponent(s)).join('/');
+        const finalUrl = `/${safeStorageUrl}`;
 
         try {
-            const loadingTask = pdfjsLib.getDocument(safeStorageUrl);
+            const loadingTask = pdfjsLib.getDocument(finalUrl);
             const pdf = await loadingTask.promise;
             const pages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
@@ -191,8 +192,8 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const safePdfPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
-                const loadingTask = pdfjsLib.getDocument(safePdfPath);
+                const safePdfPath = (pdf.filePath.startsWith('/') ? pdf.filePath.substring(1) : pdf.filePath).split('/').map((s: string) => encodeURIComponent(s)).join('/');
+                const loadingTask = pdfjsLib.getDocument(`/${safePdfPath}`);
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -434,8 +435,8 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const safePdfPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
-                const loadingTask = pdfjsLib.getDocument(safePdfPath);
+                const safePdfPath = (pdf.filePath.startsWith('/') ? pdf.filePath.substring(1) : pdf.filePath).split('/').map((s: string) => encodeURIComponent(s)).join('/');
+                const loadingTask = pdfjsLib.getDocument(`/${safePdfPath}`);
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
