@@ -31,7 +31,13 @@ export async function POST(req: NextRequest) {
             const catalog = await prisma.catalog.create({
                 data: {
                     name: name,
-                    filePath: `/uploads/${fileName}`,
+                    status: "draft",
+                    pdfs: {
+                        create: {
+                            fileName: name,
+                            filePath: `/uploads/${fileName}`
+                        }
+                    }
                 },
             });
             catalogId = catalog.id;

@@ -30,7 +30,8 @@ export async function GET(
                     },
                     orderBy: { productId: 'desc' }
                 },
-                searchSources: true
+                searchSources: true,
+                pdfs: true
             }
         });
 
