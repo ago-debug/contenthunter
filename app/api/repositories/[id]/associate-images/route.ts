@@ -72,8 +72,26 @@ export async function POST(
             }
         }
 
-        // 1. Build a map of all available images
-        const imageMap = buildImageMap(localPath, localPath);
+        const indexPath = path.join(localPath, "images_index.json");
+        let imageMap: Record<string, string[]> = {};
+
+        // 1. Load or Build the Image Map
+        if (fs.existsSync(indexPath)) {
+            try {
+                const indexData = fs.readFileSync(indexPath, 'utf-8');
+                imageMap = JSON.parse(indexData);
+                console.log("Loaded image map from index JSON");
+            } catch (e) {
+                console.error("Error reading index JSON, rebuilding...");
+                imageMap = buildImageMap(localPath, localPath);
+                // Save index for next time
+                fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
+            }
+        } else {
+            imageMap = buildImageMap(localPath, localPath);
+            // Save index for next time (non-recursive skip for the json itself is handled in buildImageMap)
+            fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
+        }
 
         // 2. Fetch all products in staging for this catalog
         const products = await prisma.stagingProduct.findMany({

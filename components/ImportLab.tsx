@@ -129,20 +129,20 @@ export default function ImportLab() {
     };
 
     // Recursive Image Association (Batch Mode)
-    const handleAutoImageAssociation = async () => {
+    const handleFolderImageAssociation = async () => {
         if (!repository?.imageFolderPath || !catalogIdParam) {
             toast.warning("Configura il percorso cartella immagini nelle impostazioni repository.");
             return;
         }
 
-        const toastId = toast.loading("Ricerca immagini automatica in corso (Recursive Scan)...");
+        const toastId = toast.loading("Ricerca immagini da cartella (Recursive Scan)...");
 
         try {
             const res = await axios.post(`/api/repositories/${catalogIdParam}/associate-images`);
 
             if (res.data.success) {
                 toast.update(toastId, {
-                    render: `Associazione completata: ${res.data.count} immagini associate con successo.`,
+                    render: `Associazione completata: ${res.data.count} immagini associate con successo dalla cartella.`,
                     type: "success",
                     isLoading: false,
                     autoClose: 3000
@@ -160,6 +160,15 @@ export default function ImportLab() {
                 autoClose: 4000
             });
         }
+    };
+
+    // PDF Image Association (Placeholder/Basic Logic)
+    const handlePdfImageAssociation = async () => {
+        if (!catalogIdParam) return;
+
+        toast.info("Funzionalità in fase di attivazione: Associazione immagini estratte da PDF.");
+        // We can trigger the PDF search logic here as well or a specialized one
+        handlePdfSearch();
     };
 
     // Text Normalization & Sanitization
@@ -420,18 +429,25 @@ export default function ImportLab() {
                         Carica PDF
                     </button>
                     <button
-                        onClick={handleAutoImageAssociation}
+                        onClick={handleFolderImageAssociation}
                         className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
                     >
-                        <Wand2 className="w-4 h-4 text-blue-500" />
-                        Associa Immagini
+                        <HardDrive className="w-4 h-4 text-blue-500" />
+                        Associa da Cartella
+                    </button>
+                    <button
+                        onClick={handlePdfImageAssociation}
+                        className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
+                    >
+                        <FileText className="w-4 h-4 text-orange-500" />
+                        Associa da PDF
                     </button>
                     <button
                         onClick={handlePdfSearch}
                         className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
                     >
-                        {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanSearch className="w-4 h-4 text-orange-500" />}
-                        Ricerca in PDF
+                        {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanSearch className="w-4 h-4 text-slate-500" />}
+                        Scan SKU in PDF
                     </button>
                     <button className="px-8 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-2 ml-4">
                         <Sparkles className="w-4 h-4" />
