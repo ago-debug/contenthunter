@@ -11,8 +11,7 @@ export async function GET() {
                         stagingProducts: true
                     }
                 },
-                pdfs: true,
-                lastListinoName: true
+                pdfs: true
             },
             orderBy: { createdAt: 'desc' }
         });
