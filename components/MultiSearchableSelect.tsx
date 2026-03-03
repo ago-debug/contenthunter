@@ -55,7 +55,7 @@ export function MultiSearchableSelect({
     const isAdded = options.some(o => o.label.toLowerCase() === searchTerm.toLowerCase());
 
     return (
-        <div className={`relative ${className}`} ref={ref}>
+        <div className={`relative ${isOpen ? 'z-[200]' : 'z-0'} ${className}`} ref={ref}>
             <div
                 className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 flex flex-wrap gap-2 min-h-[44px] cursor-text hover:border-slate-400 transition-all"
                 onClick={() => setIsOpen(true)}

@@ -40,7 +40,7 @@ export function SearchableSelect({ options, value, onChange, onAddNew, placehold
     );
 
     return (
-        <div className={`relative ${className}`} ref={ref}>
+        <div className={`relative ${isOpen ? 'z-[200]' : 'z-0'} ${className}`} ref={ref}>
             <div
                 className={`w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-slate-400'}`}
                 onClick={() => !disabled && setIsOpen(!isOpen)}
@@ -52,7 +52,7 @@ export function SearchableSelect({ options, value, onChange, onAddNew, placehold
             </div>
 
             {isOpen && !disabled && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-50 overflow-hidden max-h-60 flex flex-col">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] overflow-hidden max-h-60 flex flex-col">
                     <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-slate-50/50">
                         <Search className="w-4 h-4 text-slate-400" />
                         <input
