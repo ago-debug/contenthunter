@@ -38,23 +38,6 @@ export default function ErpTable() {
     const [isTranslating, setIsTranslating] = useState(false);
     const [productTranslations, setProductTranslations] = useState<Record<string, any>>({});
 
-    // Ref and state for dynamic sticky header docking
-    const headerRef = useRef<HTMLDivElement>(null);
-    const [headerHeight, setHeaderHeight] = useState(144);
-
-    useEffect(() => {
-        if (headerRef.current) {
-            const updateHeight = () => {
-                if (headerRef.current) {
-                    setHeaderHeight(headerRef.current.getBoundingClientRect().height);
-                }
-            };
-            updateHeight(); // Initial check
-            const observer = new ResizeObserver(updateHeight);
-            observer.observe(headerRef.current);
-            return () => observer.disconnect();
-        }
-    }, []);
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
         if (!url || url.startsWith('PAGE_REF_')) return url;
@@ -526,12 +509,9 @@ export default function ErpTable() {
     );
 
     return (
-        <div className="p-0 bg-[#F4F5F7] min-h-screen relative overflow-visible">
-            {/* Sticky Main Header Block - Consolidated */}
-            <div
-                ref={headerRef}
-                className="sticky top-0 z-[60] p-5 pb-0 bg-[#F4F5F7]/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm space-y-4"
-            >
+        <div className="flex flex-col h-[calc(100vh-80px)] bg-[#F4F5F7] overflow-hidden">
+            {/* Fixed Main Header Block */}
+            <div className="flex-none p-5 pb-0 z-[60] bg-[#F4F5F7]/95 backdrop-blur-md shadow-sm space-y-4">
                 <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
@@ -641,8 +621,8 @@ export default function ErpTable() {
                     </div>
                 </div>
 
-                {/* Final part of the sticky block - Status Bar - Fused bottom */}
-                <div className="px-5 py-2 whitespace-nowrap bg-white/40 backdrop-blur-xl border-x border-t border-white/60 rounded-t-2xl flex justify-between items-center shadow-sm">
+                {/* Final part of the fixed block - Status Bar - Fused bottom */}
+                <div className="px-5 py-2.5 whitespace-nowrap bg-white/40 backdrop-blur-xl border border-gray-200/60 rounded-t-2xl flex justify-between items-center shadow-sm -mb-[1px]">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">PIM Inventory Engine / Realtime Sync</span>
@@ -650,15 +630,14 @@ export default function ErpTable() {
                 </div>
             </div>
 
-            {/* Table Area - Fused with header block above */}
-            <div className="px-5 pb-5">
-                <div className="bg-white shadow-sm border-x border-b border-gray-200/60 overflow-visible relative">
+            {/* Dedicated Scrollable Table Area */}
+            <div className="flex-1 overflow-y-auto px-5 pb-5 custom-scrollbar relative z-10">
+                <div className="bg-white shadow-sm border border-gray-200/60 rounded-b-2xl min-h-full">
                     <EdgeScroll className="overflow-visible">
                         <table className="w-full text-left border-collapse">
-                            {/* Precisely docked column headers - dynamically tracking header height */}
+                            {/* Flawlessly docked column headers that stick to 0 of their scroll container */}
                             <thead
-                                className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky z-[55] shadow-sm transform-gpu"
-                                style={{ top: `${headerHeight}px` }}
+                                className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-0 z-[55] shadow-sm transform-gpu"
                             >
                                 <tr>
                                     <th className="px-4 py-3 w-8">
