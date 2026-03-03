@@ -165,11 +165,69 @@ export default function ImportLab() {
 
     // PDF Image Association (Placeholder/Basic Logic)
     const handlePdfImageAssociation = async () => {
-        if (!catalogIdParam) return;
+        if (!repository?.pdfs?.length || products.length === 0) {
+            toast.warning("Carica almeno un PDF e un listino per iniziare.");
+            return;
+        }
 
-        toast.info("Funzionalità in fase di attivazione: Associazione immagini estratte da PDF.");
-        // We can trigger the PDF search logic here as well or a specialized one
-        handlePdfSearch();
+        const toastId = toast.loading("Estrazione immagini dai PDF in corso...");
+        setIsSearchingPdf(true);
+
+        try {
+            let associationsCount = 0;
+            const updatedProducts = [...products];
+
+            for (const pdf of repository.pdfs) {
+                const pdfUrl = `/api/storage?path=${encodeURIComponent(pdf.filePath)}`;
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdfDoc = await loadingTask.promise;
+
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
+
+                    const skusInPage = updatedProducts.filter(p => p.sku && pageText.includes(p.sku.toLowerCase()));
+
+                    if (skusInPage.length > 0) {
+                        // Render page to canvas
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        const canvas = document.createElement("canvas");
+                        const context = canvas.getContext("2d");
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        await page.render({ canvasContext: context!, viewport }).promise;
+                        const imageDataUrl = canvas.toDataURL("image/jpeg", 0.8);
+
+                        for (const product of skusInPage) {
+                            try {
+                                await axios.post(`/api/repositories/${catalogIdParam}/staging-image`, {
+                                    stagingProductId: product.id,
+                                    imageUrl: imageDataUrl
+                                });
+                                associationsCount++;
+                            } catch (e) {
+                                console.error("Failed to associate image for SKU", product.sku);
+                            }
+                        }
+                    }
+                }
+            }
+
+            fetchRepository(parseInt(catalogIdParam!));
+            toast.update(toastId, {
+                render: `Associazione PDF completata: ${associationsCount} immagini associate.`,
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+        } catch (err: any) {
+            console.error("PDF Image Association error:", err);
+            toast.update(toastId, { render: "Errore durante l'associazione immagini da PDF.", type: "error", isLoading: false, autoClose: 3000 });
+        } finally {
+            setIsSearchingPdf(false);
+        }
     };
 
     // Text Normalization & Sanitization
@@ -313,13 +371,56 @@ export default function ImportLab() {
 
     // Global PDF Search
     const handlePdfSearch = async () => {
+        if (!repository?.pdfs?.length || products.length === 0) {
+            toast.warning("Carica almeno un PDF e un listino per iniziare la ricerca.");
+            return;
+        }
+
         setIsSearchingPdf(true);
-        // This would involve scanning all pages of all PDFs for SKUs in the list
-        // For now, let's pretend we found some
-        setTimeout(() => {
+        const toastId = toast.loading("Scansione PDF in corso (Testi)...");
+        let matchesCount = 0;
+
+        try {
+            const updatedProducts = [...products];
+
+            for (const pdf of repository.pdfs) {
+                const pdfUrl = `/api/storage?path=${encodeURIComponent(pdf.filePath)}`;
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdfDoc = await loadingTask.promise;
+
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
+
+                    for (const product of updatedProducts) {
+                        if (!product.sku) continue;
+                        const sku = product.sku.toLowerCase();
+
+                        if (pageText.includes(sku)) {
+                            if (!product.foundInPdf) product.foundInPdf = [];
+                            if (!product.foundInPdf.find(f => f.pdfId === pdf.id && f.pageNumber === i)) {
+                                product.foundInPdf.push({ pageNumber: i, pdfId: pdf.id });
+                                matchesCount++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            setProducts(updatedProducts);
+            toast.update(toastId, {
+                render: `Ricerca completata: ${matchesCount} riferimenti trovati nei PDF.`,
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+        } catch (err: any) {
+            console.error("PDF Search error:", err);
+            toast.update(toastId, { render: "Errore durante la scansione del PDF.", type: "error", isLoading: false, autoClose: 3000 });
+        } finally {
             setIsSearchingPdf(false);
-            toast.info("Ricerca PDF completata (Demo Mode)");
-        }, 2000);
+        }
     };
 
     if (loading && !allRepositories.length) return <div className="p-12 text-center font-black text-slate-400 animate-pulse tracking-widest text-xs uppercase">Inizializzazione Import Lab V3.1...</div>;
