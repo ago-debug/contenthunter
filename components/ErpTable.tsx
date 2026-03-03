@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -37,6 +37,24 @@ export default function ErpTable() {
     const [editLang, setEditLang] = useState<string>("it");
     const [isTranslating, setIsTranslating] = useState(false);
     const [productTranslations, setProductTranslations] = useState<Record<string, any>>({});
+
+    // Ref and state for dynamic sticky header docking
+    const headerRef = useRef<HTMLDivElement>(null);
+    const [headerHeight, setHeaderHeight] = useState(144);
+
+    useEffect(() => {
+        if (headerRef.current) {
+            const updateHeight = () => {
+                if (headerRef.current) {
+                    setHeaderHeight(headerRef.current.getBoundingClientRect().height);
+                }
+            };
+            updateHeight(); // Initial check
+            const observer = new ResizeObserver(updateHeight);
+            observer.observe(headerRef.current);
+            return () => observer.disconnect();
+        }
+    }, []);
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
         if (!url || url.startsWith('PAGE_REF_')) return url;
@@ -510,7 +528,10 @@ export default function ErpTable() {
     return (
         <div className="p-0 bg-[#F4F5F7] min-h-screen relative overflow-visible">
             {/* Sticky Main Header Block - Consolidated */}
-            <div className="sticky top-0 z-[60] p-5 pb-0 bg-[#F4F5F7]/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm space-y-4">
+            <div
+                ref={headerRef}
+                className="sticky top-0 z-[60] p-5 pb-0 bg-[#F4F5F7]/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm space-y-4"
+            >
                 <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
@@ -634,8 +655,11 @@ export default function ErpTable() {
                 <div className="bg-white shadow-sm border-x border-b border-gray-200/60 overflow-visible relative">
                     <EdgeScroll className="overflow-visible">
                         <table className="w-full text-left border-collapse">
-                            {/* Precisely docked column headers - offset tuned to 144px for perfect seamless joining */}
-                            <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[144px] z-[55] shadow-sm">
+                            {/* Precisely docked column headers - dynamically tracking header height */}
+                            <thead
+                                className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky z-[55] shadow-sm transform-gpu"
+                                style={{ top: `${headerHeight}px` }}
+                            >
                                 <tr>
                                     <th className="px-4 py-3 w-8">
                                         <input
