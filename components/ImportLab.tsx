@@ -63,6 +63,7 @@ export default function ImportLab() {
     const [currentImportFile, setCurrentImportFile] = useState<string>("");
     const [isSavingStaging, setIsSavingStaging] = useState(false);
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+    const [isExtractingAi, setIsExtractingAi] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pdfInputRef = useRef<HTMLInputElement>(null);
 
@@ -474,7 +475,38 @@ export default function ImportLab() {
         }
     };
 
+    // AI PDF Extraction
+    const handlePdfAiExtract = async () => {
+        if (!repository?.pdfs?.length || !catalogIdParam) {
+            toast.warning("Carica un PDF prima di lanciare l'IA.");
+            return;
+        }
+
+        const currentPdfId = repository.pdfs[currentPdfIdx].id;
+
+        setIsExtractingAi(true);
+        const toastId = toast.loading("Il modello Brain AI sta smontando il PDF. Questa operazione può richiedere un minuto...");
+
+        try {
+            const res = await axios.post(`/api/repositories/${catalogIdParam}/pdfs/${currentPdfId}/extract`);
+            toast.update(toastId, {
+                render: `Magia completata ✨: ${res.data.count} prodotti estratti dal PDF!`,
+                type: "success",
+                isLoading: false,
+                autoClose: 5000
+            });
+            fetchRepository(parseInt(catalogIdParam));
+        } catch (err: any) {
+            console.error("AI Extractor error:", err);
+            const errorMsg = err.response?.data?.error || "Errore durante lo smontaggio del PDF";
+            toast.update(toastId, { render: errorMsg, type: "error", isLoading: false, autoClose: 5000 });
+        } finally {
+            setIsExtractingAi(false);
+        }
+    };
+
     if (loading && !allRepositories.length) return <div className="p-12 text-center font-black text-slate-400 animate-pulse tracking-widest text-xs uppercase">Inizializzazione Import Lab V3.1...</div>;
+
 
     if (!repository) return (
         <div className="flex-1 bg-slate-50/50 p-12 overflow-y-auto">
@@ -744,7 +776,19 @@ export default function ImportLab() {
                                 PDF Explorer
                             </h4>
                             <div className="flex items-center gap-2">
-                                <select className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-none rounded-lg px-2 py-1 outline-none">
+                                <button
+                                    onClick={handlePdfAiExtract}
+                                    disabled={isExtractingAi}
+                                    className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                    {isExtractingAi ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                                    Analizza con AI
+                                </button>
+                                <select
+                                    className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-none rounded-lg px-2 py-1 outline-none"
+                                    value={currentPdfIdx}
+                                    onChange={(e) => setCurrentPdfIdx(Number(e.target.value))}
+                                >
                                     {repository.pdfs.map((pdf: any, i: number) => (
                                         <option key={i} value={i}>{pdf.fileName}</option>
                                     ))}
