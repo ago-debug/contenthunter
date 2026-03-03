@@ -61,7 +61,9 @@ export default function ImportLab() {
         sku: "", ean: "", title: "", price: "", brand: "", category: ""
     });
     const [isSavingStaging, setIsSavingStaging] = useState(false);
+    const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const pdfInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -217,6 +219,31 @@ export default function ImportLab() {
         }
     };
 
+    // PDF Upload Handler
+    const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !catalogIdParam) return;
+
+        setIsUploadingPdf(true);
+        const toastId = toast.loading(`Caricamento PDF: ${file.name}...`);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            await axios.post(`/api/repositories/${catalogIdParam}/pdfs?name=${encodeURIComponent(file.name)}`, file, {
+                headers: { "Content-Type": "application/pdf" }
+            });
+
+            toast.update(toastId, { render: "PDF caricato con successo!", type: "success", isLoading: false, autoClose: 3000 });
+            fetchRepository(parseInt(catalogIdParam));
+        } catch (err) {
+            toast.update(toastId, { render: "Errore durante il caricamento del PDF.", type: "error", isLoading: false, autoClose: 3000 });
+        } finally {
+            setIsUploadingPdf(false);
+        }
+    };
+
     // Global PDF Search
     const handlePdfSearch = async () => {
         setIsSearchingPdf(true);
@@ -323,6 +350,21 @@ export default function ImportLab() {
                     >
                         <FileSpreadsheet className="w-4 h-4 text-green-600" />
                         Carica Listino
+                    </button>
+                    <input
+                        type="file"
+                        ref={pdfInputRef}
+                        className="hidden"
+                        accept=".pdf"
+                        onChange={handlePdfUpload}
+                    />
+                    <button
+                        onClick={() => pdfInputRef.current?.click()}
+                        disabled={isUploadingPdf}
+                        className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
+                    >
+                        {isUploadingPdf ? <RefreshCw className="w-4 h-4 animate-spin text-orange-500" /> : <FileText className="w-4 h-4 text-orange-600" />}
+                        Carica PDF
                     </button>
                     <button
                         onClick={handleAutoImageAssociation}
