@@ -302,6 +302,40 @@ export default function ImportLab() {
         reader.readAsArrayBuffer(file);
     };
 
+    const handleDeletePdf = async (pdfId: number) => {
+        if (!window.confirm("Sei sicuro di voler eliminare questo PDF?")) return;
+
+        try {
+            await axios.delete(`/api/repositories/${catalogIdParam}/pdfs/${pdfId}`);
+            toast.success("PDF eliminato con successo");
+            fetchRepository(parseInt(catalogIdParam!));
+        } catch (err: any) {
+            toast.error("Errore durante l'eliminazione del PDF");
+        }
+    };
+    const handleClearStaging = async () => {
+        if (!window.confirm("Sei sicuro di voler svuotare il listino? Tutti i dati non salvati andranno persi.")) return;
+
+        try {
+            await axios.delete(`/api/repositories/${catalogIdParam}/staging`);
+            toast.success("Listino rimosso con successo");
+            fetchRepository(parseInt(catalogIdParam!));
+        } catch (err: any) {
+            toast.error("Errore durante la rimozione del listino");
+        }
+    };
+
+    const handleClearStagingForRepo = async (repoId: number) => {
+        if (!window.confirm("Sei sicuro di voler svuotare il listino di questo repository?")) return;
+        try {
+            await axios.delete(`/api/repositories/${repoId}/staging`);
+            toast.success("Listino rimosso");
+            fetchAllRepositories();
+        } catch (err) {
+            toast.error("Errore");
+        }
+    };
+
     const handleConfirmImport = async () => {
         if (!mapping.sku) {
             toast.warning("Devi mappare almeno il campo SKU!");
@@ -453,7 +487,17 @@ export default function ImportLab() {
                                 <div className="flex-1 overflow-hidden">
                                     <h3 className="text-lg font-black text-slate-900 truncate group-hover:text-orange-600 transition-colors">{repo.name}</h3>
                                     <div className="flex flex-col">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(repo.createdAt).toLocaleDateString()}</p>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(repo.createdAt).toLocaleDateString()}</p>
+                                            {repo.lastListinoName && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleClearStagingForRepo(repo.id); }}
+                                                    className="p-1 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
                                         {repo.lastListinoName && (
                                             <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter truncate max-w-[150px]">
                                                 {repo.lastListinoName}
@@ -507,6 +551,15 @@ export default function ImportLab() {
                         <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
                             <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" /> {repository.imageFolderPath || "No Image Folder"}</span>
                             <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {repository.pdfs?.length || 0} PDF Sorgente</span>
+                            {repository.lastListinoName && (
+                                <span className="flex items-center gap-1 bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">
+                                    <FileSpreadsheet className="w-3 h-3 text-orange-400" />
+                                    {repository.lastListinoName}
+                                    <button onClick={handleClearStaging} className="ml-1 hover:text-red-600">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -673,11 +726,19 @@ export default function ImportLab() {
                                 <FileText className="w-3.5 h-3.5 text-orange-500" />
                                 PDF Explorer
                             </h4>
-                            <select className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-none rounded-lg px-2 py-1 outline-none">
-                                {repository.pdfs.map((pdf: any, i: number) => (
-                                    <option key={i} value={i}>{pdf.fileName}</option>
-                                ))}
-                            </select>
+                            <div className="flex items-center gap-2">
+                                <select className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-none rounded-lg px-2 py-1 outline-none">
+                                    {repository.pdfs.map((pdf: any, i: number) => (
+                                        <option key={i} value={i}>{pdf.fileName}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={() => handleDeletePdf(repository.pdfs[currentPdfIdx].id)}
+                                    className="p-1.5 hover:bg-red-50 text-slate-300 hover:text-red-500 rounded-lg transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         </div>
                         <div className="flex-1 bg-slate-50 overflow-y-auto p-4 custom-scrollbar">
                             {/* Placeholder for PDF Thumbnails */}

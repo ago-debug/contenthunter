@@ -96,3 +96,23 @@ export async function POST(
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+
+export async function DELETE(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const catalogId = parseInt(id);
+
+        await prisma.stagingProduct.deleteMany({ where: { catalogId } });
+        await prisma.catalog.update({
+            where: { id: catalogId },
+            data: { lastListinoName: null }
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
