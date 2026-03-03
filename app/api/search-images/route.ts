@@ -442,19 +442,34 @@ export async function GET(request: Request) {
             return NextResponse.json({ images: allImages.slice(0, 20) });
         }
 
-        // FALLBACK: high-quality mock results so UI stays functional if everything fails
-        if (allImages.length === 0) {
-            await new Promise(resolve => setTimeout(resolve, 600));
-            const mockResults = [
-                { id: '1', url: `https://images.unsplash.com/photo-1555041469-a586c61ea9bc?q=80&w=800&auto=format&fit=crop`, title: query },
-                { id: '2', url: `https://images.unsplash.com/photo-1493663284031-b7e3caef15a7?q=80&w=800&auto=format&fit=crop`, title: query },
-                { id: '3', url: `https://images.unsplash.com/photo-1540574163026-643ea20ade25?q=80&w=800&auto=format&fit=crop`, title: query },
-                { id: '4', url: `https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?q=80&w=800&auto=format&fit=crop`, title: query },
-                { id: '5', url: `https://images.unsplash.com/photo-1584622650111-993a426fbf0a?q=80&w=800&auto=format&fit=crop`, title: query },
-                { id: '6', url: `https://images.unsplash.com/photo-1523755231516-e43fd2e8dca5?q=80&w=800&auto=format&fit=crop`, title: query },
-            ];
-            return NextResponse.json({ images: mockResults, debug: { note: 'mock - configure SERPAPI_KEY or add source URLs' } });
-        }
+        // FALLBACK: If everything failed, try a final broad Google Image scrape
+        try {
+            const fallbackUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&tbm=isch`;
+            const resp = await axios.get(fallbackUrl, { headers: BROWSER_HEADERS });
+            const $ = cheerio.load(resp.data);
+            const fallbackResults: any[] = [];
+
+            $('img').each((i, el) => {
+                const src = $(el).attr('src') || $(el).attr('data-src');
+                if (src && src.startsWith('http') && !src.includes('googlelogo') && i < 15) {
+                    fallbackResults.push({
+                        id: `fallback-${i}`,
+                        url: src,
+                        title: query,
+                        source: 'Google (Fallback)'
+                    });
+                }
+            });
+
+            if (fallbackResults.length > 0) {
+                return NextResponse.json({ images: fallbackResults });
+            }
+        } catch (e) { }
+
+        return NextResponse.json({
+            images: [],
+            message: "Nessun risultato trovato. Prova con una query diversa o configura SERPAPI_KEY."
+        });
 
     } catch (error: any) {
         console.error("Web search API error:", error.message);

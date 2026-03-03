@@ -255,7 +255,7 @@ export default function WorkspaceClient() {
         setIsSearchingWeb(true);
         setWebResults([]);
         try {
-            const query = (manualQuery || product.sku).trim();
+            const query = (manualQuery || `${product.brand || ''} ${product.sku} ${product.title || ''}`).trim().slice(0, 100);
             // Pass project-specific sources to the search API
             const sourcesQuery = searchSources.map(s => s.url).join(',');
             const response = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${isShopping || useGoogleShopping}`);
@@ -3160,7 +3160,7 @@ export default function WorkspaceClient() {
                                     </div>
                                 </div>
                             </div>
-                            <div className="overflow-x-auto">
+                            <EdgeScroll className="border border-gray-100 rounded-3xl bg-white shadow-xl overflow-hidden mt-6">
                                 <table className="w-full text-left">
                                     <thead>
                                         <tr className="bg-gray-50/50 text-[10px] font-black text-gray-400 uppercase tracking-widest">
@@ -3733,7 +3733,7 @@ export default function WorkspaceClient() {
                                             })}
                                     </tbody>
                                 </table>
-                            </div>
+                            </EdgeScroll>
                             {products.length > displayLimit && (
                                 <div className="p-8 flex justify-center border-t border-gray-100 bg-gray-50/10">
                                     <button
