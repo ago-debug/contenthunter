@@ -10,8 +10,9 @@ import Link from "next/link";
 interface Catalogue {
     id: number;
     name: string;
-    filePath: string;
+    imageFolderPath?: string;
     createdAt: string;
+    pdfs: any[];
     _count: {
         products: number;
     };
