@@ -37,18 +37,15 @@ interface StagingProduct {
 }
 
 // Helper component to render a single PDF page thumbnail
-const PdfPageThumbnail = ({ pageNumber, pdfUrl }: { pageNumber: number, pdfUrl: string }) => {
+const PdfPageThumbnail = ({ pageNumber, pdfDoc }: { pageNumber: number, pdfDoc: any }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
         const renderPage = async () => {
-            if (!canvasRef.current || !pdfUrl) return;
+            if (!canvasRef.current || !pdfDoc) return;
             try {
-                const loadingTask = pdfjsLib.getDocument(pdfUrl);
-                const pdf = await loadingTask.promise;
-                const page = await pdf.getPage(pageNumber);
-
-                const viewport = page.getViewport({ scale: 0.3 });
+                const page = await pdfDoc.getPage(pageNumber);
+                const viewport = page.getViewport({ scale: 0.4 });
                 const canvas = canvasRef.current;
                 const context = canvas.getContext("2d");
 
@@ -62,7 +59,7 @@ const PdfPageThumbnail = ({ pageNumber, pdfUrl }: { pageNumber: number, pdfUrl: 
             }
         };
         renderPage();
-    }, [pageNumber, pdfUrl]);
+    }, [pageNumber, pdfDoc]);
 
     return (
         <canvas ref={canvasRef} className="w-full h-full object-contain rounded-lg shadow-sm" />
@@ -83,6 +80,7 @@ export default function ImportLab() {
 
     // PDF Viewer States
     const [pdfPages, setPdfPages] = useState<any[]>([]);
+    const [pdfInstance, setPdfInstance] = useState<any>(null);
     const [currentPdfIdx, setCurrentPdfIdx] = useState(0);
     const [isSearchingPdf, setIsSearchingPdf] = useState(false);
 
@@ -145,12 +143,17 @@ export default function ImportLab() {
     const loadPdfPages = async (url: string) => {
         if (!url) return;
 
-        const safeStorageUrl = (url.startsWith('/') ? url.substring(1) : url).split('/').map(s => encodeURIComponent(s)).join('/');
-        const finalUrl = `/${safeStorageUrl}`;
+        // Force use of API storage to bypass static serving quirks and handle auth/encoding correctly
+        const safePath = url.startsWith('/') ? url : `/${url}`;
+        const finalUrl = `/api/storage?path=${encodeURIComponent(safePath)}`;
 
         try {
-            const loadingTask = pdfjsLib.getDocument(finalUrl);
+            const loadingTask = pdfjsLib.getDocument({
+                url: finalUrl,
+                withCredentials: true, // Send session cookies for the API
+            });
             const pdf = await loadingTask.promise;
+            setPdfInstance(pdf);
             const pages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
                 pages.push({ pageNumber: i });
@@ -158,7 +161,7 @@ export default function ImportLab() {
             setPdfPages(pages);
         } catch (err) {
             console.error("PDF Load Error:", err);
-            toast.error("Impossibile caricare l'anteprima PDF.");
+            toast.error("Impossibile caricare l'anteprima PDF (Struttura non valida o sessione scaduta).");
         }
     };
 
@@ -437,10 +440,9 @@ export default function ImportLab() {
         const toastId = toast.loading(`Caricamento PDF: ${file.name}...`);
 
         try {
-            const arrayBuffer = await file.arrayBuffer();
-
-            // Send raw binary to avoid FormData parsing overhead and memory limits in Next.js
-            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, arrayBuffer, {
+            // Send the File object directly - Axios handles this natively as binary stream
+            // avoiding potential corruption from ArrayBuffer conversions
+            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, file, {
                 headers: {
                     "Content-Type": "application/pdf",
                     "X-File-Name": encodeURIComponent(file.name)
@@ -847,7 +849,11 @@ export default function ImportLab() {
                                 {pdfPages.map((page, i) => (
                                     <div key={i} className="aspect-[1/1.4] bg-white border border-slate-200 rounded-xl shadow-sm hover:border-orange-200 transition-all cursor-pointer flex flex-col p-2 group">
                                         <div className="flex-1 bg-slate-50 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:text-orange-300 overflow-hidden relative">
-                                            <PdfPageThumbnail pageNumber={page.pageNumber} pdfUrl={`/${repository.pdfs[currentPdfIdx].filePath}`} />
+                                            {pdfInstance ? (
+                                                <PdfPageThumbnail pageNumber={page.pageNumber} pdfDoc={pdfInstance} />
+                                            ) : (
+                                                <span>Pag. {page.pageNumber}</span>
+                                            )}
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/5 transition-colors">
                                                 <span className="opacity-0 group-hover:opacity-100 bg-white/90 px-2 py-1 rounded text-[8px] font-black text-slate-900 border border-slate-200 shadow-sm">
                                                     Pag. {page.pageNumber}

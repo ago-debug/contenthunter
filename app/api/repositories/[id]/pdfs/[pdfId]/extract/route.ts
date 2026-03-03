@@ -20,7 +20,9 @@ export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string, pdfId: string }> }
 ) {
+    const startTime = Date.now();
     try {
+        console.log(`[AI-EXTRACT] Start request for PDF at ${new Date().toISOString()}`);
         const { id, pdfId } = await params;
         const catalogId = parseInt(id);
         const parsedPdfId = parseInt(pdfId);
