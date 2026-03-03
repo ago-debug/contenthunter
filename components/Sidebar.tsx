@@ -15,7 +15,8 @@ import {
     Globe,
     Cpu,
     Layers,
-    List
+    List,
+    Tag as TagIcon
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -43,6 +44,7 @@ export default function Sidebar() {
                 { href: "/tables/categories", label: "Categories", icon: Layers },
                 { href: "/tables/brands", label: "Brands", icon: Globe },
                 { href: "/tables/bullets", label: "Bullet Points", icon: List },
+                { href: "/tables/tags", label: "Tags", icon: TagIcon },
             ]
         },
         {
@@ -68,7 +70,7 @@ export default function Sidebar() {
                 </div>
             </div>
 
-            <nav className="flex-1 space-y-6">
+            <nav className="flex-1 space-y-4">
                 {menuGroups.map((group, gIdx) => (
                     <div key={gIdx} className="space-y-2">
                         <h3 className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
@@ -82,7 +84,7 @@ export default function Sidebar() {
                                     <Link
                                         key={iIdx}
                                         href={item.href}
-                                        className={`flex items-center gap-3 px-3 py-1.5 rounded-xl font-bold text-xs transition-all group ${isActive
+                                        className={`flex items-center gap-3 px-3 py-1 rounded-xl font-bold text-xs transition-all group ${isActive
                                             ? 'bg-slate-100 text-slate-900 border border-slate-200'
                                             : 'text-slate-400 hover:bg-slate-50/50 hover:text-slate-600'
                                             }`}
