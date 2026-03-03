@@ -586,8 +586,8 @@ export default function ImportLab() {
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
             {/* Control Bar */}
-            <div className="h-20 bg-white border-b border-slate-100 flex items-center justify-between px-8 shrink-0 shadow-sm z-10">
-                <div className="flex items-center gap-4">
+            <div className="h-auto min-h-[80px] bg-white border-b border-slate-100 flex flex-col xl:flex-row items-start xl:items-center justify-between px-4 sm:px-8 py-4 gap-4 shrink-0 shadow-sm z-10 w-full overflow-x-auto">
+                <div className="flex items-center gap-4 shrink-0">
                     <div className="p-3 bg-slate-900 rounded-2xl shadow-lg">
                         <Cpu className="w-5 h-5 text-white" />
                     </div>
@@ -609,7 +609,7 @@ export default function ImportLab() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0 max-w-full">
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -658,22 +658,21 @@ export default function ImportLab() {
                         className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
                     >
                         {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanSearch className="w-4 h-4 text-slate-500" />}
-                        Scan SKU in PDF
                     </button>
-                    <button className="px-8 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-2 ml-4">
-                        <Sparkles className="w-4 h-4" />
-                        Push to Master ERP
+                    <button className="px-8 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-2 ml-4 shrink-0">
+                        <Sparkles className="w-4 h-4 shrink-0" />
+                        <span className="whitespace-nowrap">Push to Master ERP</span>
                     </button>
                 </div>
             </div>
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-col lg:flex-row flex-1 overflow-y-auto lg:overflow-hidden">
                 {/* Main Product Table */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30 p-8">
                     <div className="max-w-7xl mx-auto space-y-6">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                             <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Contenuto Repository ({products.length})</h3>
-                            <div className="relative group w-80">
+                            <div className="relative group w-full sm:w-80">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                 <input
                                     placeholder="Filtra per SKU, Nome..."
@@ -684,8 +683,8 @@ export default function ImportLab() {
                             </div>
                         </div>
 
-                        <div className="main-card overflow-hidden">
-                            <table className="w-full text-left border-collapse">
+                        <div className="main-card overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[800px]">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-slate-100">
                                         <th className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">SKU / EAN</th>
@@ -765,8 +764,8 @@ export default function ImportLab() {
 
                 {/* PDF Quick Pane (if repo has pdfs) */}
                 {repository.pdfs?.length > 0 && (
-                    <div className="w-[450px] border-l border-slate-100 bg-white flex flex-col shrink-0">
-                        <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                    <div className="w-full lg:w-[400px] xl:w-[450px] border-t lg:border-t-0 lg:border-l border-slate-100 bg-white flex flex-col shrink-0">
+                        <div className="p-4 sm:p-6 border-b border-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                                 <FileText className="w-3.5 h-3.5 text-orange-500" />
                                 PDF Explorer
@@ -1107,6 +1106,6 @@ export default function ImportLab() {
                 )}
             </AnimatePresence>
 
-        </div>
+        </div >
     );
 }

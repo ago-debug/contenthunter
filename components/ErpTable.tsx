@@ -539,7 +539,7 @@ export default function ErpTable() {
                             </div>
                         </div>
 
-                        <div className="relative group min-w-[300px]">
+                        <div className="relative group w-full sm:min-w-[300px] sm:w-auto flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-slate-900 transition-colors" />
                             <input
                                 type="text"
@@ -550,8 +550,8 @@ export default function ErpTable() {
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 border-l border-gray-100 pl-2">
-                            <div className="w-[140px]">
+                        <div className="flex items-center gap-2 border-l border-gray-100 pl-2 overflow-x-auto max-w-full pb-1">
+                            <div className="w-[140px] shrink-0">
                                 <SearchableSelect
                                     options={[
                                         { value: 'all', label: 'Tutti i Brand' },
@@ -598,7 +598,7 @@ export default function ErpTable() {
                             </div>
                         </div>
 
-                        <div className="flex bg-[#F9FAFB] p-1 rounded-xl border border-gray-100/50">
+                        <div className="flex shrink-0 bg-[#F9FAFB] p-1 rounded-xl border border-gray-100/50">
                             <button
                                 onClick={() => setViewMode('table')}
                                 className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}
@@ -633,10 +633,10 @@ export default function ErpTable() {
             </div>
 
             {/* Dedicated Scrollable Table Area */}
-            <div className="flex-1 overflow-y-auto px-5 pb-5 custom-scrollbar">
-                <div className="bg-white shadow-sm border border-gray-200/60 rounded-b-2xl min-h-full">
-                    <EdgeScroll className="overflow-visible">
-                        <table className="w-full text-left border-collapse">
+            <div className="flex-1 overflow-y-auto px-2 sm:px-5 pb-5 custom-scrollbar w-full">
+                <div className="bg-white shadow-sm border border-gray-200/60 rounded-b-2xl min-h-full overflow-hidden">
+                    <EdgeScroll className="overflow-x-auto max-w-full w-full">
+                        <table className="w-full text-left border-collapse min-w-[900px]">
                             {/* Flawlessly docked column headers that stick to 0 of their scroll container */}
                             <thead
                                 className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-0 z-[55] shadow-sm transform-gpu"
@@ -745,8 +745,8 @@ export default function ErpTable() {
                             className="relative w-full max-w-6xl bg-[#F9FAFB] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col max-h-[92vh] border border-gray-200"
                         >
                             {/* Header Modale - Corporate Style */}
-                            <div className="px-8 py-5 border-b border-gray-200 flex items-center justify-between bg-white z-20">
-                                <div className="flex items-center gap-6">
+                            <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-gray-200 flex items-start sm:items-center justify-between bg-white z-20 gap-2 sm:gap-4 relative">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 pr-10 sm:pr-0">
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-3">
                                             <span className="text-[10px] font-black bg-slate-900 text-white px-2 py-0.5 rounded tracking-tighter">SKU</span>
@@ -766,7 +766,7 @@ export default function ErpTable() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="absolute top-4 right-4 sm:relative sm:top-0 sm:right-0 flex items-center gap-3 shrink-0">
                                     <div className="hidden sm:flex items-center gap-2 mr-4">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
                                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
@@ -783,8 +783,8 @@ export default function ErpTable() {
                             </div>
 
                             {/* Tabs Navigation */}
-                            <div className="px-8 bg-white border-b border-gray-100 flex items-center justify-between">
-                                <div className="flex overflow-x-auto no-scrollbar">
+                            <div className="px-4 sm:px-8 bg-white border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-2 overflow-hidden">
+                                <div className="flex overflow-x-auto no-scrollbar w-full md:w-auto">
                                     <TabButton id="info" label="Generale" icon={Package} />
                                     <TabButton id="images" label="Media & Asset" icon={LayoutGrid} />
                                     <TabButton id="seo" label="SEO & AI Content" icon={Sparkles} />
@@ -792,8 +792,8 @@ export default function ErpTable() {
                                     <TabButton id="woocommerce" label="Omnichannel" icon={Globe} />
                                     <TabButton id="history" label="Cronologia" icon={HistoryIcon} />
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                <div className="flex items-center gap-4 pb-2 md:pb-0 overflow-x-auto shrink-0 w-full md:w-auto">
+                                    <div className="flex shrink-0 bg-gray-50 p-1 rounded-xl border border-gray-200">
                                         {['it', 'en', 'fr', 'de', 'es'].map((lang: string) => (
                                             <button
                                                 key={lang}
@@ -1776,8 +1776,8 @@ export default function ErpTable() {
                                             </div>
                                         </div>
 
-                                        <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
-                                            <table className="w-full text-left">
+                                        <div className="bg-white rounded-3xl border border-gray-100 overflow-x-auto shadow-sm">
+                                            <table className="w-full text-left min-w-[600px]">
                                                 <thead className="bg-slate-50 border-b border-gray-100">
                                                     <tr>
                                                         <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">SKU</th>
