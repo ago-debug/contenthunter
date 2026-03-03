@@ -8,12 +8,13 @@ import {
     List, Sparkles, Box, Database, HardDrive, Cpu,
     Layers, X, Maximize2, Globe, RefreshCw, AlertCircle,
     FileSpreadsheet, Image as ImageIconLucide, Scissors,
-    Wand2, ScanSearch, ExternalLink
+    Wand2, ScanSearch, ExternalLink, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
 import * as pdfjsLib from "pdfjs-dist";
+import * as XLSX from "xlsx";
 import { useCatalog } from "./CatalogContext";
 
 // Configure PDF.js worker
@@ -51,6 +52,16 @@ export default function ImportLab() {
     const [pdfPages, setPdfPages] = useState<any[]>([]);
     const [currentPdfIdx, setCurrentPdfIdx] = useState(0);
     const [isSearchingPdf, setIsSearchingPdf] = useState(false);
+
+    // File Import States
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [rawHeaders, setRawHeaders] = useState<string[]>([]);
+    const [rawRows, setRawRows] = useState<any[]>([]);
+    const [mapping, setMapping] = useState<Record<string, string>>({
+        sku: "", ean: "", title: "", price: "", brand: "", category: ""
+    });
+    const [isSavingStaging, setIsSavingStaging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -140,6 +151,68 @@ export default function ImportLab() {
             toast.update(toastId, { render: `Associazione completata: ${count} prodotti aggiornati.`, type: "success", isLoading: false, autoClose: 3000 });
         } catch (err) {
             toast.update(toastId, { render: "Errore durante l'associazione immagini.", type: "error", isLoading: false, autoClose: 3000 });
+        }
+    };
+
+    // File Upload Handler
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const bstr = evt.target?.result;
+            const wb = XLSX.read(bstr, { type: "binary" });
+            const wsname = wb.SheetNames[0];
+            const ws = wb.Sheets[wsname];
+            const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+            if (data.length > 0) {
+                const headers = data[0] as string[];
+                const rows = data.slice(1);
+                setRawHeaders(headers);
+                setRawRows(rows);
+                setIsImportModalOpen(true);
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
+
+    const handleConfirmImport = async () => {
+        if (!mapping.sku) {
+            toast.warning("Devi mappare almeno il campo SKU!");
+            return;
+        }
+
+        setIsSavingStaging(true);
+        const toastId = toast.loading("Salvataggio dati in corso...");
+
+        try {
+            const productsToImport = rawRows.map(row => {
+                const getVal = (field: string) => {
+                    const idx = rawHeaders.indexOf(mapping[field]);
+                    return idx > -1 ? row[idx] : null;
+                };
+
+                return {
+                    sku: getVal("sku"),
+                    ean: getVal("ean"),
+                    title: getVal("title"),
+                    price: getVal("price"),
+                    brand: getVal("brand"),
+                    category: getVal("category")
+                };
+            }).filter(p => p.sku);
+
+            await axios.post(`/api/repositories/${catalogIdParam}/staging`, { products: productsToImport });
+
+            toast.update(toastId, { render: "Importazione completata con successo!", type: "success", isLoading: false, autoClose: 3000 });
+            setIsImportModalOpen(false);
+            fetchRepository(parseInt(catalogIdParam!));
+        } catch (err) {
+            toast.update(toastId, { render: "Errore durante il salvataggio dei dati.", type: "error", isLoading: false, autoClose: 3000 });
+        } finally {
+            setIsSavingStaging(false);
         }
     };
 
@@ -236,6 +309,20 @@ export default function ImportLab() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept=".csv, .xlsx, .xls"
+                        onChange={handleFileUpload}
+                    />
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
+                    >
+                        <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                        Carica Listino
+                    </button>
                     <button
                         onClick={handleAutoImageAssociation}
                         className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
@@ -431,6 +518,108 @@ export default function ImportLab() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Import Mapping Modal */}
+            <AnimatePresence>
+                {isImportModalOpen && (
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+                        >
+                            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-green-600 rounded-2xl">
+                                        <FileSpreadsheet className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Mappatura Campi Listino</h2>
+                                        <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">Collega le colonne del tuo file ai campi del sistema</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsImportModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
+                                    <X className="w-8 h-8 text-slate-300" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                                <div className="grid grid-cols-2 gap-x-12 gap-y-8">
+                                    {Object.keys(mapping).map((field) => (
+                                        <div key={field} className="space-y-3">
+                                            <div className="flex items-center justify-between px-1">
+                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                                    {field === 'sku' ? 'SKU (Obbligatorio)' : field.charAt(0).toUpperCase() + field.slice(1)}
+                                                </label>
+                                                {mapping[field] && (
+                                                    <span className="text-[9px] font-bold text-green-500 flex items-center gap-1">
+                                                        <Check className="w-3 h-3" /> Collegato
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <select
+                                                value={mapping[field]}
+                                                onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all appearance-none cursor-pointer"
+                                            >
+                                                <option value="">-- Seleziona Colonna --</option>
+                                                {rawHeaders.map((h, i) => (
+                                                    <option key={i} value={h}>{h}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-12">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 px-1">Anteprima Dati (prime 3 righe)</h4>
+                                    <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm bg-slate-50/50">
+                                        <table className="w-full text-left text-xs">
+                                            <thead>
+                                                <tr className="bg-slate-100">
+                                                    {rawHeaders.slice(0, 5).map((h, i) => (
+                                                        <th key={i} className="px-5 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px]">{h}</th>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {rawRows.slice(0, 3).map((row, i) => (
+                                                    <tr key={i}>
+                                                        {rawHeaders.slice(0, 5).map((h, j) => (
+                                                            <td key={j} className="px-5 py-3 font-bold text-slate-600 truncate max-w-[150px]">{row[rawHeaders.indexOf(h)]}</td>
+                                                        ))}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
+                                <button
+                                    onClick={() => setIsImportModalOpen(false)}
+                                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    onClick={handleConfirmImport}
+                                    disabled={isSavingStaging || !mapping.sku}
+                                    className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3"
+                                >
+                                    {isSavingStaging ? (
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Database className="w-4 h-4" />
+                                    )}
+                                    Conferma Importazione nel Lab
+                                </button>
+                            </div>
+                        </motion.div>
                     </div>
                 )}
             </AnimatePresence>
