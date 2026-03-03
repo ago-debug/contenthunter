@@ -628,7 +628,7 @@ export default function ErpTable() {
             </div>
 
             {/* Dedicated Scrollable Table Area */}
-            <div className="flex-1 overflow-y-auto px-5 pb-5 custom-scrollbar relative z-10">
+            <div className="flex-1 overflow-y-auto px-5 pb-5 custom-scrollbar">
                 <div className="bg-white shadow-sm border border-gray-200/60 rounded-b-2xl min-h-full">
                     <EdgeScroll className="overflow-visible">
                         <table className="w-full text-left border-collapse">
