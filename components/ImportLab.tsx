@@ -592,20 +592,27 @@ export default function ImportLab() {
                     <div className="p-3 bg-slate-900 rounded-2xl shadow-lg">
                         <Cpu className="w-5 h-5 text-white" />
                     </div>
-                    <div className="flex-1">
-                        <h2 className="text-xl font-black text-slate-900 tracking-tight">{repository.name}</h2>
-                        <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
-                            <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" /> {repository.imageFolderPath || "No Image Folder"}</span>
-                            <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {repository.pdfs?.length || 0} PDF Sorgente</span>
-                            {repository.lastListinoName && (
-                                <span className="flex items-center gap-1 bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">
-                                    <FileSpreadsheet className="w-3 h-3 text-orange-400" />
-                                    {repository.lastListinoName}
-                                    <button onClick={handleClearStaging} className="ml-1 hover:text-red-600">
-                                        <X className="w-3 h-3" />
-                                    </button>
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-xl font-black text-slate-900 tracking-tight truncate">{repository.name}</h2>
+                        <div className="flex flex-col gap-1.5 mt-2">
+                            <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-400 break-all">
+                                <HardDrive className="w-3 h-3 shrink-0" />
+                                <span className="truncate">{repository.imageFolderPath || "No Image Folder"}</span>
+                            </span>
+                            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                <span className="flex items-center gap-1.5">
+                                    <FileText className="w-3 h-3 shrink-0" /> {repository.pdfs?.length || 0} PDF Sorgente
                                 </span>
-                            )}
+                                {repository.lastListinoName && (
+                                    <span className="flex items-center gap-1.5 bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full border border-orange-100/50 max-w-full">
+                                        <FileSpreadsheet className="w-3 h-3 text-orange-400 shrink-0" />
+                                        <span className="truncate">{repository.lastListinoName}</span>
+                                        <button onClick={handleClearStaging} className="ml-1 hover:text-red-600 bg-orange-100 p-0.5 rounded transition-colors shrink-0">
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

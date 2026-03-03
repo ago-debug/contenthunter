@@ -22,7 +22,8 @@ export async function POST(
         }
 
         const buffer = Buffer.from(arrayBuffer);
-        const fileName = `${Date.now()}-${name.replace(/\s+/g, "_")}`;
+        const cleanName = name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const fileName = `${Date.now()}-${cleanName}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");
 
         await mkdir(uploadDir, { recursive: true });
