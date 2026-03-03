@@ -118,7 +118,7 @@ export default function CataloguesPage() {
                                         <span className="text-xs font-bold text-gray-500">{new Date(catalogue.createdAt).toLocaleDateString()}</span>
                                     </div>
                                     <Link
-                                        href={`/?id=${catalogue.id}`}
+                                        href={`/import?id=${catalogue.id}`}
                                         className="px-6 py-2.5 bg-gray-50 text-gray-400 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#E6D3C1] hover:text-black transition-all flex items-center gap-2"
                                     >
                                         Apri Workspace

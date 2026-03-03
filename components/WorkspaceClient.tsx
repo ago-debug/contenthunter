@@ -96,8 +96,17 @@ export default function WorkspaceClient() {
             await extractFromPdf(catalogue.filePath);
         } catch (err: any) {
             console.error("Error loading catalogue", err);
-            const msg = err.response?.data?.details || err.message;
+            const is404 = err.response?.status === 404;
+            const msg = is404 ? "Catalogo non trovato nel database (potrebbe essere stato eliminato)." : (err.response?.data?.details || err.message);
+
             toast.error(`Errore caricamento: ${msg}`);
+
+            if (is404) {
+                // Clear stale ID if it doesn't exist anymore
+                localStorage.removeItem("pdf_catalog_id");
+                setCatalogId(null);
+            }
+
             if (msg.includes("otherFields")) {
                 toast.warning("DATABASE ALERT: Esaurire lo script 'db-push' su Plesk per sincronizzare le tabelle.");
             }
@@ -576,16 +585,24 @@ export default function WorkspaceClient() {
             pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
         }
 
-        // Restore state from localStorage
+        // Restore state from URL or localStorage
+        const urlId = searchParams.get("id");
         const savedCatalogId = localStorage.getItem("pdf_catalog_id");
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         const savedProducts = localStorage.getItem("pdf_catalog_products");
 
         if (savedProjectName) setProjectName(savedProjectName);
-        if (savedCatalogId) {
-            const parsedId = parseInt(savedCatalogId);
-            setCatalogId(parsedId);
-            loadExistingCatalog(parsedId);
+
+        const targetIdStr = urlId || savedCatalogId;
+        if (targetIdStr) {
+            const parsedId = parseInt(targetIdStr);
+            if (!isNaN(parsedId)) {
+                // If the target ID is different from current or if we are just mounting, load it
+                if (catalogId !== parsedId) {
+                    setCatalogId(parsedId);
+                    loadExistingCatalog(parsedId);
+                }
+            }
         }
 
         if (savedProducts) {
