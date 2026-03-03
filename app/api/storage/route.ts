@@ -27,31 +27,32 @@ export async function GET(req: NextRequest) {
         }
 
         const stats = fs.statSync(fullPath);
+        const range = req.headers.get("range");
 
-        // For files up to 50MB, read into memory to ensure integrity and bypass stream hiccups
-        // larger than that, use stream.
-        if (stats.size < 50 * 1024 * 1024) {
+        // For small files (< 2MB) and no direct range request, serve from memory for speed
+        if (!range && stats.size < 2 * 1024 * 1024) {
             const data = fs.readFileSync(fullPath);
             return new Response(data, {
                 status: 200,
                 headers: {
                     "Content-Type": "application/pdf",
                     "Content-Length": stats.size.toString(),
-                    "Content-Disposition": `inline; filename="${path.basename(fullPath)}"`,
-                    "Cache-Control": "no-cache"
+                    "Cache-Control": "public, max-age=3600"
                 }
             });
         }
 
-        const file = fs.createReadStream(fullPath);
-        const stream = Readable.toWeb(file);
+        // For large files or range requests, use native streaming to preserve server RAM
+        const fileStream = fs.createReadStream(fullPath);
+        // @ts-ignore - Readable.toWeb is standard in Node 18+ (Next.js environment)
+        const webStream = Readable.toWeb(fileStream);
 
-        return new NextResponse(stream as any, {
+        return new Response(webStream as any, {
             headers: {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `inline; filename="${path.basename(fullPath)}"`,
                 "Accept-Ranges": "bytes",
-                "Content-Length": stats.size.toString()
+                "Content-Length": stats.size.toString(),
             }
         });
     } catch (e: any) {
