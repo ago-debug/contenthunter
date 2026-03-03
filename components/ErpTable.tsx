@@ -499,9 +499,9 @@ export default function ErpTable() {
     );
 
     return (
-        <div className="p-5 space-y-5 bg-[#F4F5F7] min-h-screen relative">
+        <div className="p-5 space-y-5 bg-[#F4F5F7] min-h-screen relative overflow-visible">
             {/* Sticky Main Header */}
-            <div className="sticky top-0 z-[60] -mt-5 pt-5 pb-4 px-5 mx-[-1.25rem] bg-[#F4F5F7]/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+            <div className="sticky top-0 z-[60] -mt-5 pt-5 pb-4 px-5 mx-[-1.25rem] bg-[#F4F5F7]/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
                 <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3">
@@ -608,16 +608,16 @@ export default function ErpTable() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-200/60">
-                <div className="px-5 py-3 bg-white border-b border-gray-50 flex justify-between items-center">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-visible relative">
+                <div className="px-5 py-3 bg-white border-b border-gray-50 flex justify-between items-center sticky top-[80px] z-[55] rounded-t-2xl shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
                         <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">PIM Inventory Engine / Realtime Sync</span>
                     </div>
                 </div>
-                <EdgeScroll>
+                <EdgeScroll className="overflow-visible">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[80px] z-50">
+                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[125px] z-50">
                             <tr>
                                 <th className="px-4 py-3 w-8">
                                     <input

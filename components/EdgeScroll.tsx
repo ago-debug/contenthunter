@@ -96,7 +96,7 @@ export function EdgeScroll({ children, className = "" }: EdgeScrollProps) {
             <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="w-full h-full overflow-x-auto custom-scrollbar relative"
+                className="w-full overflow-x-auto overflow-y-visible custom-scrollbar relative"
             >
                 {children}
             </div>
