@@ -508,7 +508,7 @@ export default function ErpTable() {
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] bg-[#F4F5F7] overflow-hidden">
             {/* Fixed Main Header Block */}
-            <div className="flex-none p-5 pb-0 z-[60] bg-[#F4F5F7]/95 backdrop-blur-md shadow-sm space-y-4">
+            <div className="flex-none p-5 pb-0 relative z-[60] bg-[#F4F5F7]/95 backdrop-blur-md shadow-sm space-y-4">
                 <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
