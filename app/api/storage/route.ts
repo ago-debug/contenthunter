@@ -20,24 +20,58 @@ export async function GET(req: NextRequest) {
         // This targets the public folder
         const fullPath = path.join(process.cwd(), "public", sanitizedPath);
 
-        console.log("Storage API attempting to serve:", fullPath);
-
         if (!fs.existsSync(fullPath)) {
-            console.error("Storage API: File not found at", fullPath);
             return new NextResponse(`File Not Found: ${sanitizedPath}`, { status: 404 });
         }
 
-        const data = await readFile(fullPath);
+        const stat = fs.statSync(fullPath);
+        const fileSize = stat.size;
+        const range = req.headers.get("range");
 
-        return new NextResponse(data, {
-            headers: {
-                "Content-Type": "application/pdf",
-                "Content-Disposition": "inline; filename=\"" + path.basename(fullPath) + "\"",
-                "Accept-Ranges": "bytes",
-                "Cache-Control": "public, max-age=3600",
-                "Content-Length": data.length.toString()
+        if (range) {
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+            if (start >= fileSize) {
+                return new NextResponse("Requested range not satisfiable", { status: 416 });
             }
-        });
+
+            const chunksize = (end - start) + 1;
+            const file = fs.createReadStream(fullPath, { start, end });
+
+            // Convert ReadStream to ReadableStream for Next.js
+            const stream = new ReadableStream({
+                start(controller) {
+                    file.on("data", (chunk) => controller.enqueue(chunk));
+                    file.on("end", () => controller.close());
+                    file.on("error", (err) => controller.error(err));
+                },
+                cancel() {
+                    file.destroy();
+                }
+            });
+
+            return new NextResponse(stream as any, {
+                status: 206,
+                headers: {
+                    "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": chunksize.toString(),
+                    "Content-Type": "application/pdf",
+                },
+            });
+        } else {
+            const data = await readFile(fullPath);
+            return new NextResponse(data, {
+                headers: {
+                    "Content-Type": "application/pdf",
+                    "Content-Disposition": "inline; filename=\"" + path.basename(fullPath) + "\"",
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": fileSize.toString()
+                }
+            });
+        }
     } catch (e: any) {
         console.error("Storage API error:", e);
         return new NextResponse(`Internal Error: ${e.message}`, { status: 500 });

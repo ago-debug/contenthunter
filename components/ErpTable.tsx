@@ -7,7 +7,7 @@ import {
     Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List,
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, RefreshCw, Languages, ShoppingCart, Box,
-    LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide
+    LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
@@ -37,6 +37,11 @@ export default function ErpTable() {
     const [editLang, setEditLang] = useState<string>("it");
     const [isTranslating, setIsTranslating] = useState(false);
     const [productTranslations, setProductTranslations] = useState<Record<string, any>>({});
+    const [selectedAttributeKey, setSelectedAttributeKey] = useState<string | null>(null);
+    const [attributeValues, setAttributeValues] = useState<any[]>([]);
+    const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
+    const [attributeTab, setAttributeTab] = useState<'values' | 'products'>('values');
+    const [attrLoading, setAttrLoading] = useState(false);
 
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -1281,38 +1286,75 @@ export default function ErpTable() {
                                                     </button>
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                                                    {(selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "").map((bullet: string, idx: number) => (
-                                                        <div key={idx} className="flex gap-3 items-center group bg-slate-50/50 p-2 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
-                                                            <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-black shrink-0 text-[10px] shadow-lg shadow-slate-200">{idx + 1}</div>
-                                                            <input
-                                                                value={bullet.replace(/^-\s*/, '')}
-                                                                onChange={e => {
-                                                                    const val = e.target.value;
-                                                                    const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
-                                                                    arr[idx] = val ? `- ${val}` : "";
-                                                                    const tt = { ...selectedProduct.translations };
-                                                                    if (!tt[editLang]) tt[editLang] = {};
-                                                                    tt[editLang].bulletPoints = arr.join('\n');
-                                                                    setSelectedProduct({ ...selectedProduct, translations: tt });
-                                                                }}
-                                                                className="w-full px-4 py-3 bg-white border border-slate-100 focus:border-emerald-300 rounded-xl text-sm font-bold text-gray-800 transition-all outline-none shadow-sm"
-                                                                placeholder={`Inserisci bullet ${idx + 1}...`}
-                                                            />
-                                                            <button
-                                                                onClick={() => {
-                                                                    const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
-                                                                    arr.splice(idx, 1);
-                                                                    const tt = { ...selectedProduct.translations };
-                                                                    if (!tt[editLang]) tt[editLang] = {};
-                                                                    tt[editLang].bulletPoints = arr.join('\n');
-                                                                    setSelectedProduct({ ...selectedProduct, translations: tt });
-                                                                }}
-                                                                className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    ))}
+                                                    {(selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "").map((bullet: string, idx: number) => {
+                                                        const isKeyValue = bullet.includes(':');
+                                                        const [title, value] = isKeyValue ? bullet.replace(/^-\s*/, '').split(':').map(s => s.trim()) : ['', bullet.replace(/^-\s*/, '')];
+
+                                                        return (
+                                                            <div key={idx} className="flex gap-3 items-center group bg-slate-50/50 p-2 rounded-2xl border border-transparent hover:border-slate-200 transition-all">
+                                                                <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center font-black shrink-0 text-[10px] shadow-lg shadow-slate-200">{idx + 1}</div>
+
+                                                                {isKeyValue ? (
+                                                                    <div className="flex-1 flex items-center gap-4 bg-white border border-slate-100 rounded-xl px-4 py-3 shadow-sm">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setSelectedAttributeKey(title);
+                                                                                setIsAttributeModalOpen(true);
+                                                                            }}
+                                                                            className="text-[11px] font-black uppercase text-emerald-600 hover:text-emerald-700 underline decoration-dotted"
+                                                                        >
+                                                                            {title}
+                                                                        </button>
+                                                                        <div className="text-slate-300 font-black">→</div>
+                                                                        <input
+                                                                            value={value}
+                                                                            onChange={e => {
+                                                                                const val = e.target.value;
+                                                                                const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                                arr[idx] = `- ${title}: ${val}`;
+                                                                                const tt = { ...selectedProduct.translations };
+                                                                                if (!tt[editLang]) tt[editLang] = {};
+                                                                                tt[editLang].bulletPoints = arr.join('\n');
+                                                                                setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                                            }}
+                                                                            className="flex-1 text-sm font-bold text-gray-800 outline-none"
+                                                                        />
+                                                                    </div>
+                                                                ) : (
+                                                                    <input
+                                                                        value={value}
+                                                                        onChange={e => {
+                                                                            const val = e.target.value;
+                                                                            const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                            arr[idx] = val ? `- ${val}` : "";
+                                                                            const tt = { ...selectedProduct.translations };
+                                                                            if (!tt[editLang]) tt[editLang] = {};
+                                                                            tt[editLang].bulletPoints = arr.join('\n');
+                                                                            setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                                        }}
+                                                                        className="w-full px-4 py-3 bg-white border border-slate-100 focus:border-emerald-300 rounded-xl text-sm font-bold text-gray-800 transition-all outline-none shadow-sm"
+                                                                        placeholder={`Inserisci bullet ${idx + 1}...`}
+                                                                    />
+                                                                )}
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                        arr.splice(idx, 1);
+                                                                        const tt = { ...selectedProduct.translations };
+                                                                        if (!tt[editLang]) tt[editLang] = {};
+                                                                        tt[editLang].bulletPoints = arr.join('\n');
+                                                                        setSelectedProduct({ ...selectedProduct, translations: tt });
+                                                                    }}
+                                                                    className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 opacity-0 group-hover:opacity-100"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-8 pt-4 border-t border-gray-50">
@@ -1636,6 +1678,159 @@ export default function ErpTable() {
                             </div>
                         </motion.div>
                     )}
+            </AnimatePresence>
+
+            {/* Global Attribute Modal */}
+            <AnimatePresence>
+                {isAttributeModalOpen && selectedAttributeKey && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-slate-900/60 backdrop-blur-md"
+                            onClick={() => setIsAttributeModalOpen(false)}
+                        />
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-white/20"
+                        >
+                            <div className="px-10 py-8 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+                                <div className="flex items-center gap-5">
+                                    <div className="p-4 bg-emerald-600 rounded-2xl shadow-lg shadow-emerald-200/50 rotate-3">
+                                        <Layers className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight leading-none uppercase">{selectedAttributeKey}</h2>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2 flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div> Global Attribute Manager
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsAttributeModalOpen(false)}
+                                    className="p-3 bg-white text-slate-400 hover:text-red-500 rounded-2xl shadow-sm border border-gray-100 transition-all"
+                                >
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            <div className="flex px-10 bg-white border-b border-gray-100">
+                                <button
+                                    onClick={() => setAttributeTab('values')}
+                                    className={`px-8 py-5 text-[11px] font-black uppercase tracking-widest transition-all border-b-2 ${attributeTab === 'values' ? 'border-emerald-600 text-slate-900 bg-slate-50/50' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    Valori Disponibili
+                                </button>
+                                <button
+                                    onClick={() => setAttributeTab('products')}
+                                    className={`px-8 py-5 text-[11px] font-black uppercase tracking-widest transition-all border-b-2 ${attributeTab === 'products' ? 'border-emerald-600 text-slate-900 bg-slate-50/50' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+                                >
+                                    Prodotti Associati
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                                {attributeTab === 'values' ? (
+                                    <div className="space-y-6">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <p className="text-sm font-medium text-slate-500 italic">Elenco di tutti i valori unici rilevati nel catalogo per l'attributo <span className="font-black text-slate-900 not-italic">"{selectedAttributeKey}"</span>.</p>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* We mock values from current loaded products for now, normally this would be a fetch to a pool of unique attributes */}
+                                            {Array.from(new Set(products
+                                                .map(p => {
+                                                    const bullets = (p.translations?.[editLang]?.bulletPoints || "").split('\n');
+                                                    const line = bullets.find((b: string) => b.includes(`${selectedAttributeKey}:`));
+                                                    return line ? line.split(':')[1].trim() : null;
+                                                })
+                                                .filter(Boolean)
+                                            )).map((val: any, i) => (
+                                                <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-emerald-100 transition-all hover:shadow-xl hover:shadow-emerald-900/5">
+                                                    <span className="text-sm font-black text-slate-700">{val}</span>
+                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                                        <button className="p-2 text-slate-300 hover:text-emerald-600 transition-colors"><Edit className="w-4 h-4" /></button>
+                                                        <button className="p-2 text-slate-300 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            <button className="flex items-center justify-center p-5 border-2 border-dashed border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:border-emerald-200 hover:text-emerald-600 transition-all bg-slate-50/30 hover:bg-emerald-50/30">
+                                                <Plus className="w-4 h-4 mr-2" /> Aggiungi Nuovo Valore
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div className="bg-slate-900 rounded-[2rem] p-8 text-white mb-8 shadow-2xl shadow-slate-900/20">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="text-xs font-black uppercase tracking-[0.3em] text-emerald-400 mb-2">Network Inventory</h4>
+                                                    <p className="text-[11px] text-slate-300 font-medium">Visualizzazione di tutti i prodotti che condividono l'attributo <span className="font-bold text-white underline decoration-emerald-500 underline-offset-4">{selectedAttributeKey}</span>.</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-3xl font-black text-white">{products.filter(p => (p.translations?.[editLang]?.bulletPoints || "").includes(`${selectedAttributeKey}:`)).length}</p>
+                                                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Coincidenze</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden shadow-sm">
+                                            <table className="w-full text-left">
+                                                <thead className="bg-slate-50 border-b border-gray-100">
+                                                    <tr>
+                                                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">SKU</th>
+                                                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">EAN</th>
+                                                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Titolo Prodotto</th>
+                                                        <th className="px-6 py-4 text-[9px] font-black uppercase tracking-widest text-slate-400">Valore</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-50">
+                                                    {products
+                                                        .filter(p => (p.translations?.[editLang]?.bulletPoints || "").includes(`${selectedAttributeKey}:`))
+                                                        .map((p: any) => {
+                                                            const bullets = (p.translations?.[editLang]?.bulletPoints || "").split('\n');
+                                                            const line = bullets.find((b: string) => b.includes(`${selectedAttributeKey}:`));
+                                                            const val = line ? line.split(':')[1].trim() : '-';
+                                                            return (
+                                                                <tr
+                                                                    key={p.id}
+                                                                    onClick={() => {
+                                                                        setSelectedProduct(p);
+                                                                        setIsAttributeModalOpen(false);
+                                                                    }}
+                                                                    className="hover:bg-slate-50 cursor-pointer transition-colors group"
+                                                                >
+                                                                    <td className="px-6 py-4 font-mono text-[10px] font-black text-slate-700">{p.sku}</td>
+                                                                    <td className="px-6 py-4 font-mono text-[10px] text-slate-400">{p.ean || '-'}</td>
+                                                                    <td className="px-6 py-4">
+                                                                        <div className="text-xs font-black text-slate-900 group-hover:text-emerald-600 transition-colors uppercase truncate max-w-xs">{p.title}</div>
+                                                                    </td>
+                                                                    <td className="px-6 py-4">
+                                                                        <span className="text-[10px] font-black bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full uppercase italic">{val}</span>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="px-10 py-6 bg-slate-50 border-t border-gray-100 flex justify-end">
+                                <button
+                                    onClick={() => setIsAttributeModalOpen(false)}
+                                    className="px-8 py-3 bg-slate-900 text-white font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl hover:bg-black transition-all shadow-xl shadow-slate-900/20"
+                                >
+                                    Chiudi Gestione
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
         </div>
     );
