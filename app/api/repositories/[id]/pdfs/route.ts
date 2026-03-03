@@ -10,19 +10,16 @@ export async function POST(
     try {
         const { id } = await params;
         const catalogId = parseInt(id);
-        const name = req.nextUrl.searchParams.get("name");
+        const formData = await req.formData();
+        const file = formData.get("file") as File | null;
 
-        if (!name) {
-            return NextResponse.json({ error: "Missing filename in query" }, { status: 400 });
-        }
-
-        const arrayBuffer = await req.arrayBuffer();
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+        if (!file) {
             return NextResponse.json({ error: "No file content uploaded" }, { status: 400 });
         }
 
+        const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
-        const cleanName = name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
         const fileName = `${Date.now()}-${cleanName}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");
 
@@ -34,7 +31,7 @@ export async function POST(
         const pdf = await prisma.catalogPdf.create({
             data: {
                 catalogId,
-                fileName: name,
+                fileName: file.name,
                 filePath: `/uploads/${fileName}`
             }
         });
