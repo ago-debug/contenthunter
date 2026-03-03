@@ -32,48 +32,49 @@ export async function POST(req: NextRequest) {
 
         // 1.5 Auto-create Brand and Categories from string values (e.g. from File Import)
         let resolvedBrandId = brandId ? Number(brandId) : undefined;
-        if (brand && !resolvedBrandId) {
-            const cleanBrandName = brand.toString().trim();
-            if (cleanBrandName) {
-                let dbBrand = await prisma.brand.findUnique({ where: { name: cleanBrandName } });
-                if (!dbBrand) {
-                    dbBrand = await prisma.brand.create({ data: { name: cleanBrandName } });
+        try {
+            if (brand && !resolvedBrandId) {
+                const cleanBrandName = brand.toString().trim();
+                if (cleanBrandName) {
+                    let dbBrand = await prisma.brand.findUnique({ where: { name: cleanBrandName } });
+                    if (!dbBrand) {
+                        dbBrand = await prisma.brand.create({ data: { name: cleanBrandName } });
+                    }
+                    resolvedBrandId = dbBrand.id;
                 }
-                resolvedBrandId = dbBrand.id;
             }
+        } catch (brandErr) {
+            console.warn("[AUTO-BRAND] Skipped:", brandErr);
         }
 
         let resolvedCatId = body.categoryId ? Number(body.categoryId) : undefined;
         let resolvedSubCatId = body.subCategoryId ? Number(body.subCategoryId) : undefined;
         let resolvedSubSubCatId = body.subSubCategoryId ? Number(body.subSubCategoryId) : undefined;
 
-        if (category && (!resolvedCatId || !resolvedSubCatId || !resolvedSubSubCatId)) {
-            const cleanCatString = category.toString().trim();
-            if (cleanCatString) {
-                // Parse potential hierarchy like "Macro > Sub > Micro"
-                const parts = cleanCatString.split('>').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
-
-                if (parts.length > 0) {
-                    // Level 1
-                    let cat1 = await prisma.category.findFirst({ where: { name: parts[0], parentId: null } });
-                    if (!cat1) cat1 = await prisma.category.create({ data: { name: parts[0], parentId: null } });
-                    resolvedCatId = cat1.id;
-
-                    // Level 2
-                    if (parts.length > 1) {
-                        let cat2 = await prisma.category.findFirst({ where: { name: parts[1], parentId: cat1.id } });
-                        if (!cat2) cat2 = await prisma.category.create({ data: { name: parts[1], parentId: cat1.id } });
-                        resolvedSubCatId = cat2.id;
-
-                        // Level 3
-                        if (parts.length > 2) {
-                            let cat3 = await prisma.category.findFirst({ where: { name: parts[2], parentId: cat2.id } });
-                            if (!cat3) cat3 = await prisma.category.create({ data: { name: parts[2], parentId: cat2.id } });
-                            resolvedSubSubCatId = cat3.id;
+        try {
+            if (category && (!resolvedCatId || !resolvedSubCatId || !resolvedSubSubCatId)) {
+                const cleanCatString = category.toString().trim();
+                if (cleanCatString) {
+                    const parts = cleanCatString.split('>').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+                    if (parts.length > 0) {
+                        let cat1 = await prisma.category.findFirst({ where: { name: parts[0], parentId: null } });
+                        if (!cat1) cat1 = await prisma.category.create({ data: { name: parts[0], parentId: null } });
+                        resolvedCatId = cat1.id;
+                        if (parts.length > 1) {
+                            let cat2 = await prisma.category.findFirst({ where: { name: parts[1], parentId: cat1.id } });
+                            if (!cat2) cat2 = await prisma.category.create({ data: { name: parts[1], parentId: cat1.id } });
+                            resolvedSubCatId = cat2.id;
+                            if (parts.length > 2) {
+                                let cat3 = await prisma.category.findFirst({ where: { name: parts[2], parentId: cat2.id } });
+                                if (!cat3) cat3 = await prisma.category.create({ data: { name: parts[2], parentId: cat2.id } });
+                                resolvedSubSubCatId = cat3.id;
+                            }
                         }
                     }
                 }
             }
+        } catch (catErr) {
+            console.warn("[AUTO-CATEGORY] Skipped:", catErr);
         }
 
         // 2. Create or Update base Product HUB
@@ -229,36 +230,29 @@ export async function POST(req: NextRequest) {
         }
 
         // 8.5 Sync BulletPoints to Relational Table
-        const itBulletsStr = (body.translations?.['it']?.bulletPoints !== undefined)
-            ? body.translations['it'].bulletPoints
-            : bulletPoints;
+        try {
+            const itBulletsStr = (body.translations?.['it']?.bulletPoints !== undefined)
+                ? body.translations['it'].bulletPoints
+                : bulletPoints;
 
-        if (itBulletsStr !== undefined) {
-            // Remove existing mapped bullet points for this product to do a clean overwrite sync
-            await prisma.bulletPoint.deleteMany({
-                where: { productId: product.id }
-            });
-
-            if (itBulletsStr) {
-                const lines = itBulletsStr
-                    .split('\n')
-                    .map((l: string) => {
-                        let cl = l.trim();
-                        if (cl.startsWith('- ')) cl = cl.substring(2);
-                        if (cl.startsWith('* ')) cl = cl.substring(2);
-                        return cl.trim();
-                    })
-                    .filter((l: string) => l.length > 0);
-
-                if (lines.length > 0) {
-                    await prisma.bulletPoint.createMany({
-                        data: lines.map((l: string) => ({
-                            content: l,
-                            productId: product.id
-                        }))
-                    });
+            if (itBulletsStr !== undefined) {
+                await prisma.bulletPoint.deleteMany({
+                    where: { productId: product.id }
+                });
+                if (itBulletsStr) {
+                    const lines = itBulletsStr
+                        .split('\n')
+                        .map((l: string) => { let cl = l.trim(); if (cl.startsWith('- ')) cl = cl.substring(2); if (cl.startsWith('* ')) cl = cl.substring(2); return cl.trim(); })
+                        .filter((l: string) => l.length > 0);
+                    if (lines.length > 0) {
+                        await prisma.bulletPoint.createMany({
+                            data: lines.map((l: string) => ({ content: l, productId: product.id }))
+                        });
+                    }
                 }
             }
+        } catch (bpErr) {
+            console.warn("[BULLET-SYNC] Skipped:", bpErr);
         }
 
         // 9. Handle Images
