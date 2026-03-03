@@ -609,7 +609,7 @@ export default function ErpTable() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-visible relative">
-                <div className="px-5 py-3 bg-white border-b border-gray-50 flex justify-between items-center sticky top-[80px] z-[55] rounded-t-2xl shadow-sm">
+                <div className="px-5 py-3 bg-white border-b border-gray-50 flex justify-between items-center sticky top-[102px] z-[55] rounded-t-2xl shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
                         <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">PIM Inventory Engine / Realtime Sync</span>
@@ -617,7 +617,7 @@ export default function ErpTable() {
                 </div>
                 <EdgeScroll className="overflow-visible">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[125px] z-50">
+                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[146px] z-50">
                             <tr>
                                 <th className="px-4 py-3 w-8">
                                     <input
@@ -1620,6 +1620,6 @@ export default function ErpTable() {
                         </motion.div>
                     )}
             </AnimatePresence>
-        </div>
+        </div >
     );
 }

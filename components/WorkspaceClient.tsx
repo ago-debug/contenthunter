@@ -1716,7 +1716,7 @@ export default function WorkspaceClient() {
     return (
         <div className="p-4 md:p-6 space-y-6">
             {/* Header / Page Identity */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 border-b border-gray-100 bg-[#F8FAFC]/90 backdrop-blur-xl sticky top-0 z-50 -mx-6 px-6 shadow-sm">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 border-b border-gray-100 bg-[#F8FAFC]/95 backdrop-blur-xl sticky top-0 z-50 -mx-6 px-6 shadow-sm">
                 <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-slate-900 rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
