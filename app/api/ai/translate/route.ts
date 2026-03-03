@@ -11,9 +11,14 @@ export async function POST(req: Request) {
         }
 
         const prompt = `
-Sei un traduttore esperto di e-commerce e PIM. Traduci i seguenti campi nella lingua: ${targetLanguage}.
-Mantieni lo stile professionale e tecnico. Non tradurre SKU o codici tecnici.
-Se un campo è vuoto, restituisci una stringa vuota.
+Sei un traduttore ed editor esperto di e-commerce e PIM. Il tuo compito è tradurre, correggere o riallineare i seguenti campi nella lingua target: "${targetLanguage}".
+Se il testo è già nella lingua corretta ma è disallineato, sgrammaticato o contiene residui di altre lingue dovuti a un'importazione CSV errata, devi correggerlo e modellarlo in modo professionale e tecnico.
+
+REGOLE TASSATIVE:
+1. Devi ESPLICITAMENTE tradurre/correggere i "Titoli" ('title') esattamente come tutti gli altri elementi.
+2. Rispetta e mantieni i bullet point come elenco se presenti.
+3. Non tradurre SKU, EAN o codici tecnici.
+4. Se un campo è vuoto, restituisci una stringa vuota.
 
 CAMPI DA TRADURRE (JSON):
 ${JSON.stringify(textData, null, 2)}

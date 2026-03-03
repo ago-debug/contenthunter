@@ -392,17 +392,14 @@ export default function ErpTable() {
     const handleTranslateProduct = async () => {
         if (!selectedProduct) return;
 
-        // Trova una lingua sorgente che abbia del contenuto. Preferisci 'it' se presente.
-        const sourceLang = selectedProduct.translations?.['it']?.title ? 'it' : (Object.keys(selectedProduct.translations || {}).find(l => selectedProduct.translations[l]?.title) || 'it');
-
-        if (sourceLang === editLang) {
-            toast.warning("Nessuna lingua sorgente diversa trovata (o lingua uguale)");
-            return;
-        }
+        // Uses IT as source if creating translated versions, but if translating/correcting IT itself, it grabs its own data.
+        const sourceLang = editLang === 'it'
+            ? 'it'
+            : (selectedProduct.translations?.['it']?.title ? 'it' : (Object.keys(selectedProduct.translations || {}).find(l => selectedProduct.translations[l]?.title) || 'it'));
 
         setIsTranslating(true);
         const toastId = 'translate-erp';
-        toast.loading(`Mappando PIM da ${sourceLang.toUpperCase()} a ${editLang.toUpperCase()}...`, { toastId });
+        toast.loading(`Elaborazione AI per ${editLang.toUpperCase()} in corso...`, { toastId });
 
         try {
             const dataToTranslate = {
@@ -768,7 +765,7 @@ export default function ErpTable() {
                                     <div className="hidden sm:flex items-center gap-2 mr-4">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
                                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">PIM EDITOR v2.5</span>
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest leading-none">PIM EDITOR V3.1</span>
                                         </div>
                                     </div>
                                     <button
@@ -802,16 +799,14 @@ export default function ErpTable() {
                                             </button>
                                         ))}
                                     </div>
-                                    {editLang !== "it" && (
-                                        <button
-                                            onClick={handleTranslateProduct}
-                                            disabled={isTranslating}
-                                            className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
-                                        >
-                                            {isTranslating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Languages className="w-3 h-3" />}
-                                            Traduci Tutto
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={handleTranslateProduct}
+                                        disabled={isTranslating}
+                                        className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isTranslating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Languages className="w-3 h-3" />}
+                                        Traduci / Correggi AI
+                                    </button>
                                 </div>
                             </div>
 
