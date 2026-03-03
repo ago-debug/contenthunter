@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "fs/promises";
 import fs from "fs";
 import path from "path";
+import { Readable } from "stream";
 
 export async function GET(req: NextRequest) {
     const filePathParam = req.nextUrl.searchParams.get("path");
@@ -40,17 +40,8 @@ export async function GET(req: NextRequest) {
             const chunksize = (end - start) + 1;
             const file = fs.createReadStream(fullPath, { start, end });
 
-            // Convert ReadStream to ReadableStream for Next.js
-            const stream = new ReadableStream({
-                start(controller) {
-                    file.on("data", (chunk) => controller.enqueue(chunk));
-                    file.on("end", () => controller.close());
-                    file.on("error", (err) => controller.error(err));
-                },
-                cancel() {
-                    file.destroy();
-                }
-            });
+            // Convert ReadStream to standard Web stream
+            const stream = Readable.toWeb(file);
 
             return new NextResponse(stream as any, {
                 status: 206,
@@ -62,8 +53,10 @@ export async function GET(req: NextRequest) {
                 },
             });
         } else {
-            const data = await readFile(fullPath);
-            return new NextResponse(data, {
+            const file = fs.createReadStream(fullPath);
+            const stream = Readable.toWeb(file);
+
+            return new NextResponse(stream as any, {
                 headers: {
                     "Content-Type": "application/pdf",
                     "Content-Disposition": "inline; filename=\"" + path.basename(fullPath) + "\"",
