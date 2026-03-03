@@ -440,13 +440,16 @@ export default function ImportLab() {
         const toastId = toast.loading(`Caricamento PDF: ${file.name}...`);
 
         try {
-            // Send the File object directly - Axios handles this natively as binary stream
-            // avoiding potential corruption from ArrayBuffer conversions
-            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, file, {
+            // Using a Blob wrapper to ensure browser treats it as atomic binary content
+            const blob = new Blob([file], { type: 'application/pdf' });
+
+            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, blob, {
                 headers: {
                     "Content-Type": "application/pdf",
                     "X-File-Name": encodeURIComponent(file.name)
-                }
+                },
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
             });
 
             toast.update(toastId, { render: "PDF caricato con successo!", type: "success", isLoading: false, autoClose: 3000 });

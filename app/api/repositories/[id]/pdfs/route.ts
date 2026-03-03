@@ -26,6 +26,16 @@ export async function POST(
         }
 
         const buffer = Buffer.from(arrayBuffer);
+
+        // --- MANDATORY MAGIC BYTE CHECK ---
+        const magic = buffer.subarray(0, 4).toString();
+        console.log(`[UPLOAD-CHECK] Processing file: ${name}. Magic Header: ${magic}`);
+
+        if (magic !== "%PDF") {
+            console.error(`[UPLOAD-ERROR] File ${name} is NOT a valid PDF. Starts with: ${magic}`);
+            return NextResponse.json({ error: "Il file inviato non sembra essere un PDF valido (struttura corrotta)." }, { status: 400 });
+        }
+
         const cleanName = name.replace(/[^a-zA-Z0-9.-]/g, "_");
         const fileName = `${Date.now()}-${cleanName}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");
