@@ -4,11 +4,9 @@ import fs from "fs";
 import path from "path";
 // @ts-ignore
 import pdfParse from "pdf-parse";
-import OpenAI from "openai";
+import { GoogleGenerativeAI, Schema, Type } from "@google/generative-ai";
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(
     req: NextRequest,
@@ -43,15 +41,18 @@ export async function POST(
             return NextResponse.json({ error: "Il PDF non contiene testo estraibile (potrebbe essere una scansione piatta)." }, { status: 400 });
         }
 
-        // 4. Send to OpenAI for structured JSON extraction
-        // To handle huge catalogs, we might need chunking in the future, but for now we pass the full text
-        // gpt-4o-mini supports 128k input tokens (approx 300 pages of pure text).
+        if (!process.env.GEMINI_API_KEY) {
+            return NextResponse.json({ error: "Chiave GEMINI_API_KEY non configurata." }, { status: 500 });
+        }
+
+        // 4. Send to Google Gemini (NotebookLM engine) for structured JSON extraction
+        // gemini-1.5-pro has a 2-million token context window, perfect for giant PDFs
         const prompt = `Sei un estrattore dati ERP di altissimo livello. 
 Il tuo compito è analizzare il testo estratto da un catalogo PDF e restituire SOLO un oggetto JSON strutturato contenente una lista di prodotti.
 
 Testo del catalogo:
 """
-${textContent.substring(0, 100000)} // Safety limit
+${textContent.substring(0, 1500000)} // Gemini can handle massive contexts
 """
 
 REGOLE DI ESTRAZIONE:
@@ -74,17 +75,21 @@ REGOLE DI ESTRAZIONE:
 3. Cerca di dedurre il prezzo ed eliminare i simboli valutari.
 4. Assicurati rigorosamente di restituire JSON valido.`;
 
-        const aiResponse = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            response_format: { type: "json_object" },
-            messages: [
-                { role: "system", content: "You are a specialized JSON data extractor for ERP systems." },
-                { role: "user", content: prompt }
-            ],
-            temperature: 0.1, // very low for deterministic extraction
+        // Configure Gemini 1.5 Pro (The brain behind NotebookLM)
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-pro",
+            generationConfig: {
+                temperature: 0.1, // Low temp for extraction tasks
+                responseMimeType: "application/json",
+            }
         });
 
-        const resultText = aiResponse.choices[0].message.content || "{}";
+        const aiResponse = await model.generateContent([
+            { text: "You are a specialized JSON data extractor for ERP systems." },
+            { text: prompt }
+        ]);
+
+        const resultText = aiResponse.response.text() || "{}";
         const parsedResult = JSON.parse(resultText);
 
         if (!parsedResult.products || !Array.isArray(parsedResult.products)) {
