@@ -353,16 +353,16 @@ export default function ImportLab() {
         const toastId = toast.loading(`Caricamento PDF: ${file.name}...`);
 
         try {
-            const formData = new FormData();
-            formData.append("file", file);
+            const arrayBuffer = await file.arrayBuffer();
 
-            await axios.post(`/api/repositories/${catalogIdParam}/pdfs?name=${encodeURIComponent(file.name)}`, file, {
+            await axios.post(`/api/repositories/${catalogIdParam}/pdfs?name=${encodeURIComponent(file.name)}`, arrayBuffer, {
                 headers: { "Content-Type": "application/pdf" }
             });
 
             toast.update(toastId, { render: "PDF caricato con successo!", type: "success", isLoading: false, autoClose: 3000 });
-            fetchRepository(parseInt(catalogIdParam));
-        } catch (err) {
+            fetchRepository(parseInt(catalogIdParam!));
+        } catch (err: any) {
+            console.error("PDF upload error:", err);
             toast.update(toastId, { render: "Errore durante il caricamento del PDF.", type: "error", isLoading: false, autoClose: 3000 });
         } finally {
             setIsUploadingPdf(false);
