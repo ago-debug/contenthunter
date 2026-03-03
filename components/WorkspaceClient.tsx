@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, AlertCircle, Info, ShoppingCart } from "lucide-react";
+import { Upload, FileDown, Plus, Trash2, ImageIcon, FileText, CheckCircle2, ChevronRight, ChevronLeft, LayoutGrid, List, Sparkles, Box, Database, HardDrive, Cpu, Layers, Users, BookOpen, X, Search, Maximize2, Globe, Chrome, Package, History, Settings, BarChart3, Filter, FolderOpen, RefreshCw, Languages, AlertTriangle, AlertCircle, Info, ShoppingCart, FileSpreadsheet, LayoutTemplate } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -108,11 +108,15 @@ export default function WorkspaceClient() {
 
     const {
         catalogId, setCatalogId,
+        projectName, setProjectName,
+        csvName, setCsvName,
+        pdfName, setPdfName,
         products, setProducts,
         pdfPages, setPdfPages,
         skuToPageMap, setSkuToPageMap,
         currentPdfUrl, setCurrentPdfUrl,
-        isProcessing, setIsProcessing
+        isProcessing, setIsProcessing,
+        resetCatalog
     } = useCatalog();
 
     const [wsSearchTerm, setWsSearchTerm] = useState("");
@@ -148,8 +152,7 @@ export default function WorkspaceClient() {
     const [isAddingColumn, setIsAddingColumn] = useState(false);
     const [newColumnName, setNewColumnName] = useState("");
     const [previewImage, setPreviewImage] = useState<string | null>(null);
-    const [activeSection, setActiveSection] = useState<'info' | 'images' | 'history'>('info');
-    const [projectName, setProjectName] = useState("Nuovo Progetto");
+    const [activeSection, setActiveSection] = useState<'info' | 'images' | 'history' | 'pdf'>('info');
 
     const [currencyToClean, setCurrencyToClean] = useState<string>("");
     const [translateTargetLang, setTranslateTargetLang] = useState<string>("en");
@@ -251,18 +254,17 @@ export default function WorkspaceClient() {
         }
     };
 
-    const handleWebSearch = async (product: any, manualQuery?: string, isShopping = false) => {
+    const handleWebSearch = async (product: any, manualQuery?: string) => {
         setIsSearchingWeb(true);
-        setWebResults([]);
         try {
-            const query = (manualQuery || `${product.brand || ''} ${product.sku} ${product.title || ''}`).trim().slice(0, 100);
-            // Pass project-specific sources to the search API
-            const sourcesQuery = searchSources.map(s => s.url).join(',');
-            const response = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${isShopping || useGoogleShopping}`);
-            setWebResults(response.data.images || []);
-        } catch (error) {
-            console.error("Web search failed:", error);
-            toast.error("Errore nella ricerca web");
+            const query = manualQuery || `${product.brand || ''} ${product.sku || ''} ${product.ean || ''} ${product.title || ''}`.trim();
+            const resp = await axios.get(`/api/search-images?query=${encodeURIComponent(query)}&useShopping=${useGoogleShopping}`);
+            setWebResults(resp.data.images || []);
+            setPickerSearchQuery(query);
+            if (resp.data.images?.length === 0) toast.warning("Matrix Alert: Nessuna corrispondenza visiva trovata sul web.");
+            else toast.success(`Intelligence: ${resp.data.images.length} potenziali asset trovati.`);
+        } catch (err) {
+            toast.error("Web Intelligence offline");
         } finally {
             setIsSearchingWeb(false);
         }
@@ -632,6 +634,7 @@ export default function WorkspaceClient() {
 
             const data = await resp.json();
             setCatalogId(data.catalogId);
+            setPdfName(file.name);
 
             if (csvMasterList.length === 0) {
                 toast.info("Dati listino assenti: il PDF verrà visualizzato ma nessun prodotto verrà auto-mappato.");
@@ -691,8 +694,16 @@ export default function WorkspaceClient() {
                     }
                 });
 
+                const allExtra: string[] = [];
+                headers.forEach(h => {
+                    if (!Object.values(newMapping).includes(h)) {
+                        allExtra.push(h);
+                    }
+                });
+
                 setCsvMapping(newMapping);
-                setShowMapping(true);
+                setExtraColumns(allExtra);
+                setCsvName(file.name);
                 toast.success(`Listino CSV caricato: ${data.length} voci. Auto-mapping completato.`);
             }
         };
@@ -1624,9 +1635,14 @@ export default function WorkspaceClient() {
                         </h1>
                     </div>
                     <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-wider text-gray-400">
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-orange-500" /> CSV</span>
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-300" /> PDF</span>
-                        <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-300" /> WEB</span>
+                        <span className="flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${csvName ? 'bg-orange-500' : 'bg-slate-300'}`} />
+                            CSV: <span className="text-gray-600">{csvName || "---"}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <div className={`w-1.5 h-1.5 rounded-full ${pdfName ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                            PDF: <span className="text-gray-600">{pdfName || "---"}</span>
+                        </span>
                     </div>
                 </div>
 
@@ -1661,6 +1677,16 @@ export default function WorkspaceClient() {
                     </div>
 
                     <div className="flex items-center gap-2 border-l border-gray-100 pl-3">
+                        <button
+                            onClick={() => {
+                                if (confirm("Sei sicuro di voler chiudere questo progetto? Tutti i dati non salvati andranno persi.")) {
+                                    resetCatalog();
+                                }
+                            }}
+                            className="bg-gray-100 text-gray-500 hover:text-red-500 px-4 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all"
+                        >
+                            Nuovo Progetto
+                        </button>
                         <button
                             onClick={syncToDatabase}
                             className="bg-orange-600 text-white px-5 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-orange-700 transition-all shadow-md shadow-orange-900/10"
@@ -1805,29 +1831,81 @@ export default function WorkspaceClient() {
             </AnimatePresence >
 
             {/* ERP Navigation Tabs */}
-            < div className="flex items-center gap-4 p-1 bg-gray-100/30 w-fit rounded-2xl border border-gray-100" >
-                <button
-                    onClick={() => setCurrentView('workspace')}
-                    className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'workspace' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                    <Cpu className="w-4 h-4" />
-                    PDF Workspace
-                </button>
-                <button
-                    onClick={() => setCurrentView('asset-matcher')}
-                    className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'asset-matcher' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                    <HardDrive className="w-4 h-4" />
-                    Associa Asset SKU
-                </button>
-                <button
-                    onClick={() => setCurrentView('erp')}
-                    className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'erp' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
-                >
-                    <Database className="w-4 h-4" />
-                    Gestione ERP
-                </button>
-            </div >
+            <div className="flex flex-col gap-6 mb-10">
+                <div className="flex items-center justify-between bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                    <div className="flex items-center gap-6">
+                        <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                            <Layers className="w-6 h-6 text-orange-600" />
+                        </div>
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-black text-[#111827] uppercase tracking-tighter">Progetto Attivo</h3>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    value={projectName}
+                                    onChange={(e) => setProjectName(e.target.value)}
+                                    placeholder="Inserisci nome progetto..."
+                                    className={`px-4 py-2 rounded-xl text-sm font-bold outline-none transition-all ${projectName === "Nuovo Progetto" ? 'bg-orange-50 border border-orange-200 text-orange-600 focus:ring-4 focus:ring-orange-100' : 'bg-gray-50 border border-transparent focus:bg-white focus:border-slate-900 text-slate-900'}`}
+                                />
+                                {projectName === "Nuovo Progetto" && (
+                                    <span className="text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">← Azione Richiesta!</span>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => {
+                                if (projectName === "Nuovo Progetto" || !projectName.trim()) {
+                                    toast.error("Per favore, dai un nome al progetto prima di caricare i file.");
+                                    return;
+                                }
+                                csvInputRef.current?.click();
+                            }}
+                            className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-3"
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            Importa Listino CSV
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (projectName === "Nuovo Progetto" || !projectName.trim()) {
+                                    toast.error("Per favore, dai un nome al progetto prima di caricare i file.");
+                                    return;
+                                }
+                                fileInputRef.current?.click();
+                            }}
+                            className="px-6 py-3 bg-orange-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-900/10 flex items-center gap-3"
+                        >
+                            <FileText className="w-4 h-4" />
+                            Importa Catalogo PDF
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-1 bg-gray-100/30 w-fit rounded-2xl border border-gray-100">
+                    <button
+                        onClick={() => setCurrentView('workspace')}
+                        className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'workspace' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <Cpu className="w-4 h-4" />
+                        PDF Workspace
+                    </button>
+                    <button
+                        onClick={() => setCurrentView('asset-matcher')}
+                        className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'asset-matcher' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <HardDrive className="w-4 h-4" />
+                        Associa Asset SKU
+                    </button>
+                    <button
+                        onClick={() => setCurrentView('erp')}
+                        className={`px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all ${currentView === 'erp' ? 'bg-white shadow-md text-[#111827] scale-105' : 'text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <LayoutTemplate className="w-4 h-4" />
+                        Catalogues
+                    </button>
+                </div>
+            </div>
 
             <AnimatePresence mode="wait">
                 {currentView === 'workspace' ? (
@@ -4086,6 +4164,7 @@ export default function WorkspaceClient() {
                                 {[
                                     { id: 'info', label: 'Specifiche Tecniche', icon: Info },
                                     { id: 'images', label: 'Media Assets', icon: ImageIcon },
+                                    { id: 'pdf', label: 'PDF Originale', icon: FileText },
                                     { id: 'history', label: 'Log Modifiche', icon: History }
                                 ].map((tab: { id: string, label: string, icon: any }) => (
                                     <button
@@ -4323,6 +4402,89 @@ export default function WorkspaceClient() {
                                                 )}
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+
+                                {activeSection === 'pdf' && (
+                                    <div className="h-full flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-2">
+                                        {pdfPages.length === 0 ? (
+                                            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-4">
+                                                <FileText className="w-16 h-16 opacity-20" />
+                                                <p className="text-xs font-black uppercase tracking-widest">Nessun PDF caricato nel progetto</p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex-1 space-y-6">
+                                                <div className="flex items-center justify-between bg-slate-50 p-4 rounded-3xl border border-gray-100">
+                                                    <div className="flex items-center gap-4">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setPickerPageIdx(prev => Math.max(0, prev - 1)); }}
+                                                            disabled={pickerPageIdx === 0}
+                                                            className="p-2 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all disabled:opacity-30"
+                                                        >
+                                                            <ChevronLeft className="w-6 h-6 text-slate-900" />
+                                                        </button>
+                                                        <div className="text-center min-w-[120px]">
+                                                            <span className="text-[10px] font-black text-gray-400 block uppercase">Pagina</span>
+                                                            <span className="text-lg font-black text-slate-900">{pickerPageIdx + 1} <span className="text-gray-300">/ {pdfPages.length}</span></span>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setPickerPageIdx(prev => Math.min(pdfPages.length - 1, prev + 1)); }}
+                                                            disabled={pdfPages.length === 0 || pickerPageIdx === pdfPages.length - 1}
+                                                            className="p-2 hover:bg-white rounded-xl border border-transparent hover:border-gray-200 transition-all disabled:opacity-30"
+                                                        >
+                                                            <ChevronRight className="w-6 h-6 text-slate-900" />
+                                                        </button>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const sku = editingProduct.sku;
+                                                            const ean = editingProduct.ean;
+                                                            const foundIdx = pdfPages.findIndex(p =>
+                                                                (sku && p.text.toLowerCase().includes(sku.toLowerCase())) ||
+                                                                (ean && p.text.toLowerCase().includes(ean.toLowerCase()))
+                                                            );
+                                                            if (foundIdx !== -1) {
+                                                                setPickerPageIdx(foundIdx);
+                                                                toast.success(`SKU/EAN trovato a pagina ${foundIdx + 1}`);
+                                                            } else {
+                                                                toast.warning("SKU non trovato nel PDF");
+                                                            }
+                                                        }}
+                                                        className="px-6 py-2 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all"
+                                                    >
+                                                        Trova SKU nel PDF
+                                                    </button>
+                                                </div>
+                                                <div className="relative bg-gray-100 rounded-[2rem] overflow-hidden border border-gray-100 shadow-inner group min-h-[500px] flex items-center justify-center">
+                                                    <img
+                                                        src={pdfPages[pickerPageIdx]?.imageUrl}
+                                                        className="w-full h-auto object-contain max-h-[70vh]"
+                                                        alt={`Pagina ${pickerPageIdx + 1}`}
+                                                    />
+                                                    <div className="absolute inset-0 pointer-events-none">
+                                                        {pdfPages[pickerPageIdx]?.textBlocks.map((block: any, bIdx: number) => {
+                                                            const strLow = block.str.toLowerCase();
+                                                            const isSku = (editingProduct.sku && strLow.includes(editingProduct.sku.toLowerCase())) ||
+                                                                (editingProduct.ean && strLow.includes(editingProduct.ean.toLowerCase()));
+                                                            if (!isSku) return null;
+                                                            return (
+                                                                <div
+                                                                    key={bIdx}
+                                                                    className="absolute border-2 border-orange-500 bg-orange-400/20 backdrop-blur-[1px] rounded animate-pulse"
+                                                                    style={{
+                                                                        left: `${(block.x / 1000) * 100}%`,
+                                                                        top: `${(block.y / 1000) * 100}%`,
+                                                                        width: `${(block.width / 1000) * 100}%`,
+                                                                        height: `${(block.height / 1000) * 100}%`,
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -426,20 +426,34 @@ export async function GET(request: Request) {
                 finalQuery = `(${siteFilters}) ${query}`;
             }
 
-            const response = await axios.get(`https://serpapi.com/search.json`, {
-                params: { q: finalQuery, tbm: 'isch', api_key: serpApiKey, engine: 'google_images' }
-            });
-            const serpImages = (response.data.images_results || []).map((img: any) => ({
-                id: img.position?.toString() || Math.random().toString(),
-                url: img.original || img.thumbnail,
-                title: img.title,
-                source: 'Google Images',
-            }));
-            allImages.push(...serpImages);
+            try {
+                const response = await axios.get(`https://serpapi.com/search.json`, {
+                    params: { q: finalQuery, tbm: 'isch', api_key: serpApiKey, engine: 'google_images', hl: 'it', gl: 'it' }
+                });
+                const serpImages = (response.data.images_results || []).map((img: any) => ({
+                    id: img.position?.toString() || Math.random().toString(),
+                    url: img.original || img.thumbnail,
+                    title: img.title,
+                    source: 'Google Images',
+                }));
+                allImages.push(...serpImages);
+            } catch (err: any) {
+                console.warn("SerpApi fallback error:", err.message);
+            }
         }
 
-        if (allImages.length > 0) {
-            return NextResponse.json({ images: allImages.slice(0, 20) });
+        // Final filtering to ensure we don't return generic logos or favicons
+        const filteredImages = allImages.filter(img => {
+            const url = img.url.toLowerCase();
+            // Filter out common favicons or tiny icons that often appear as "G" or logos
+            if (url.includes('favicon') || url.includes('/logo') || url.includes('googlelogo')) return false;
+            // Also filter extremely small images that might be icons
+            if (url.startsWith('data:image/svg+xml')) return false;
+            return true;
+        });
+
+        if (filteredImages.length > 0) {
+            return NextResponse.json({ images: filteredImages.slice(0, 20) });
         }
 
         // FALLBACK: If everything failed, try a final broad Google Image scrape
