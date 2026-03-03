@@ -156,6 +156,12 @@ export default function ImportLab() {
         }
     };
 
+    // Text Normalization
+    const normalizeText = (text: any) => {
+        if (text === null || text === undefined) return null;
+        return String(text).trim();
+    };
+
     // File Upload Handler
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -163,21 +169,29 @@ export default function ImportLab() {
 
         const reader = new FileReader();
         reader.onload = (evt) => {
-            const bstr = evt.target?.result;
-            const wb = XLSX.read(bstr, { type: "binary" });
+            const data = evt.target?.result;
+            if (!data) return;
+
+            // Using 'array' instead of 'binary' allows XLSX to better handle encodings
+            const wb = XLSX.read(data, { type: "array" });
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
 
-            if (data.length > 0) {
-                const headers = data[0] as string[];
-                const rows = data.slice(1);
+            // Raw data extraction
+            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+            if (rawData.length > 0) {
+                const headers = (rawData[0] as any[]).map(h => normalizeText(h) || "");
+                const rows = rawData.slice(1).map((row: any) =>
+                    (row as any[]).map(cell => normalizeText(cell))
+                );
+
                 setRawHeaders(headers);
                 setRawRows(rows);
                 setIsImportModalOpen(true);
             }
         };
-        reader.readAsBinaryString(file);
+        reader.readAsArrayBuffer(file);
     };
 
     const handleConfirmImport = async () => {
