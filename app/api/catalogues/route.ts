@@ -21,11 +21,23 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
+        const { name, imageFolderPath, pdfs } = body;
+
         const catalog = await prisma.catalog.create({
             data: {
-                name: body.name || "Nuovo Progetto",
-                filePath: body.filePath || "/uploads/placeholder.pdf",
+                name: name || "Nuovo Progetto",
+                imageFolderPath: imageFolderPath || null,
+                status: "draft",
+                pdfs: {
+                    create: (pdfs || []).map((path: string) => ({
+                        fileName: path.split('/').pop() || "catalogo.pdf",
+                        filePath: path
+                    }))
+                }
             },
+            include: {
+                pdfs: true
+            }
         });
         return NextResponse.json(catalog);
     } catch (err: any) {
