@@ -26,7 +26,8 @@ export const config = {
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - api/fix-auth (auto-fix plesk dev env)
+         * - uploads (static files)
          */
-        "/((?!api/register|api/auth|api/fix-auth|login|register|_next/static|_next/image|favicon.ico).*)",
+        "/((?!api/register|api/auth|api/fix-auth|login|register|_next/static|_next/image|favicon.ico|uploads/).*)",
     ],
 };

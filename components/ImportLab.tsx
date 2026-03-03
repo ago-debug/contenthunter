@@ -108,9 +108,14 @@ export default function ImportLab() {
     };
 
     const loadPdfPages = async (url: string) => {
-        // Basic PDF loading logic (simplified for now)
+        if (!url) return;
+
+        // Use the storage API to ensure we can read the file even if it was added at runtime
+        const storageUrl = `/api/storage?path=${encodeURIComponent(url)}`;
+        console.log("Loading PDF via Storage API:", storageUrl);
+
         try {
-            const loadingTask = pdfjsLib.getDocument(url);
+            const loadingTask = pdfjsLib.getDocument(storageUrl);
             const pdf = await loadingTask.promise;
             const pages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
@@ -119,6 +124,7 @@ export default function ImportLab() {
             setPdfPages(pages);
         } catch (err) {
             console.error("PDF Load Error:", err);
+            toast.error("Impossibile caricare l'anteprima PDF.");
         }
     };
 
