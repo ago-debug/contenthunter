@@ -72,43 +72,29 @@ export async function POST(
             }
         }
 
-        const forceRescan = req.nextUrl.searchParams.get("force") === "true";
         const indexPath = path.join(localPath, "images_index.json");
-        const externalIndexPath = path.join(localPath, "images_map.json"); // Name often used by external PHP scripts
-
+        const externalPath = path.join(localPath, "images_map.json");
         let imageMap: Record<string, string[]> = {};
 
         // 1. Load or Build the Image Map
-        // Priority: 1. Force Rescan, 2. External PHP Map, 3. Internal Cached Index, 4. Fresh Scan
-        if (!forceRescan && fs.existsSync(externalIndexPath)) {
-            try {
-                const indexData = fs.readFileSync(externalIndexPath, 'utf-8');
-                imageMap = JSON.parse(indexData);
-                console.log("Loaded image map from EXTERNAL PHP index");
-            } catch (e) {
-                console.error("Error reading external map, falling back...");
-            }
-        }
+        // Priority: 1. images_map.json (external), 2. images_index.json (internal cache), 3. Fresh Scan
+        const targetPath = fs.existsSync(externalPath) ? externalPath : (fs.existsSync(indexPath) ? indexPath : null);
 
-        if (Object.keys(imageMap).length === 0 && !forceRescan && fs.existsSync(indexPath)) {
+        if (targetPath) {
             try {
-                const indexData = fs.readFileSync(indexPath, 'utf-8');
+                const indexData = fs.readFileSync(targetPath, 'utf-8');
                 imageMap = JSON.parse(indexData);
-                console.log("Loaded image map from internal index JSON");
+                console.log(`Loaded image map from: ${path.basename(targetPath)}`);
             } catch (e) {
-                console.error("Error reading internal index, rebuilding...");
-            }
-        }
-
-        if (Object.keys(imageMap).length === 0) {
-            console.log(`Scanning subdirectories in ${localPath}...`);
-            imageMap = buildImageMap(localPath, localPath);
-            // Save index for next time
-            try {
+                console.error(`Error reading ${targetPath}, rebuilding...`);
+                imageMap = buildImageMap(localPath, localPath);
                 fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
-            } catch (e) {
-                console.error("Could not write index file (permission issue?):", e);
             }
+        } else {
+            console.log("No index found, scanning subdirectories...");
+            imageMap = buildImageMap(localPath, localPath);
+            // Save internal index for next time
+            fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
         }
 
         // 2. Fetch all products in staging for this catalog
