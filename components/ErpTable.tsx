@@ -17,6 +17,7 @@ import { MultiSearchableSelect } from "./MultiSearchableSelect";
 export default function ErpTable() {
     const [products, setProducts] = useState<any[]>([]);
     const [allCategories, setAllCategories] = useState<any[]>([]);
+    const [projectName, setProjectName] = useState("Nessun progetto aperto");
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
@@ -59,8 +60,10 @@ export default function ErpTable() {
         const resolvedSrc = typeof src === 'string' ? src : src?.url;
         return <img src={resolvedSrc} alt={alt} className={className} onError={() => setError(true)} />;
     };
-    const [brandFilter, setBrandFilter] = useState("all");
-    const [categoryFilter, setCategoryFilter] = useState("all");
+    const [brandFilter, setBrandFilter] = useState<string>("all");
+    const [categoryFilter, setCategoryFilter] = useState<string | number>("all");
+    const [subCategoryFilter, setSubCategoryFilter] = useState<string | number>("all");
+    const [subSubCategoryFilter, setSubSubCategoryFilter] = useState<string | number>("all");
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
     const [showWooConfig, setShowWooConfig] = useState(false);
     const [wooConfig, setWooConfig] = useState({
@@ -92,6 +95,8 @@ export default function ErpTable() {
         fetchProducts(); // Initial data load
         fetchCategories();
         fetchTags();
+        const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
+        if (savedProjectName) setProjectName(savedProjectName);
     }, []);
 
     const testWooConnection = async () => {
@@ -448,9 +453,12 @@ export default function ErpTable() {
         const term = searchTerm.toLowerCase();
 
         const matchesBrand = brandFilter === "all" || p.brand === brandFilter;
-        const matchesCategory = categoryFilter === "all" || p.category === categoryFilter;
+        // Check for category matches by string or ID
+        const matchesCategory = categoryFilter === "all" || p.category === categoryFilter || p.categoryId === Number(categoryFilter);
+        const matchesSubCategory = subCategoryFilter === "all" || p.subCategoryId === Number(subCategoryFilter);
+        const matchesSubSubCategory = subSubCategoryFilter === "all" || p.subSubCategoryId === Number(subSubCategoryFilter);
 
-        if (!matchesBrand || !matchesCategory) return false;
+        if (!matchesBrand || !matchesCategory || !matchesSubCategory || !matchesSubSubCategory) return false;
         if (!term) return true;
 
         const baseMatch = (p.sku || "").toLowerCase().includes(term) ||
@@ -491,74 +499,112 @@ export default function ErpTable() {
     );
 
     return (
-        <div className="p-5 space-y-5 bg-[#F4F5F7] min-h-screen">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4 border-b border-gray-200/60">
-                <div>
-                    <h1 className="text-xl font-black text-gray-900 tracking-tight">Libreria Master PIM</h1>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em]">
-                        Gestione Centralizzata Prodotti ed EAV
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-3 bg-white/80 backdrop-blur-md p-2.5 rounded-xl shadow-sm border border-gray-200/50">
-                    <div className="flex items-center gap-4 px-3 border-r border-gray-100">
-                        <div className="text-center">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Prodotti</p>
-                            <p className="text-sm font-black text-[#111827] leading-tight">{products.length}</p>
+        <div className="p-5 space-y-5 bg-[#F4F5F7] min-h-screen relative">
+            {/* Sticky Main Header */}
+            <div className="sticky top-0 z-[60] -mt-5 pt-5 pb-4 px-5 mx-[-1.25rem] bg-[#F4F5F7]/80 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+                <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3">
+                            <Package className="w-5 h-5 text-white" />
                         </div>
-                        <div className="text-center border-x border-gray-50 px-4">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Brand</p>
-                            <p className="text-sm font-black text-gray-900 leading-tight">{uniqueBrands.length}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Categorie</p>
-                            <p className="text-sm font-black text-gray-900 leading-tight">{uniqueCategories.length}</p>
+                        <div>
+                            <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">PIM Master Library</h1>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${projectName === 'Nessun progetto aperto' ? 'bg-red-50 border-red-100 text-red-500 animate-pulse' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
+                                    PROGETTO: {projectName}
+                                </span>
+                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                    <div className="w-1 h-1 bg-gray-300 rounded-full"></div> Master Records
+                                </span>
+                            </div>
                         </div>
                     </div>
+                    <div className="flex flex-wrap items-center gap-3 bg-white/60 backdrop-blur-md p-1.5 rounded-2xl shadow-sm border border-white/40">
+                        <div className="flex items-center gap-4 px-3 border-r border-gray-100">
+                            <div className="text-center">
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Prodotti</p>
+                                <p className="text-sm font-black text-[#111827] leading-tight">{products.length}</p>
+                            </div>
+                        </div>
 
-                    <div className="relative group flex-1 min-w-[240px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-slate-900 transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Cerca SKU, Titolo, Brand..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-gray-50/50 border border-transparent rounded-lg pl-10 pr-3 py-2 text-xs font-bold text-gray-900 focus:bg-white focus:border-slate-200 transition-all outline-none"
-                        />
-                    </div>
+                        <div className="relative group min-w-[300px]">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-slate-900 transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Cerca SKU, Titolo, Brand..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-white/80 border border-transparent rounded-xl pl-10 pr-3 py-2.5 text-xs font-bold text-gray-900 focus:bg-white focus:border-slate-200 transition-all outline-none"
+                            />
+                        </div>
 
-                    <select
-                        value={brandFilter}
-                        onChange={(e) => setBrandFilter(e.target.value)}
-                        className="bg-gray-50 border-none rounded-lg px-3 py-2 text-[10px] font-black uppercase tracking-wider text-[#111827] cursor-pointer focus:ring-1 focus:ring-slate-200 outline-none"
-                    >
-                        <option value="all">Brand</option>
-                        {uniqueBrands.map((b: string) => (
-                            <option key={b} value={b}>{b}</option>
-                        ))}
-                    </select>
+                        <div className="flex items-center gap-2 border-l border-gray-100 pl-2">
+                            <div className="w-[140px]">
+                                <SearchableSelect
+                                    options={[{ value: 'all', label: 'Tutti i Brand' }, ...uniqueBrands.map(b => ({ value: b, label: b }))]}
+                                    value={brandFilter}
+                                    onChange={(val) => setBrandFilter(String(val || 'all'))}
+                                    placeholder="Filter Brand..."
+                                />
+                            </div>
+                            <div className="w-[160px]">
+                                <SearchableSelect
+                                    options={[{ value: 'all', label: 'Tutte Categorie' }, ...allCategories.filter(c => !c.parentId).map(c => ({ value: c.id, label: c.name }))]}
+                                    value={categoryFilter === 'all' ? 'all' : Number(categoryFilter)}
+                                    onChange={(val) => {
+                                        setCategoryFilter(val || 'all');
+                                        setSubCategoryFilter('all');
+                                        setSubSubCategoryFilter('all');
+                                    }}
+                                    placeholder="Root Category..."
+                                />
+                            </div>
+                            <div className="w-[160px]">
+                                <SearchableSelect
+                                    options={[{ value: 'all', label: 'Sub-Category' }, ...allCategories.filter(c => c.parentId === Number(categoryFilter)).map(c => ({ value: c.id, label: c.name }))]}
+                                    value={subCategoryFilter === 'all' ? 'all' : Number(subCategoryFilter)}
+                                    onChange={(val) => {
+                                        setSubCategoryFilter(val || 'all');
+                                        setSubSubCategoryFilter('all');
+                                    }}
+                                    placeholder="Sub-Category..."
+                                    disabled={categoryFilter === 'all'}
+                                />
+                            </div>
+                            <div className="w-[160px]">
+                                <SearchableSelect
+                                    options={[{ value: 'all', label: 'Livello 3' }, ...allCategories.filter(c => c.parentId === Number(subCategoryFilter)).map(c => ({ value: c.id, label: c.name }))]}
+                                    value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
+                                    onChange={(val) => setSubSubCategoryFilter(val || 'all')}
+                                    placeholder="Deep Category..."
+                                    disabled={subCategoryFilter === 'all'}
+                                />
+                            </div>
+                        </div>
 
-                    <div className="flex bg-gray-50 p-0.5 rounded-lg border border-gray-100">
+                        <div className="flex bg-gray-50 p-0.5 rounded-xl border border-gray-100">
+                            <button
+                                onClick={() => setViewMode('table')}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
+                            >
+                                <List className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                            </button>
+                        </div>
+
                         <button
-                            onClick={() => setViewMode('table')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
+                            onClick={() => setShowWooConfig(true)}
+                            className="p-2.5 bg-[#111827] text-white rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
                         >
-                            <List className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
-                        >
-                            <LayoutGrid className="w-3.5 h-3.5" />
+                            <Settings className="w-4 h-4" />
+                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest">Setup Integrazioni</span>
                         </button>
                     </div>
-
-                    <button
-                        onClick={() => setShowWooConfig(true)}
-                        className="p-2 bg-[#111827] text-white rounded-lg hover:bg-black transition-all shadow-sm flex items-center gap-2"
-                    >
-                        <Settings className="w-3.5 h-3.5" />
-                        <span className="hidden lg:inline text-[9px] font-black uppercase tracking-widest">Setup</span>
-                    </button>
                 </div>
             </div>
 
@@ -571,7 +617,7 @@ export default function ErpTable() {
                 </div>
                 <EdgeScroll>
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400">
+                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[80px] z-50">
                             <tr>
                                 <th className="px-4 py-3 w-8">
                                     <input

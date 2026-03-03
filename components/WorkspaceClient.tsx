@@ -578,8 +578,10 @@ export default function WorkspaceClient() {
 
         // Restore state from localStorage
         const savedCatalogId = localStorage.getItem("pdf_catalog_id");
+        const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         const savedProducts = localStorage.getItem("pdf_catalog_products");
 
+        if (savedProjectName) setProjectName(savedProjectName);
         if (savedCatalogId) {
             const parsedId = parseInt(savedCatalogId);
             setCatalogId(parsedId);
@@ -650,6 +652,7 @@ export default function WorkspaceClient() {
         const timer = setTimeout(() => {
             try {
                 if (catalogId) localStorage.setItem("pdf_catalog_id", catalogId.toString());
+                if (projectName) localStorage.setItem("pdf_catalog_project_name", projectName);
                 if (products.length > 0) {
                     const sanitized = products.map((p, pIdx) => ({
                         ...p,
@@ -1713,27 +1716,34 @@ export default function WorkspaceClient() {
     return (
         <div className="p-4 md:p-6 space-y-6">
             {/* Header / Page Identity */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 border-b border-gray-100 bg-white/50 backdrop-blur-xl sticky top-0 z-50 -mx-6 px-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 border-b border-gray-100 bg-[#F8FAFC]/90 backdrop-blur-xl sticky top-0 z-50 -mx-6 px-6 shadow-sm">
                 <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2">
-                        <Package className="w-5 h-5 text-orange-600" />
-                        <h1 className="text-xl font-black tracking-tight text-[#111827]">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-slate-900 rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
+                            <Package className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="flex-1">
                             <input
                                 value={projectName}
                                 onChange={(e) => setProjectName(e.target.value)}
-                                placeholder="Nome Progetto..."
-                                className="bg-transparent border-none outline-none focus:ring-0 p-0 w-full hover:bg-gray-50/50 rounded transition-colors"
+                                placeholder="Dai un nome al tuo progetto..."
+                                className={`text-lg font-black tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 w-full hover:bg-white/40 rounded px-1 transition-all ${projectName === 'Nuovo Progetto' ? 'text-gray-300 italic font-medium' : 'text-slate-900'}`}
                             />
-                        </h1>
+                            {projectName === 'Nuovo Progetto' && (
+                                <p className="text-[9px] font-black text-orange-500 uppercase tracking-widest flex items-center gap-1">
+                                    <AlertCircle className="w-3 h-3" /> Nessun progetto aperto - Inserire Nome
+                                </p>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-wider text-gray-400">
-                        <span className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${csvName ? 'bg-orange-500' : 'bg-slate-300'}`} />
-                            CSV: <span className="text-gray-600">{csvName || "---"}</span>
+                    <div className="flex items-center gap-4 text-[9px] font-black uppercase tracking-wider text-gray-400 mt-1">
+                        <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${pdfPages.length > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                            <FileText className="w-3 h-3" />
+                            PDF: {pdfPages.length > 0 ? `ATTIVO (${pdfPages.length} PAGINE)` : 'NON CARICATO'}
                         </span>
-                        <span className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${pdfName ? 'bg-blue-500' : 'bg-slate-300'}`} />
-                            PDF: <span className="text-gray-600">{pdfName || "---"}</span>
+                        <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border ${csvMasterList.length > 0 ? 'bg-blue-50 border-blue-100 text-blue-600' : 'bg-gray-50 border-gray-100 text-gray-400'}`}>
+                            <FileSpreadsheet className="w-3 h-3" />
+                            FILE: {csvMasterList.length > 0 ? `ATTIVO (${csvMasterList.length} RIGHE)` : 'NON CARICATO'}
                         </span>
                     </div>
                 </div>

@@ -304,6 +304,10 @@ export async function GET(req: NextRequest) {
                 material,
                 // Dynamic Extra
                 extraFields: extraObj,
+                // Categories
+                categoryId: p.categoryId,
+                subCategoryId: p.subCategoryId,
+                subSubCategoryId: p.subSubCategoryId,
                 // Images
                 images: p.images.map(img => ({ id: img.id.toString(), url: img.imageUrl })),
                 // Tags
