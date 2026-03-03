@@ -17,9 +17,9 @@ import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
 import { useCatalog } from "./CatalogContext";
 
-// Configure PDF.js worker
 if (typeof window !== "undefined") {
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    // Legacy build is robust across dev/prod environments
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
 
 interface StagingProduct {
@@ -63,6 +63,7 @@ export default function ImportLab() {
     const [currentImportFile, setCurrentImportFile] = useState<string>("");
     const [isSavingStaging, setIsSavingStaging] = useState(false);
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+    const [isExtractingAi, setIsExtractingAi] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const pdfInputRef = useRef<HTMLInputElement>(null);
 
@@ -111,12 +112,10 @@ export default function ImportLab() {
     const loadPdfPages = async (url: string) => {
         if (!url) return;
 
-        // Use the storage API to ensure we can read the file even if it was added at runtime
-        const storageUrl = `/api/storage?path=${encodeURIComponent(url)}`;
-        console.log("Loading PDF via Storage API:", storageUrl);
+        const safeStorageUrl = url.startsWith('/') ? url : `/${url}`;
 
         try {
-            const loadingTask = pdfjsLib.getDocument(storageUrl);
+            const loadingTask = pdfjsLib.getDocument(safeStorageUrl);
             const pdf = await loadingTask.promise;
             const pages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
@@ -192,8 +191,8 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const pdfUrl = `/api/storage?path=${encodeURIComponent(pdf.filePath)}`;
-                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const safePdfPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
+                const loadingTask = pdfjsLib.getDocument(safePdfPath);
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -435,8 +434,8 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const pdfUrl = `/api/storage?path=${encodeURIComponent(pdf.filePath)}`;
-                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const safePdfPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
+                const loadingTask = pdfjsLib.getDocument(safePdfPath);
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -474,9 +473,35 @@ export default function ImportLab() {
         }
     };
 
+    // AI PDF Extraction (Google Gemini 1.5 Pro)
+    const handlePdfAiExtract = async () => {
+        if (!repository?.pdfs?.length || !catalogIdParam) {
+            toast.warning("Carica un PDF prima di lanciare l'IA.");
+            return;
+        }
 
+        const currentPdfId = repository.pdfs[currentPdfIdx].id;
 
-    if (loading && !allRepositories.length) return <div className="p-12 text-center font-black text-slate-400 animate-pulse tracking-widest text-xs uppercase">Inizializzazione Import Lab V3.1...</div>;
+        setIsExtractingAi(true);
+        const toastId = toast.loading("Gemini sta smontando il PDF. Questa operazione può richiedere molto tempo...");
+
+        try {
+            const res = await axios.post(`/api/repositories/${catalogIdParam}/pdfs/${currentPdfId}/extract`);
+            toast.update(toastId, {
+                render: `Magia completata ✨: ${res.data.count} prodotti estratti dal PDF!`,
+                type: "success",
+                isLoading: false,
+                autoClose: 5000
+            });
+            fetchRepository(parseInt(catalogIdParam));
+        } catch (err: any) {
+            console.error("AI Extractor error:", err);
+            const errorMsg = err.response?.data?.error || "Errore durante lo smontaggio del PDF";
+            toast.update(toastId, { render: errorMsg, type: "error", isLoading: false, autoClose: 5000 });
+        } finally {
+            setIsExtractingAi(false);
+        }
+    }; if (loading && !allRepositories.length) return <div className="p-12 text-center font-black text-slate-400 animate-pulse tracking-widest text-xs uppercase">Inizializzazione Import Lab V3.1...</div>;
 
 
     if (!repository) return (
@@ -747,6 +772,14 @@ export default function ImportLab() {
                                 PDF Explorer
                             </h4>
                             <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handlePdfAiExtract}
+                                    disabled={isExtractingAi}
+                                    className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                                >
+                                    {isExtractingAi ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                                    Smonta PDF
+                                </button>
                                 <select
                                     className="text-[10px] font-black uppercase tracking-widest bg-slate-50 border-none rounded-lg px-2 py-1 outline-none"
                                     value={currentPdfIdx}
