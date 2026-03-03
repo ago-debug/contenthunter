@@ -78,7 +78,28 @@ export async function POST(
 
             // Price
             if (p.price) {
-                const parsedPrice = parseFloat(p.price.toString().replace(",", "."));
+                // Robust price parsing:
+                // 1. Remove currency symbols and other non-digit/dot/comma chars (except sign)
+                let priceStr = p.price.toString().replace(/[^0-9,.-]/g, '');
+
+                // 2. Handle European format (1.234,56) vs US format (1,234.56)
+                if (priceStr.includes(',') && priceStr.includes('.')) {
+                    // If both present, remove the thousands separator
+                    const lastComma = priceStr.lastIndexOf(',');
+                    const lastDot = priceStr.lastIndexOf('.');
+                    if (lastComma > lastDot) {
+                        // European: 1.234,56 -> remove dot, replace comma with dot
+                        priceStr = priceStr.replace(/\./g, '').replace(',', '.');
+                    } else {
+                        // US: 1,234.56 -> remove comma
+                        priceStr = priceStr.replace(/,/g, '');
+                    }
+                } else if (priceStr.includes(',')) {
+                    // Only comma: 1234,56 -> replace with dot
+                    priceStr = priceStr.replace(',', '.');
+                }
+
+                const parsedPrice = parseFloat(priceStr);
                 if (!isNaN(parsedPrice)) {
                     await prisma.stagingProductPrice.create({
                         data: {

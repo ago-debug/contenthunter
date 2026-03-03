@@ -8,7 +8,7 @@ import {
     List, Sparkles, Box, Database, HardDrive, Cpu,
     Layers, X, Maximize2, Globe, RefreshCw, AlertCircle,
     FileSpreadsheet, Image as ImageIconLucide, Scissors,
-    Wand2, ScanSearch, ExternalLink, Check
+    Wand2, ScanSearch, ExternalLink, Check, Save
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -58,7 +58,7 @@ export default function ImportLab() {
     const [rawHeaders, setRawHeaders] = useState<string[]>([]);
     const [rawRows, setRawRows] = useState<any[][]>([]);
     const [mapping, setMapping] = useState<Record<string, string>>({
-        sku: "", ean: "", title: "", price: "", brand: "", category: ""
+        sku: "", ean: "", parentSku: "", title: "", price: "", brand: "", category: "", description: "", bulletPoints: ""
     });
     const [currentImportFile, setCurrentImportFile] = useState<string>("");
     const [isSavingStaging, setIsSavingStaging] = useState(false);
@@ -126,6 +126,20 @@ export default function ImportLab() {
         } catch (err) {
             console.error("PDF Load Error:", err);
             toast.error("Impossibile caricare l'anteprima PDF.");
+        }
+    };
+
+    const handleSaveProductChange = async () => {
+        if (!selectedProduct || !catalogIdParam) return;
+
+        const toastId = toast.loading("Salvataggio modifiche...");
+        try {
+            await axios.put(`/api/repositories/${catalogIdParam}/staging/${selectedProduct.id}`, selectedProduct);
+            toast.update(toastId, { render: "Prodotto aggiornato!", type: "success", isLoading: false, autoClose: 2000 });
+            fetchRepository(parseInt(catalogIdParam));
+            setIsProductModalOpen(false);
+        } catch (err: any) {
+            toast.update(toastId, { render: "Errore nel salvataggio", type: "error", isLoading: false, autoClose: 3000 });
         }
     };
 
@@ -356,10 +370,13 @@ export default function ImportLab() {
                 return {
                     sku: getVal("sku"),
                     ean: getVal("ean"),
+                    parentSku: getVal("parentSku"),
                     title: getVal("title"),
                     price: getVal("price"),
                     brand: getVal("brand"),
-                    category: getVal("category")
+                    category: getVal("category"),
+                    description: getVal("description"),
+                    bulletPoints: getVal("bulletPoints")
                 };
             }).filter(p => p.sku);
 
@@ -772,35 +789,165 @@ export default function ImportLab() {
                                         <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">Editor Scheda Import</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setIsProductModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
-                                    <X className="w-8 h-8 text-slate-300" />
-                                </button>
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={handleSaveProductChange}
+                                        className="px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-100 flex items-center gap-2"
+                                    >
+                                        <Save className="w-4 h-4" /> Salva Modifiche
+                                    </button>
+                                    <button onClick={() => setIsProductModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
+                                        <X className="w-8 h-8 text-slate-300" />
+                                    </button>
+                                </div>
                             </div>
                             <div className="flex-1 flex overflow-hidden">
                                 {/* LEFT: Data Form */}
                                 <div className="w-1/2 p-10 overflow-y-auto custom-scrollbar border-r border-slate-50">
-                                    {/* Form details... */}
                                     <div className="space-y-8">
                                         <div className="grid grid-cols-2 gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Titolo Prodotto</label>
-                                                <input defaultValue={selectedProduct.texts[0]?.title} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold" />
+                                                <input
+                                                    value={selectedProduct.texts[0]?.title || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => {
+                                                        const p = { ...selectedProduct };
+                                                        if (!p.texts[0]) p.texts[0] = { language: 'it' };
+                                                        p.texts[0].title = e.target.value;
+                                                        setSelectedProduct(p);
+                                                    }}
+                                                />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Prezzo</label>
-                                                <input defaultValue={selectedProduct.prices[0]?.price} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold" />
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Prezzo (€)</label>
+                                                <input
+                                                    value={selectedProduct.prices[0]?.price || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => {
+                                                        const p = { ...selectedProduct };
+                                                        if (!p.prices[0]) p.prices[0] = { listName: 'default' };
+                                                        p.prices[0].price = e.target.value;
+                                                        setSelectedProduct(p);
+                                                    }}
+                                                />
                                             </div>
                                         </div>
-                                        {/* ... other fields */}
+
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">EAN</label>
+                                                <input
+                                                    value={selectedProduct.ean || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => setSelectedProduct({ ...selectedProduct, ean: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Brand</label>
+                                                <input
+                                                    value={selectedProduct.brand || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => setSelectedProduct({ ...selectedProduct, brand: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Categoria</label>
+                                                <input
+                                                    value={selectedProduct.category || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => setSelectedProduct({ ...selectedProduct, category: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Parent SKU</label>
+                                                <input
+                                                    value={selectedProduct.parentSku || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => setSelectedProduct({ ...selectedProduct, parentSku: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione</label>
+                                            <textarea
+                                                value={selectedProduct.texts[0]?.description || ""}
+                                                rows={4}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold resize-none"
+                                                onChange={e => {
+                                                    const p = { ...selectedProduct };
+                                                    if (!p.texts[0]) p.texts[0] = { language: 'it' };
+                                                    p.texts[0].description = e.target.value;
+                                                    setSelectedProduct(p);
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Caratteristiche (Bullet Points)</label>
+                                            <textarea
+                                                value={selectedProduct.texts[0]?.bulletPoints || ""}
+                                                rows={4}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold resize-none"
+                                                onChange={e => {
+                                                    const p = { ...selectedProduct };
+                                                    if (!p.texts[0]) p.texts[0] = { language: 'it' };
+                                                    p.texts[0].bulletPoints = e.target.value;
+                                                    setSelectedProduct(p);
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 block">Galleria Immagini ({selectedProduct.images.length})</label>
+                                            <div className="grid grid-cols-4 gap-4">
+                                                {selectedProduct.images.map((img, i) => (
+                                                    <div key={i} className="aspect-square rounded-2xl border border-slate-100 overflow-hidden relative group bg-slate-50">
+                                                        <img src={img.imageUrl} className="w-full h-full object-cover" />
+                                                        <button
+                                                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            onClick={() => {
+                                                                const p = { ...selectedProduct };
+                                                                p.images.splice(i, 1);
+                                                                setSelectedProduct(p);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <button className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 text-slate-300 hover:border-orange-200 hover:text-orange-400 transition-all">
+                                                    <Plus className="w-5 h-5" />
+                                                    <span className="text-[8px] font-black uppercase">Aggiungi</span>
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 {/* RIGHT: PDF Content & Area Selector */}
-                                <div className="flex-1 bg-slate-100 flex items-center justify-center">
-                                    <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px] flex flex-col items-center gap-4">
-                                        <Scissors className="w-12 h-12 opacity-20" />
-                                        PDF Area Selector Tool
-                                        <span className="text-slate-300 text-center px-20 font-bold normal-case tracking-normal">In questa sezione verrà visualizzato il PDF con la possibilità di ritaglio immagini e selezione testo.</span>
-                                    </div>
+                                <div className="flex-1 bg-slate-100 flex flex-col items-center justify-center relative">
+                                    {selectedProduct.foundInPdf ? (
+                                        <div className="w-full h-full flex flex-col">
+                                            {/* We will eventually render a PDF viewer here */}
+                                            <div className="flex-1 flex items-center justify-center bg-slate-200">
+                                                <div className="text-center space-y-4">
+                                                    <FileText className="w-16 h-16 text-slate-400 mx-auto" />
+                                                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest">Anteprima PDF Pagina {selectedProduct.foundInPdf[0].pageNumber}</p>
+                                                    <button className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest">Apri Visualizzatore</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px] flex flex-col items-center gap-4">
+                                            <Scissors className="w-12 h-12 opacity-20" />
+                                            PDF Area Selector Tool
+                                            <span className="text-slate-300 text-center px-20 font-bold normal-case tracking-normal">In questa sezione verrà visualizzato il PDF con la possibilità di ritaglio immagini e selezione testo.</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -834,30 +981,40 @@ export default function ImportLab() {
 
                             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
                                 <div className="grid grid-cols-2 gap-x-12 gap-y-8">
-                                    {Object.keys(mapping).map((field) => (
-                                        <div key={field} className="space-y-3">
-                                            <div className="flex items-center justify-between px-1">
-                                                <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                                    {field === 'sku' ? 'SKU (Obbligatorio)' : field.charAt(0).toUpperCase() + field.slice(1)}
-                                                </label>
-                                                {mapping[field] && (
-                                                    <span className="text-[9px] font-bold text-green-500 flex items-center gap-1">
-                                                        <Check className="w-3 h-3" /> Collegato
-                                                    </span>
-                                                )}
+                                    {Object.keys(mapping).map((field) => {
+                                        let label = field.charAt(0).toUpperCase() + field.slice(1);
+                                        if (field === 'sku') label = 'SKU (Obbligatorio)';
+                                        if (field === 'ean') label = 'EAN / Codice a barre';
+                                        if (field === 'parentSku') label = 'SKU di Base (Varianti)';
+                                        if (field === 'price') label = 'Prezzo di Listino';
+                                        if (field === 'title') label = 'Titolo Prodotto';
+                                        if (field === 'bulletPoints') label = 'Caratteristiche (Bullet)';
+
+                                        return (
+                                            <div key={field} className="space-y-3">
+                                                <div className="flex items-center justify-between px-1">
+                                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                                        {label}
+                                                    </label>
+                                                    {mapping[field] && (
+                                                        <span className="text-[9px] font-bold text-green-500 flex items-center gap-1">
+                                                            <Check className="w-3 h-3" /> Collegato
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <select
+                                                    value={mapping[field]}
+                                                    onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">-- Seleziona Colonna --</option>
+                                                    {rawHeaders.map((h, i) => (
+                                                        <option key={i} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
                                             </div>
-                                            <select
-                                                value={mapping[field]}
-                                                onChange={(e) => setMapping({ ...mapping, [field]: e.target.value })}
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all appearance-none cursor-pointer"
-                                            >
-                                                <option value="">-- Seleziona Colonna --</option>
-                                                {rawHeaders.map((h, i) => (
-                                                    <option key={i} value={h}>{h}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
 
                                 <div className="mt-12">
