@@ -122,37 +122,37 @@ export default function ImportLab() {
         }
     };
 
-    // Recursive Image Association
+    // Recursive Image Association (Batch Mode)
     const handleAutoImageAssociation = async () => {
-        if (!repository?.imageFolderPath) {
+        if (!repository?.imageFolderPath || !catalogIdParam) {
             toast.warning("Configura il percorso cartella immagini nelle impostazioni repository.");
             return;
         }
 
-        const toastId = toast.loading("Ricerca immagini automatica in corso...");
-        let count = 0;
+        const toastId = toast.loading("Ricerca immagini automatica in corso (Recursive Scan)...");
 
         try {
-            const updatedProducts = [...products];
-            for (let i = 0; i < updatedProducts.length; i++) {
-                const p = updatedProducts[i];
-                const res = await axios.get("/api/repositories/scan-images", {
-                    params: { sku: p.sku, folder: repository.imageFolderPath }
+            const res = await axios.post(`/api/repositories/${catalogIdParam}/associate-images`);
+
+            if (res.data.success) {
+                toast.update(toastId, {
+                    render: `Associazione completata: ${res.data.count} immagini associate con successo.`,
+                    type: "success",
+                    isLoading: false,
+                    autoClose: 3000
                 });
 
-                if (res.data.matches?.length > 0) {
-                    // Update state locally (in a real app we'd save to DB too)
-                    p.images = [
-                        ...p.images,
-                        ...res.data.matches.map((m: string) => ({ imageUrl: m }))
-                    ];
-                    count++;
-                }
+                // Refresh the list to show new images
+                fetchRepository(parseInt(catalogIdParam));
             }
-            setProducts(updatedProducts);
-            toast.update(toastId, { render: `Associazione completata: ${count} prodotti aggiornati.`, type: "success", isLoading: false, autoClose: 3000 });
-        } catch (err) {
-            toast.update(toastId, { render: "Errore durante l'associazione immagini.", type: "error", isLoading: false, autoClose: 3000 });
+        } catch (err: any) {
+            const errorMsg = err.response?.data?.error || "Errore durante l'associazione immagini.";
+            toast.update(toastId, {
+                render: errorMsg,
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
         }
     };
 
