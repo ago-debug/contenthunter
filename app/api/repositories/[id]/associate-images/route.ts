@@ -48,28 +48,24 @@ export async function POST(
             return NextResponse.json({ error: "Repository or image path not found" }, { status: 404 });
         }
 
-        const inputPath = catalog.imageFolderPath;
+        let inputPath = catalog.imageFolderPath;
         let localPath = inputPath;
         let baseUrl = "";
 
-        // Smart Mapping for URL to Local Path (same logic as scan-images)
+        // Smart Mapping for URL to Local Path
         if (inputPath.startsWith("http")) {
             baseUrl = inputPath.endsWith("/") ? inputPath : inputPath + "/";
-            localPath = path.join(process.cwd(), "public", "images");
-
-            const urlSegments = inputPath.split("/");
-            const lastSegment = urlSegments[urlSegments.length - 1] || urlSegments[urlSegments.length - 2];
-            const segmentPath = path.join(process.cwd(), "public", lastSegment);
-            if (fs.existsSync(segmentPath)) {
-                localPath = segmentPath;
-            }
+            localPath = path.join(process.cwd(), "public", "catalog_images");
+        } else if (inputPath.startsWith("/") || fs.existsSync(inputPath)) {
+            // Se è un path fisico sul disco (VPS) o path assoluto, accettalo
+            localPath = inputPath;
+        } else {
+            // Fallback (relativo alla directory del progetto)
+            localPath = path.join(process.cwd(), "public", inputPath);
         }
 
         if (!fs.existsSync(localPath)) {
-            localPath = path.join(process.cwd(), "public/uploads");
-            if (!fs.existsSync(localPath)) {
-                return NextResponse.json({ error: `Path not found: ${localPath}` }, { status: 404 });
-            }
+            return NextResponse.json({ error: `La cartella delle immagini non esiste sul server: ${localPath}` }, { status: 404 });
         }
 
         const indexPath = path.join(localPath, "images_index.json");
