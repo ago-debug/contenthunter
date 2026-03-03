@@ -620,8 +620,8 @@ export default function ErpTable() {
                     </div>
                 </div>
 
-                {/* Final part of the sticky block - Status Bar */}
-                <div className="px-5 py-2.5 bg-white/40 backdrop-blur-xl border-x border-t border-white/60 rounded-t-2xl flex justify-between items-center shadow-sm">
+                {/* Final part of the sticky block - Status Bar - Fused bottom */}
+                <div className="px-5 py-2 whitespace-nowrap bg-white/40 backdrop-blur-xl border-x border-t border-white/60 rounded-t-2xl flex justify-between items-center shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">PIM Inventory Engine / Realtime Sync</span>
@@ -629,13 +629,13 @@ export default function ErpTable() {
                 </div>
             </div>
 
-            {/* Table Area - Removed top padding to dock header to the bar above */}
+            {/* Table Area - Fused with header block above */}
             <div className="px-5 pb-5">
-                <div className="bg-white rounded-b-2xl shadow-sm border-x border-b border-gray-200/60 overflow-visible relative">
+                <div className="bg-white shadow-sm border-x border-b border-gray-200/60 overflow-visible relative">
                     <EdgeScroll className="overflow-visible">
                         <table className="w-full text-left border-collapse">
-                            {/* Precisely docked column headers - z-index ensures it stays above the sync bar shadow if any */}
-                            <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[156px] z-[55] shadow-sm">
+                            {/* Precisely docked column headers - offset tuned to 144px for perfect seamless joining */}
+                            <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[144px] z-[55] shadow-sm">
                                 <tr>
                                     <th className="px-4 py-3 w-8">
                                         <input
