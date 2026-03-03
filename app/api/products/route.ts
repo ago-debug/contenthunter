@@ -176,6 +176,39 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 8.5 Sync BulletPoints to Relational Table
+        const itBulletsStr = (body.translations?.['it']?.bulletPoints !== undefined)
+            ? body.translations['it'].bulletPoints
+            : bulletPoints;
+
+        if (itBulletsStr !== undefined) {
+            // Remove existing mapped bullet points for this product to do a clean overwrite sync
+            await prisma.bulletPoint.deleteMany({
+                where: { productId: product.id }
+            });
+
+            if (itBulletsStr) {
+                const lines = itBulletsStr
+                    .split('\n')
+                    .map((l: string) => {
+                        let cl = l.trim();
+                        if (cl.startsWith('- ')) cl = cl.substring(2);
+                        if (cl.startsWith('* ')) cl = cl.substring(2);
+                        return cl.trim();
+                    })
+                    .filter((l: string) => l.length > 0);
+
+                if (lines.length > 0) {
+                    await prisma.bulletPoint.createMany({
+                        data: lines.map((l: string) => ({
+                            content: l,
+                            productId: product.id
+                        }))
+                    });
+                }
+            }
+        }
+
         // 9. Handle Images
         if (images && Array.isArray(images)) {
             await prisma.productImage.deleteMany({
