@@ -6,6 +6,11 @@ const nextConfig = {
   },
   output: 'standalone',
   transpilePackages: ['lucide-react'],
+  // Suppress HMR (Hot Module Replacement) errors when running dev on a remote server
+  devIndicators: {
+    appIsrStatus: false,
+    buildActivity: false,
+  },
 }
 
 module.exports = nextConfig
