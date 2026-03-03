@@ -40,6 +40,7 @@ export default function ImportLab() {
     const catalogIdParam = searchParams.get("id");
 
     const [repository, setRepository] = useState<any>(null);
+    const [allRepositories, setAllRepositories] = useState<any[]>([]);
     const [products, setProducts] = useState<StagingProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -54,8 +55,22 @@ export default function ImportLab() {
     useEffect(() => {
         if (catalogIdParam) {
             fetchRepository(parseInt(catalogIdParam));
+        } else {
+            fetchAllRepositories();
         }
     }, [catalogIdParam]);
+
+    const fetchAllRepositories = async () => {
+        setLoading(true);
+        try {
+            const res = await axios.get("/api/catalogues");
+            setAllRepositories(res.data);
+        } catch (err) {
+            toast.error("Errore nel caricamento dei repository");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchRepository = async (id: number) => {
         setLoading(true);
@@ -139,8 +154,69 @@ export default function ImportLab() {
         }, 2000);
     };
 
-    if (loading) return <div className="p-12 text-center font-bold text-slate-400 animate-pulse">Inizializzazione Import Lab...</div>;
-    if (!repository) return <div className="p-12 text-center font-bold text-red-400">Repository non trovato. Seleziona un progetto valido.</div>;
+    if (loading && !allRepositories.length) return <div className="p-12 text-center font-black text-slate-400 animate-pulse tracking-widest text-xs uppercase">Inizializzazione Import Lab V3.1...</div>;
+
+    if (!repository) return (
+        <div className="flex-1 bg-slate-50/50 p-12 overflow-y-auto">
+            <div className="max-w-6xl mx-auto">
+                <div className="flex items-center gap-4 mb-12">
+                    <div className="p-4 bg-slate-900 rounded-[2rem] shadow-xl">
+                        <Cpu className="w-8 h-8 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Import Lab</h1>
+                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Seleziona un progetto sorgente per iniziare</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {allRepositories.map((repo) => (
+                        <motion.div
+                            key={repo.id}
+                            whileHover={{ y: -5 }}
+                            onClick={() => window.location.href = `/import?id=${repo.id}`}
+                            className="main-card p-8 cursor-pointer group hover:border-orange-200 transition-all border-2 border-transparent"
+                        >
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-orange-50 transition-colors">
+                                    <Box className="w-6 h-6 text-slate-400 group-hover:text-orange-500" />
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <h3 className="text-lg font-black text-slate-900 truncate group-hover:text-orange-600 transition-colors">{repo.name}</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(repo.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 rounded-xl p-3 flex flex-col items-center">
+                                    <span className="text-sm font-black text-slate-900">{repo.pdfs?.length || 0}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PDF Files</span>
+                                </div>
+                                <div className="bg-slate-50 rounded-xl p-3 flex flex-col items-center">
+                                    <span className="text-sm font-black text-slate-900">{repo._count?.entries || 0}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Products</span>
+                                </div>
+                            </div>
+
+                            <button className="w-full mt-6 py-3 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-lg flex items-center justify-center gap-2">
+                                Apri Lab <ExternalLink className="w-4 h-4" />
+                            </button>
+                        </motion.div>
+                    ))}
+
+                    {allRepositories.length === 0 && (
+                        <div className="col-span-3 py-24 flex flex-col items-center justify-center text-slate-300">
+                            <Box className="w-16 h-16 mb-4 opacity-20" />
+                            <p className="font-black text-xs uppercase tracking-widest mb-6">Nessun progetto trovato</p>
+                            <button onClick={() => window.location.href = '/catalogues'} className="px-8 py-3 bg-slate-100 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all">
+                                Vai a Gestione Repository
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">

@@ -7,7 +7,8 @@ export async function GET() {
             include: {
                 _count: {
                     select: { entries: true }
-                }
+                },
+                pdfs: true
             },
             orderBy: { createdAt: 'desc' }
         });
