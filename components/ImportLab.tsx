@@ -129,36 +129,31 @@ export default function ImportLab() {
     };
 
     // Recursive Image Association (Batch Mode)
-    const handleFolderImageAssociation = async () => {
+    const handleFolderImageAssociation = async (force: boolean = false) => {
         if (!repository?.imageFolderPath || !catalogIdParam) {
             toast.warning("Configura il percorso cartella immagini nelle impostazioni repository.");
             return;
         }
 
-        const toastId = toast.loading("Ricerca immagini da cartella (Recursive Scan)...");
+        const msg = force ? "Scansione completa in corso (Re-indexing)..." : "Ricerca immagini da cartella (Cache)...";
+        const toastId = toast.loading(msg);
 
         try {
-            const res = await axios.post(`/api/repositories/${catalogIdParam}/associate-images`);
+            const res = await axios.post(`/api/repositories/${catalogIdParam}/associate-images${force ? '?force=true' : ''}`);
 
             if (res.data.success) {
                 toast.update(toastId, {
-                    render: `Associazione completata: ${res.data.count} immagini associate con successo dalla cartella.`,
+                    render: `Associazione completata: ${res.data.count} immagini associate dalla cartella.`,
                     type: "success",
                     isLoading: false,
                     autoClose: 3000
                 });
 
-                // Refresh the list to show new images
                 fetchRepository(parseInt(catalogIdParam));
             }
         } catch (err: any) {
             const errorMsg = err.response?.data?.error || "Errore durante l'associazione immagini.";
-            toast.update(toastId, {
-                render: errorMsg,
-                type: "error",
-                isLoading: false,
-                autoClose: 4000
-            });
+            toast.update(toastId, { render: errorMsg, type: "error", isLoading: false, autoClose: 4000 });
         }
     };
 
@@ -428,19 +423,30 @@ export default function ImportLab() {
                         {isUploadingPdf ? <RefreshCw className="w-4 h-4 animate-spin text-orange-500" /> : <FileText className="w-4 h-4 text-orange-600" />}
                         Carica PDF
                     </button>
-                    <button
-                        onClick={handleFolderImageAssociation}
-                        className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
-                    >
-                        <HardDrive className="w-4 h-4 text-blue-500" />
-                        Associa da Cartella
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                        <button
+                            onClick={() => handleFolderImageAssociation(false)}
+                            title="Associa da Cartella (Usa Cache)"
+                            className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-l-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
+                        >
+                            <HardDrive className="w-4 h-4 text-blue-500" />
+                            Cartella
+                        </button>
+                        <button
+                            onClick={() => handleFolderImageAssociation(true)}
+                            title="Rileggi Sorgente (Rigenera Indice)"
+                            className="px-3 py-2.5 bg-white border border-l-0 border-slate-200 text-slate-400 rounded-r-xl hover:bg-slate-50 hover:text-blue-500 transition-all shadow-sm"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
                     <button
                         onClick={handlePdfImageAssociation}
                         className="px-6 py-2.5 bg-white border border-slate-200 text-slate-900 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2"
                     >
                         <FileText className="w-4 h-4 text-orange-500" />
-                        Associa da PDF
+                        PDF
                     </button>
                     <button
                         onClick={handlePdfSearch}
