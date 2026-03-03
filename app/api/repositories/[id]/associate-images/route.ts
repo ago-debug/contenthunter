@@ -77,24 +77,54 @@ export async function POST(
         let imageMap: Record<string, string[]> = {};
 
         // 1. Load or Build the Image Map
-        // Priority: 1. images_map.json (external), 2. images_index.json (internal cache), 3. Fresh Scan
-        const targetPath = fs.existsSync(externalPath) ? externalPath : (fs.existsSync(indexPath) ? indexPath : null);
+        // Priority: 
+        // 1. Remote images_map.json (if URL project)
+        // 2. Local images_map.json (external PHP generated)
+        // 3. Local images_index.json (internal cache)
+        // 4. Fresh Scan
 
-        if (targetPath) {
+        let loaded = false;
+
+        // Try remote fetch if it's a URL project
+        if (baseUrl) {
+            const remoteJsonUrl = baseUrl + "images_map.json";
+            console.log("Attempting to fetch remote index:", remoteJsonUrl);
             try {
-                const indexData = fs.readFileSync(targetPath, 'utf-8');
-                imageMap = JSON.parse(indexData);
-                console.log(`Loaded image map from: ${path.basename(targetPath)}`);
+                const response = await fetch(remoteJsonUrl, { signal: AbortSignal.timeout(5000) });
+                if (response.ok) {
+                    imageMap = await response.json();
+                    console.log("Loaded image map from REMOTE URL");
+                    loaded = true;
+                }
             } catch (e) {
-                console.error(`Error reading ${targetPath}, rebuilding...`);
-                imageMap = buildImageMap(localPath, localPath);
-                fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
+                console.log("Remote index not found or unreachable. Falling back to local/scan.");
             }
-        } else {
-            console.log("No index found, scanning subdirectories...");
+        }
+
+        if (!loaded) {
+            const targetPath = fs.existsSync(externalPath) ? externalPath : (fs.existsSync(indexPath) ? indexPath : null);
+
+            if (targetPath) {
+                try {
+                    const indexData = fs.readFileSync(targetPath, 'utf-8');
+                    imageMap = JSON.parse(indexData);
+                    console.log(`Loaded image map from local file: ${path.basename(targetPath)}`);
+                    loaded = true;
+                } catch (e) {
+                    console.error(`Error reading ${targetPath}, rebuilding...`);
+                }
+            }
+        }
+
+        if (!loaded) {
+            console.log("No index found (remote or local), scanning subdirectories...");
             imageMap = buildImageMap(localPath, localPath);
-            // Save internal index for next time
-            fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
+            // Save internal index for next time (if local folder is writable)
+            try {
+                fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
+            } catch (e: any) {
+                console.warn("Could not save local index cache:", e.message);
+            }
         }
 
         // 2. Fetch all products in staging for this catalog
