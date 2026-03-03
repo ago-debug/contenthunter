@@ -595,16 +595,16 @@ export default function ErpTable() {
                             </div>
                         </div>
 
-                        <div className="flex bg-gray-50 p-0.5 rounded-xl border border-gray-100">
+                        <div className="flex bg-[#F9FAFB] p-1 rounded-xl border border-gray-100/50">
                             <button
                                 onClick={() => setViewMode('table')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
+                                className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}
                             >
                                 <List className="w-4 h-4" />
                             </button>
                             <button
                                 onClick={() => setViewMode('grid')}
-                                className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-slate-900' : 'text-gray-400'}`}
+                                className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}
                             >
                                 <LayoutGrid className="w-4 h-4" />
                             </button>
@@ -619,18 +619,21 @@ export default function ErpTable() {
                         </button>
                     </div>
                 </div>
+
+                {/* Single unified sticky bar for Inventory Status */}
+                <div className="mt-4 px-5 py-2.5 bg-white/40 backdrop-blur-xl border border-white/60 rounded-xl flex justify-between items-center shadow-inner">
+                    <div className="flex items-center gap-3">
+                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">PIM Inventory Engine / Realtime Sync</span>
+                    </div>
+                </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-visible relative">
-                <div className="px-5 py-3 bg-white border-b border-gray-50 flex justify-between items-center sticky top-[102px] z-[55] rounded-t-2xl shadow-sm">
-                    <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">PIM Inventory Engine / Realtime Sync</span>
-                    </div>
-                </div>
                 <EdgeScroll className="overflow-visible">
                     <table className="w-full text-left border-collapse">
-                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[146px] z-50">
+                        {/* Final sticky offset for table headers - anchored to the combined 165px header height */}
+                        <thead className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-[165px] z-50 shadow-sm">
                             <tr>
                                 <th className="px-4 py-3 w-8">
                                     <input
