@@ -34,24 +34,26 @@ export async function POST(
         const { id } = await params;
         const catalogId = parseInt(id);
         const body = await req.json();
-        const { products } = body; // Array of product objects from CSV mapping
+        const { products } = body;
 
         if (!Array.isArray(products)) {
             return NextResponse.json({ error: "Products array is required" }, { status: 400 });
         }
 
-        // Potential cleanup of previous staging data if needed
-        // await prisma.stagingProduct.deleteMany({ where: { catalogId } });
+        // Cleanup previous staging data for this repository
+        await prisma.stagingProduct.deleteMany({ where: { catalogId } });
 
         for (const p of products) {
+            if (!p.sku) continue; // Skip rows without SKU
+
             const staging = await prisma.stagingProduct.create({
                 data: {
                     catalogId,
-                    sku: p.sku,
-                    ean: p.ean || null,
-                    parentSku: p.parentSku || null,
-                    brand: p.brand || null,
-                    category: p.category || null,
+                    sku: String(p.sku),
+                    ean: p.ean ? String(p.ean) : null,
+                    parentSku: p.parentSku ? String(p.parentSku) : null,
+                    brand: p.brand ? String(p.brand) : null,
+                    category: p.category ? String(p.category) : null,
                 }
             });
 
@@ -60,9 +62,9 @@ export async function POST(
                 data: {
                     stagingProductId: staging.id,
                     language: "it",
-                    title: p.title || null,
-                    description: p.description || null,
-                    bulletPoints: p.bulletPoints || null,
+                    title: p.title ? String(p.title) : null,
+                    description: p.description ? String(p.description) : null,
+                    bulletPoints: p.bulletPoints ? String(p.bulletPoints) : null,
                 }
             });
 
@@ -78,20 +80,11 @@ export async function POST(
                     });
                 }
             }
-
-            // Images (if any from CSV)
-            if (p.images && Array.isArray(p.images)) {
-                await prisma.stagingProductImage.createMany({
-                    data: p.images.map((img: string) => ({
-                        stagingProductId: staging.id,
-                        imageUrl: img
-                    }))
-                });
-            }
         }
 
         return NextResponse.json({ success: true, count: products.length });
     } catch (err: any) {
+        console.error("Staging POST error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }

@@ -191,7 +191,8 @@ export default function ImportLab() {
             const productsToImport = rawRows.map(row => {
                 const getVal = (field: string) => {
                     const idx = rawHeaders.indexOf(mapping[field]);
-                    return idx > -1 ? row[idx] : null;
+                    const val = idx > -1 ? row[idx] : null;
+                    return val !== undefined && val !== null ? String(val) : null;
                 };
 
                 return {
