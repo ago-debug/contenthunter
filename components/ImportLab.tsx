@@ -587,14 +587,14 @@ export default function ImportLab() {
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden">
             {/* Control Bar */}
-            <div className="h-auto min-h-[80px] bg-white border-b border-slate-100 flex flex-col xl:flex-row items-start xl:items-center justify-between px-4 sm:px-8 py-4 gap-4 shrink-0 shadow-sm z-10 w-full overflow-x-auto">
-                <div className="flex items-center gap-4 shrink-0">
+            <div className="h-auto min-h-[80px] bg-white border-b border-slate-100 flex flex-col xl:flex-row items-start xl:items-center justify-between px-4 sm:px-8 py-4 gap-4 shrink-0 shadow-sm z-10 w-full">
+                <div className="flex items-center gap-4 shrink-0 w-full xl:w-auto">
                     <div className="p-3 bg-slate-900 rounded-2xl shadow-lg">
                         <Cpu className="w-5 h-5 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <h2 className="text-xl font-black text-slate-900 tracking-tight">{repository.name}</h2>
-                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1">
                             <span className="flex items-center gap-1"><HardDrive className="w-3 h-3" /> {repository.imageFolderPath || "No Image Folder"}</span>
                             <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {repository.pdfs?.length || 0} PDF Sorgente</span>
                             {repository.lastListinoName && (
@@ -610,7 +610,7 @@ export default function ImportLab() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 shrink-0 max-w-full">
+                <div className="flex flex-wrap items-center gap-2 pb-1 shrink-0 w-full xl:w-auto xl:justify-end">
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -660,7 +660,7 @@ export default function ImportLab() {
                     >
                         {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanSearch className="w-4 h-4 text-slate-500" />}
                     </button>
-                    <button className="px-8 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-2 ml-4 shrink-0">
+                    <button className="px-8 py-2.5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-2 shrink-0 xl:ml-4">
                         <Sparkles className="w-4 h-4 shrink-0" />
                         <span className="whitespace-nowrap">Push to Master ERP</span>
                     </button>
