@@ -34,10 +34,18 @@ export async function POST(
         const { id } = await params;
         const catalogId = parseInt(id);
         const body = await req.json();
-        const { products } = body;
+        const { products, lastListinoName } = body;
 
         if (!Array.isArray(products)) {
             return NextResponse.json({ error: "Products array is required" }, { status: 400 });
+        }
+
+        // Update Catalog with last listino name
+        if (lastListinoName) {
+            await prisma.catalog.update({
+                where: { id: catalogId },
+                data: { lastListinoName }
+            });
         }
 
         // Cleanup previous staging data for this repository

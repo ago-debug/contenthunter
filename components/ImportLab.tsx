@@ -56,10 +56,11 @@ export default function ImportLab() {
     // File Import States
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
     const [rawHeaders, setRawHeaders] = useState<string[]>([]);
-    const [rawRows, setRawRows] = useState<any[]>([]);
+    const [rawRows, setRawRows] = useState<any[][]>([]);
     const [mapping, setMapping] = useState<Record<string, string>>({
         sku: "", ean: "", title: "", price: "", brand: "", category: ""
     });
+    const [currentImportFile, setCurrentImportFile] = useState<string>("");
     const [isSavingStaging, setIsSavingStaging] = useState(false);
     const [isUploadingPdf, setIsUploadingPdf] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +235,7 @@ export default function ImportLab() {
                     (row as any[]).map(cell => normalizeText(cell))
                 );
 
+                setCurrentImportFile(file.name);
                 setRawHeaders(headers);
                 setRawRows(rows);
                 setIsImportModalOpen(true);
@@ -269,7 +271,10 @@ export default function ImportLab() {
                 };
             }).filter(p => p.sku);
 
-            await axios.post(`/api/repositories/${catalogIdParam}/staging`, { products: productsToImport });
+            await axios.post(`/api/repositories/${catalogIdParam}/staging`, {
+                products: productsToImport,
+                lastListinoName: currentImportFile
+            });
 
             toast.update(toastId, { render: "Importazione completata con successo!", type: "success", isLoading: false, autoClose: 3000 });
             setIsImportModalOpen(false);
@@ -346,7 +351,14 @@ export default function ImportLab() {
                                 </div>
                                 <div className="flex-1 overflow-hidden">
                                     <h3 className="text-lg font-black text-slate-900 truncate group-hover:text-orange-600 transition-colors">{repo.name}</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(repo.createdAt).toLocaleDateString()}</p>
+                                    <div className="flex flex-col">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(repo.createdAt).toLocaleDateString()}</p>
+                                        {repo.lastListinoName && (
+                                            <p className="text-[9px] font-black text-orange-500 uppercase tracking-tighter truncate max-w-[150px]">
+                                                {repo.lastListinoName}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -356,8 +368,8 @@ export default function ImportLab() {
                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">PDF Files</span>
                                 </div>
                                 <div className="bg-slate-50 rounded-xl p-3 flex flex-col items-center">
-                                    <span className="text-sm font-black text-slate-900">{repo._count?.entries || 0}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Products</span>
+                                    <span className="text-sm font-black text-slate-900">{repo._count?.stagingProducts || 0}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Staging Prod.</span>
                                 </div>
                             </div>
 

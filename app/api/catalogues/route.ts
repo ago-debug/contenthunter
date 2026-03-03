@@ -6,9 +6,13 @@ export async function GET() {
         const catalogues = await prisma.catalog.findMany({
             include: {
                 _count: {
-                    select: { entries: true }
+                    select: {
+                        entries: true,
+                        stagingProducts: true
+                    }
                 },
-                pdfs: true
+                pdfs: true,
+                lastListinoName: true
             },
             orderBy: { createdAt: 'desc' }
         });

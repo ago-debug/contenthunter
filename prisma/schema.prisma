@@ -25,6 +25,8 @@ model Catalog {
   pages         PdfPage[]
   stagingProducts StagingProduct[]
 
+  lastListinoName String?      @db.Text
+
   @@index([templateId], map: "Catalog_templateId_fkey")
 }
 
