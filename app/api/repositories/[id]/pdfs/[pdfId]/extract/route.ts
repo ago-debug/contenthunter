@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
-// @ts-ignore
-import pdfParse from "pdf-parse";
-import { GoogleGenerativeAI, Schema, Type } from "@google/generative-ai";
+const pdfParse = require("pdf-parse");
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
