@@ -65,6 +65,7 @@ export default function ErpTable() {
     const [subCategoryFilter, setSubCategoryFilter] = useState<string | number>("all");
     const [subSubCategoryFilter, setSubSubCategoryFilter] = useState<string | number>("all");
     const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+    const [allBrands, setAllBrands] = useState<any[]>([]);
     const [showWooConfig, setShowWooConfig] = useState(false);
     const [wooConfig, setWooConfig] = useState({
         domain: "",
@@ -89,12 +90,20 @@ export default function ErpTable() {
         } catch (err) { }
     };
 
+    const fetchBrands = async () => {
+        try {
+            const res = await axios.get('/api/brands');
+            setAllBrands(res.data);
+        } catch (err) { }
+    };
+
     useEffect(() => {
         const saved = localStorage.getItem("pim_woo_config");
         if (saved) setWooConfig(JSON.parse(saved));
-        fetchProducts(); // Initial data load
+        fetchProducts();
         fetchCategories();
         fetchTags();
+        fetchBrands();
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         if (savedProjectName) setProjectName(savedProjectName);
     }, []);
@@ -504,7 +513,7 @@ export default function ErpTable() {
             <div className="sticky top-0 z-[60] -mt-5 pt-5 pb-4 px-5 mx-[-1.25rem] bg-[#F4F5F7]/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
                 <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3">
+                        <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
                             <Package className="w-5 h-5 text-white" />
                         </div>
                         <div>
@@ -519,10 +528,10 @@ export default function ErpTable() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 bg-white/60 backdrop-blur-md p-1.5 rounded-2xl shadow-sm border border-white/40">
-                        <div className="flex items-center gap-4 px-3 border-r border-gray-100">
+                    <div className="flex flex-wrap items-center gap-3 bg-white/70 backdrop-blur-xl p-1.5 rounded-2xl shadow-xl shadow-slate-200/20 border border-white">
+                        <div className="flex items-center gap-4 px-3 border-r border-gray-100/50">
                             <div className="text-center">
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Prodotti</p>
+                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Database</p>
                                 <p className="text-sm font-black text-[#111827] leading-tight">{products.length}</p>
                             </div>
                         </div>
@@ -541,7 +550,11 @@ export default function ErpTable() {
                         <div className="flex items-center gap-2 border-l border-gray-100 pl-2">
                             <div className="w-[140px]">
                                 <SearchableSelect
-                                    options={[{ value: 'all', label: 'Tutti i Brand' }, ...uniqueBrands.map(b => ({ value: b, label: b }))]}
+                                    options={[
+                                        { value: 'all', label: 'Tutti i Brand' },
+                                        ...allBrands.map(b => ({ value: b.name, label: b.name })),
+                                        ...uniqueBrands.filter(ub => !allBrands.some(ab => ab.name === ub)).map(b => ({ value: b, label: b }))
+                                    ]}
                                     value={brandFilter}
                                     onChange={(val) => setBrandFilter(String(val || 'all'))}
                                     placeholder="Filter Brand..."

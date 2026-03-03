@@ -13,7 +13,9 @@ import {
     ShieldCheck,
     Box,
     Globe,
-    Cpu
+    Cpu,
+    Layers,
+    List
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -33,6 +35,14 @@ export default function Sidebar() {
             items: [
                 { href: "/export", label: "Excel Export", icon: FileDown },
                 { href: "/channels", label: "Omnichannel", icon: Globe },
+            ]
+        },
+        {
+            label: "Data Management",
+            items: [
+                { href: "/tables/categories", label: "Categories", icon: Layers },
+                { href: "/tables/brands", label: "Brands", icon: Globe },
+                { href: "/tables/bullets", label: "Bullet Points", icon: List },
             ]
         },
         {
@@ -58,13 +68,13 @@ export default function Sidebar() {
                 </div>
             </div>
 
-            <nav className="flex-1 space-y-8">
+            <nav className="flex-1 space-y-6">
                 {menuGroups.map((group, gIdx) => (
-                    <div key={gIdx} className="space-y-3">
+                    <div key={gIdx} className="space-y-2">
                         <h3 className="px-3 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
                             {group.label}
                         </h3>
-                        <div className="space-y-1">
+                        <div className="space-y-0.5">
                             {group.items.map((item, iIdx) => {
                                 const Icon = item.icon;
                                 const isActive = pathname === item.href;
@@ -72,13 +82,13 @@ export default function Sidebar() {
                                     <Link
                                         key={iIdx}
                                         href={item.href}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all group ${isActive
+                                        className={`flex items-center gap-3 px-3 py-1.5 rounded-xl font-bold text-xs transition-all group ${isActive
                                             ? 'bg-slate-100 text-slate-900 border border-slate-200'
                                             : 'text-slate-400 hover:bg-slate-50/50 hover:text-slate-600'
                                             }`}
                                     >
                                         <div className={`p-1.5 rounded-lg transition-all ${isActive ? 'bg-white shadow-sm text-slate-900 border border-slate-200' : 'text-slate-300 group-hover:text-slate-500'}`}>
-                                            <Icon className="w-3.5 h-3.5" />
+                                            <Icon className="w-4 h-4" />
                                         </div>
                                         <span className="tracking-tight">{item.label}</span>
                                         {isActive && <div className="ml-auto w-1 h-1 rounded-full bg-slate-900 shadow-[0_0_8px_rgba(0,0,0,0.2)]"></div>}

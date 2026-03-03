@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
         const {
-            sku, title, description, docDescription, price, category, brand,
+            sku, title, description, docDescription, price, category, brand, brandId,
             dimensions, weight, material, bulletPoints, seoAiText, images, extraFields, catalogId, ean, parentSku
         } = body;
 
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
                 data: {
                     sku: cleanSku, // Allow SKU update if found by EAN
                     brand: brand || undefined,
+                    brandId: brandId ? Number(brandId) : undefined,
                     category: category || undefined,
                     ean: cleanEan || undefined,
                     parentSku: parentSku || undefined
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
                 data: {
                     sku: cleanSku,
                     brand: brand || null,
+                    brandId: brandId ? Number(brandId) : null,
                     category: category || null,
                     ean: cleanEan || null,
                     parentSku: parentSku || null
@@ -248,7 +250,9 @@ export async function GET(req: NextRequest) {
                 prices: { where: { listName: "default" } },
                 extraFields: true,
                 images: { select: { id: true, imageUrl: true } },
-                tags: { include: { tag: true } }
+                tags: { include: { tag: true } },
+                brandRef: true,
+                bulletPointRefs: true
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -312,7 +316,10 @@ export async function GET(req: NextRequest) {
                 images: p.images.map(img => ({ id: img.id.toString(), url: img.imageUrl })),
                 // Tags
                 productTags: p.tags.map(pt => ({ tagId: pt.tagId })),
-                catalogId: catalogId ? parseInt(catalogId) : undefined
+                catalogId: catalogId ? parseInt(catalogId) : undefined,
+                brandId: p.brandId,
+                brandData: p.brandRef,
+                bullets: p.bulletPointRefs
             };
         });
 
