@@ -162,10 +162,28 @@ export default function ImportLab() {
         }
     };
 
-    // Text Normalization
+    // Text Normalization & Sanitization
     const normalizeText = (text: any) => {
         if (text === null || text === undefined) return null;
-        return String(text).trim();
+        let s = String(text);
+
+        // Strip invisible characters and BOM
+        s = s.replace(/[\u200B-\u200D\uFEFF]/g, "");
+
+        // Normalize whitespace (including non-breaking spaces)
+        s = s.replace(/\s+/g, ' ').trim();
+
+        // Optional: Heuristic fix for Mojibake if still detected
+        // UTF-8 à is C3 A0. If it became Ã plus non-breaking space (A0), we fix it.
+        // This is a safety net for "double mangled" data.
+        if (s.includes('Ã\u00A0')) s = s.replace(/Ã\u00A0/g, 'à');
+        if (s.includes('Ã©')) s = s.replace(/Ã©/g, 'é');
+        if (s.includes('Ã¹')) s = s.replace(/Ã¹/g, 'ù');
+        if (s.includes('Ã²')) s = s.replace(/Ã²/g, 'ò');
+        if (s.includes('Ã¬')) s = s.replace(/Ã¬/g, 'ì');
+        if (s.includes('â\u00AC')) s = s.replace(/â\u00AC/g, '€');
+
+        return s;
     };
 
     // File Upload Handler
@@ -175,16 +193,31 @@ export default function ImportLab() {
 
         const reader = new FileReader();
         reader.onload = (evt) => {
-            const data = evt.target?.result;
-            if (!data) return;
+            const buffer = evt.target?.result;
+            if (!buffer) return;
 
-            // Using 'array' instead of 'binary' allows XLSX to better handle encodings
-            const wb = XLSX.read(data, { type: "array" });
+            let wb;
+            try {
+                // Advanced detection for CSV encoding
+                if (file.name.toLowerCase().endsWith('.csv')) {
+                    // Try to decode as UTF-8 first
+                    const decoder = new TextDecoder('utf-8');
+                    const text = decoder.decode(new Uint8Array(buffer as ArrayBuffer));
+                    wb = XLSX.read(text, { type: 'string' });
+                } else {
+                    // For Excel files, use buffer with UTF-8 hint
+                    wb = XLSX.read(buffer, { type: "array", codepage: 65001 });
+                }
+            } catch (err) {
+                console.error("Encoding detection error, falling back:", err);
+                wb = XLSX.read(buffer, { type: "array" });
+            }
+
             const wsname = wb.SheetNames[0];
             const ws = wb.Sheets[wsname];
 
-            // Raw data extraction
-            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+            // Raw data extraction with forced string conversion to preserve precision
+            const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
 
             if (rawData.length > 0) {
                 const headers = (rawData[0] as any[]).map(h => normalizeText(h) || "");
