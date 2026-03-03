@@ -1313,7 +1313,7 @@ export default function WorkspaceClient() {
 
         // Merge findings with existing products. User edits/CSV mapping ALWAYS wins.
         // Images from Drive/Folder (already in products) WIN over PDF images (placed at the end).
-        const existingMap = new Map(products.map((p: ProductData) => [p.sku.toLowerCase(), p]));
+        const existingMap = new Map(products.map((p: ProductData) => [p.sku?.toLowerCase(), p]));
         const finalProducts = [...products];
 
         findings.forEach((finding: ProductData) => {
@@ -1326,7 +1326,7 @@ export default function WorkspaceClient() {
                         newImages.push(fImg);
                     }
                 });
-                const idx = finalProducts.findIndex((p: ProductData) => p.sku.toLowerCase() === lowerSku);
+                const idx = finalProducts.findIndex((p: ProductData) => p.sku?.toLowerCase() === lowerSku);
                 if (idx !== -1) {
                     finalProducts[idx] = { ...existing, images: newImages };
                 }
@@ -1337,7 +1337,7 @@ export default function WorkspaceClient() {
         let updatedCount = 0;
         finalProducts.forEach((p: ProductData) => {
             // Conta un prodotto come toccato dal PDF se ha stringhe d'immagine generate da PDF
-            if (p.images.some((img: ProductImage) => img.url.startsWith("PAGE_REF_"))) updatedCount++;
+            if (p.images.some((img: ProductImage) => img?.url?.startsWith("PAGE_REF_"))) updatedCount++;
         });
 
         setProducts(finalProducts);
@@ -2330,7 +2330,7 @@ export default function WorkspaceClient() {
                                                                                 )))}
 
                                                                             {pickerSourceMode === 'file' && csvMasterList
-                                                                                .filter(item => String(item[csvMapping.sku] || "").toLowerCase() === p.sku.toLowerCase())
+                                                                                .filter(item => String(item[csvMapping.sku] || "").toLowerCase() === p.sku?.toLowerCase())
                                                                                 .map((item, fIdx) => (
                                                                                     <div
                                                                                         key={`file-${fIdx}`}
@@ -2620,7 +2620,7 @@ export default function WorkspaceClient() {
                                                                                 )))}
 
                                                                             {pickerSourceMode === 'file' && csvMasterList
-                                                                                .filter(item => String(item[csvMapping.sku] || "").toLowerCase() === p.sku.toLowerCase())
+                                                                                .filter(item => String(item[csvMapping.sku] || "").toLowerCase() === p.sku?.toLowerCase())
                                                                                 .map((item, fIdx) => (
                                                                                     <div
                                                                                         key={`file-${fIdx}`}
@@ -3179,13 +3179,13 @@ export default function WorkspaceClient() {
                                         {products
                                             .filter((p: ProductData) => {
                                                 const search = wsSearchTerm.toLowerCase();
-                                                return p.sku.toLowerCase().includes(search) ||
+                                                return p.sku?.toLowerCase().includes(search) ||
                                                     (p.title && p.title.toLowerCase().includes(search)) ||
                                                     (p.category && p.category.toLowerCase().includes(search));
                                             })
                                             .slice(0, displayLimit).map((p: ProductData, idx: number) => {
                                                 const assetUrl = resolveAssetUrl(assetBaseUrl, p.sku, assetExtension);
-                                                const isMatched = p.images.some((img: ProductImage) => img.url === assetUrl);
+                                                const isMatched = p.images.some((img: ProductImage) => img?.url === assetUrl);
 
                                                 return (
                                                     <tr key={idx} className="hover:bg-slate-50/20 transition-colors">
@@ -3233,7 +3233,7 @@ export default function WorkspaceClient() {
                                                                             <span className="text-[8px] font-bold text-emerald-400">Asset Drive OK</span>
                                                                         </div>
                                                                     </div>
-                                                                ) : p.images.some(img => img.url.startsWith("PAGE_REF_")) ? (
+                                                                ) : p.images.some(img => img?.url?.startsWith("PAGE_REF_")) ? (
                                                                     <div className="flex items-center gap-2.5">
                                                                         <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shadow-sm border border-orange-200">
                                                                             <FileText className="w-4 h-4" />
@@ -3255,7 +3255,7 @@ export default function WorkspaceClient() {
                                                                     </div>
                                                                 )}
 
-                                                                {p.images.length > 0 && !isMatched && !p.images.every(img => img.url.startsWith("PAGE_REF_")) && (
+                                                                {p.images.length > 0 && !isMatched && !p.images.every(img => img?.url?.startsWith("PAGE_REF_")) && (
                                                                     <div className="mt-1 px-2 py-0.5 rounded-full bg-red-50 border border-red-100 w-fit">
                                                                         <span className="text-[7px] font-black text-red-400 uppercase tracking-tighter">Errore Link Foto</span>
                                                                     </div>
@@ -3264,7 +3264,7 @@ export default function WorkspaceClient() {
                                                         </td>
                                                         {[0, 1, 2, 3].map((slot) => {
                                                             const imgObj = p.images[slot];
-                                                            const isPageRef = imgObj?.url.startsWith("PAGE_REF_");
+                                                            const isPageRef = imgObj?.url?.startsWith("PAGE_REF_");
                                                             const resolvedUrl = imgObj ? resolveImageUrl(imgObj.url) : null;
 
                                                             return (
@@ -4480,7 +4480,7 @@ export default function WorkspaceClient() {
                                                             if (uniqueSkus.some(s => s.toLowerCase() === p.sku?.toLowerCase())) {
                                                                 // If matched, we add current page as reference if not there
                                                                 const pageRel = `PAGE_REF_${page.pageNumber}`;
-                                                                if (!p.images.some((img: ProductImage) => img.url === pageRel)) {
+                                                                if (!p.images.some((img: ProductImage) => img?.url === pageRel)) {
                                                                     return { ...p, images: [...p.images, { id: Math.random().toString(), url: pageRel }] };
                                                                 }
                                                             }
@@ -4513,7 +4513,7 @@ export default function WorkspaceClient() {
                                                                     url: si.preview // For now using preview, in production would be the full ref
                                                                 }));
                                                                 // Only add if not already there
-                                                                const currentUrls = p.images.map(img => img.url);
+                                                                const currentUrls = p.images.map(img => img?.url);
                                                                 const filteredNew = newImgs.filter(ni => !currentUrls.includes(ni.url));
                                                                 return { ...p, images: [...p.images, ...filteredNew] };
                                                             }
@@ -4601,7 +4601,7 @@ export default function WorkspaceClient() {
                                             onClick={() => {
                                                 // Function to use this historical image as current product image
                                                 // Find if SKU matches local products
-                                                const matchIdx = products.findIndex(p => p.sku.toLowerCase() === pdfSearchFocus?.toLowerCase());
+                                                const matchIdx = products.findIndex(p => p.sku?.toLowerCase() === pdfSearchFocus?.toLowerCase());
                                                 if (matchIdx !== -1) {
                                                     const updated = [...products];
                                                     updated[matchIdx] = {
