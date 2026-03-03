@@ -11,60 +11,41 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // Resolve the actual local path - we strip the starting slash if present
         let sanitizedPath = filePathParam.startsWith("/") ? filePathParam.slice(1) : filePathParam;
-
-        // Ensure we don't have double slashes or other artifacts
         sanitizedPath = sanitizedPath.replace(/\/+/g, '/');
-
-        // This targets the public folder
         const fullPath = path.join(process.cwd(), "public", sanitizedPath);
 
         if (!fs.existsSync(fullPath)) {
             return new NextResponse(`File Not Found: ${sanitizedPath}`, { status: 404 });
         }
 
-        const stat = fs.statSync(fullPath);
-        const fileSize = stat.size;
-        const range = req.headers.get("range");
+        const stats = fs.statSync(fullPath);
 
-        if (range) {
-            const parts = range.replace(/bytes=/, "").split("-");
-            const start = parseInt(parts[0], 10);
-            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-
-            if (start >= fileSize) {
-                return new NextResponse("Requested range not satisfiable", { status: 416 });
-            }
-
-            const chunksize = (end - start) + 1;
-            const file = fs.createReadStream(fullPath, { start, end });
-
-            // Convert ReadStream to standard Web stream
-            const stream = Readable.toWeb(file);
-
-            return new NextResponse(stream as any, {
-                status: 206,
-                headers: {
-                    "Content-Range": `bytes ${start}-${end}/${fileSize}`,
-                    "Accept-Ranges": "bytes",
-                    "Content-Length": chunksize.toString(),
-                    "Content-Type": "application/pdf",
-                },
-            });
-        } else {
-            const file = fs.createReadStream(fullPath);
-            const stream = Readable.toWeb(file);
-
-            return new NextResponse(stream as any, {
+        // For files up to 50MB, read into memory to ensure integrity and bypass stream hiccups
+        // larger than that, use stream.
+        if (stats.size < 50 * 1024 * 1024) {
+            const data = fs.readFileSync(fullPath);
+            return new NextResponse(data, {
                 headers: {
                     "Content-Type": "application/pdf",
-                    "Content-Disposition": "inline; filename=\"" + path.basename(fullPath) + "\"",
+                    "Content-Length": stats.size.toString(),
                     "Accept-Ranges": "bytes",
-                    "Content-Length": fileSize.toString()
+                    "Cache-Control": "public, max-age=3600"
                 }
             });
         }
+
+        const file = fs.createReadStream(fullPath);
+        const stream = Readable.toWeb(file);
+
+        return new NextResponse(stream as any, {
+            headers: {
+                "Content-Type": "application/pdf",
+                "Content-Disposition": `inline; filename="${path.basename(fullPath)}"`,
+                "Accept-Ranges": "bytes",
+                "Content-Length": stats.size.toString()
+            }
+        });
     } catch (e: any) {
         console.error("Storage API error:", e);
         return new NextResponse(`Internal Error: ${e.message}`, { status: 500 });
