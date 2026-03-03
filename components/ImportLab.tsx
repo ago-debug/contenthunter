@@ -36,6 +36,39 @@ interface StagingProduct {
     foundInPdf?: { pageNumber: number, pdfId: number }[];
 }
 
+// Helper component to render a single PDF page thumbnail
+const PdfPageThumbnail = ({ pageNumber, pdfUrl }: { pageNumber: number, pdfUrl: string }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        const renderPage = async () => {
+            if (!canvasRef.current || !pdfUrl) return;
+            try {
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                const pdf = await loadingTask.promise;
+                const page = await pdf.getPage(pageNumber);
+
+                const viewport = page.getViewport({ scale: 0.3 });
+                const canvas = canvasRef.current;
+                const context = canvas.getContext("2d");
+
+                if (context) {
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    await page.render({ canvasContext: context, viewport }).promise;
+                }
+            } catch (err) {
+                console.error("Error rendering thumbnail:", err);
+            }
+        };
+        renderPage();
+    }, [pageNumber, pdfUrl]);
+
+    return (
+        <canvas ref={canvasRef} className="w-full h-full object-contain rounded-lg shadow-sm" />
+    );
+};
+
 export default function ImportLab() {
     const searchParams = useSearchParams();
     const catalogIdParam = searchParams.get("id");
@@ -813,8 +846,13 @@ export default function ImportLab() {
                             <div className="grid grid-cols-2 gap-4">
                                 {pdfPages.map((page, i) => (
                                     <div key={i} className="aspect-[1/1.4] bg-white border border-slate-200 rounded-xl shadow-sm hover:border-orange-200 transition-all cursor-pointer flex flex-col p-2 group">
-                                        <div className="flex-1 bg-slate-50 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:text-orange-300">
-                                            Pag. {page.pageNumber}
+                                        <div className="flex-1 bg-slate-50 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:text-orange-300 overflow-hidden relative">
+                                            <PdfPageThumbnail pageNumber={page.pageNumber} pdfUrl={`/${repository.pdfs[currentPdfIdx].filePath}`} />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/5 transition-colors">
+                                                <span className="opacity-0 group-hover:opacity-100 bg-white/90 px-2 py-1 rounded text-[8px] font-black text-slate-900 border border-slate-200 shadow-sm">
+                                                    Pag. {page.pageNumber}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

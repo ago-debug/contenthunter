@@ -5,6 +5,15 @@ import path from "path";
 const pdfParse = require("pdf-parse");
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+export const maxDuration = 300; // 5 minutes for AI extraction
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '100mb',
+        },
+    },
+};
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function POST(
@@ -35,12 +44,22 @@ export async function POST(
         }
 
         const dataBuffer = fs.readFileSync(fullPath);
+        console.log(`Reading file: ${fullPath} (${dataBuffer.length} bytes)`);
 
         // 3. Extract text
-        const pdfData = await pdfParse(dataBuffer);
-        const textContent = pdfData.text;
+        let textContent = "";
+        try {
+            console.log("Starting PDF parsing...");
+            const pdfData = await pdfParse(dataBuffer);
+            textContent = pdfData.text;
+            console.log(`Text extracted successfully (${textContent.length} chars)`);
+        } catch (parseError: any) {
+            console.error("PDF Parsing error:", parseError);
+            return NextResponse.json({ error: "Errore durante il parsing del PDF: " + parseError.message }, { status: 500 });
+        }
 
         if (!textContent || textContent.trim().length === 0) {
+            console.warn("No text found in PDF.");
             return NextResponse.json({ error: "Il PDF non contiene testo estraibile (potrebbe essere una scansione piatta)." }, { status: 400 });
         }
 
@@ -87,11 +106,13 @@ REGOLE DI ESTRAZIONE:
             }
         });
 
+        console.log("Sending to Gemini AI...");
         const aiResponse = await model.generateContent([
             { text: "You are a specialized JSON data extractor for ERP systems." },
             { text: prompt }
         ]);
 
+        console.log("Gemini AI response received.");
         const resultText = aiResponse.response.text() || "{}";
         const parsedResult = JSON.parse(resultText);
 

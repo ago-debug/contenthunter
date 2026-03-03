@@ -11,6 +11,11 @@ const nextConfig = {
     appIsrStatus: false,
     buildActivity: false,
   },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '100mb',
+    },
+  },
 }
 
 module.exports = nextConfig

@@ -3,11 +3,14 @@ import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 
+export const maxDuration = 60; // Increase to 60 seconds for large file processing
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        console.log("PDF Upload request received...");
         const { id } = await params;
         const catalogId = parseInt(id);
         let name = "upload.pdf";
