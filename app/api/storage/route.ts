@@ -13,7 +13,14 @@ export async function GET(req: NextRequest) {
     try {
         let sanitizedPath = filePathParam.startsWith("/") ? filePathParam.slice(1) : filePathParam;
         sanitizedPath = sanitizedPath.replace(/\/+/g, '/');
-        const fullPath = path.join(process.cwd(), "public", sanitizedPath);
+
+        // Use absolute path resolution to be safe on Linux/Plesk
+        const publicDir = path.join(process.cwd(), "public");
+        const fullPath = path.resolve(publicDir, sanitizedPath);
+
+        if (!fullPath.startsWith(publicDir)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
         if (!fs.existsSync(fullPath)) {
             return new NextResponse(`File Not Found: ${sanitizedPath}`, { status: 404 });

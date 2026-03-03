@@ -6,9 +6,10 @@ export default withAuth({
     },
     callbacks: {
         authorized: ({ req, token }) => {
-            // Allow public access to storage and pdfs
+            // Allow public access to storage, images and uploads
             if (req.nextUrl.pathname.startsWith("/api/storage")) return true;
             if (req.nextUrl.pathname.startsWith("/api/proxy-image")) return true;
+            if (req.nextUrl.pathname.startsWith("/uploads/")) return true;
 
             if (req.nextUrl.pathname.startsWith("/api/") && !token) {
                 return false; // Result in 401 if requested from withAuth middleware for APIs
