@@ -25,12 +25,13 @@ export async function GET(req: NextRequest) {
         // larger than that, use stream.
         if (stats.size < 50 * 1024 * 1024) {
             const data = fs.readFileSync(fullPath);
-            return new NextResponse(data, {
+            return new Response(data, {
+                status: 200,
                 headers: {
                     "Content-Type": "application/pdf",
                     "Content-Length": stats.size.toString(),
-                    "Accept-Ranges": "bytes",
-                    "Cache-Control": "public, max-age=3600"
+                    "Content-Disposition": `inline; filename="${path.basename(fullPath)}"`,
+                    "Cache-Control": "no-cache"
                 }
             });
         }

@@ -143,14 +143,18 @@ export default function ImportLab() {
     const loadPdfPages = async (url: string) => {
         if (!url) return;
 
-        // Force use of API storage to bypass static serving quirks and handle auth/encoding correctly
-        const safePath = url.startsWith('/') ? url : `/${url}`;
-        const finalUrl = `/api/storage?path=${encodeURIComponent(safePath)}`;
+        // Clean the URL to ensure it doesn't have leading/trailing issues
+        const cleanPath = url.startsWith('/') ? url : `/${url}`;
+        const finalUrl = `/api/storage?path=${encodeURIComponent(cleanPath)}`;
 
         try {
+            console.log(`[PDF-LOAD] Attempting to load from: ${finalUrl}`);
             const loadingTask = pdfjsLib.getDocument({
                 url: finalUrl,
-                withCredentials: true, // Send session cookies for the API
+                withCredentials: true,
+                // Disable range requests to force full file download (safer for unstable servers)
+                disableRange: true,
+                disableAutoFetch: false
             });
             const pdf = await loadingTask.promise;
             setPdfInstance(pdf);
@@ -228,8 +232,14 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const safePdfPath = (pdf.filePath.startsWith('/') ? pdf.filePath.substring(1) : pdf.filePath).split('/').map((s: string) => encodeURIComponent(s)).join('/');
-                const loadingTask = pdfjsLib.getDocument(`/${safePdfPath}`);
+                const cleanPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
+                const finalUrl = `/api/storage?path=${encodeURIComponent(cleanPath)}`;
+
+                const loadingTask = pdfjsLib.getDocument({
+                    url: finalUrl,
+                    withCredentials: true,
+                    disableRange: true
+                });
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
