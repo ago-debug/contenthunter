@@ -376,6 +376,62 @@ export default function WorkspaceClient() {
             let updatedProduct = { ...product };
             let updatedFields = 0;
 
+            // 0. ERP/DATABASE SEARCH (Prioritize existing data)
+            try {
+                const erpRes = await axios.get(`/api/products?sku=${encodeURIComponent(product.sku)}`);
+                if (erpRes.data && erpRes.data.length > 0) {
+                    const dbP = erpRes.data[0];
+                    const fieldsToSync = ['title', 'description', 'docDescription', 'price', 'brand', 'category', 'bulletPoints', 'seoAiText', 'dimensions', 'weight', 'material', 'ean', 'parentSku'];
+
+                    fieldsToSync.forEach(f => {
+                        if (dbP[f] && (!updatedProduct[f] || String(updatedProduct[f]).trim() === '' || updatedProduct[f] === '€ 0.00' || updatedProduct[f] === 0)) {
+                            updatedProduct[f] = dbP[f];
+                            updatedFields++;
+                        }
+                    });
+
+                    // Merge extra fields
+                    if (dbP.extraFields && typeof dbP.extraFields === 'object') {
+                        const mergedExtras = { ...(updatedProduct.extraFields || {}), ...dbP.extraFields };
+                        updatedProduct.extraFields = mergedExtras;
+
+                        Object.keys(dbP.extraFields).forEach(k => {
+                            if (!allDynamicColumns.some(c => c.label === k)) {
+                                setExtraColumns(prev => Array.from(new Set([...prev, k])));
+                            }
+                        });
+                        updatedFields++;
+                    }
+
+                    // Merge images from ERP (avoiding duplicates)
+                    if (dbP.images && dbP.images.length > 0) {
+                        const existingUrls = new Set(updatedProduct.images.map((i: any) => i.url));
+                        let addedImages = 0;
+                        dbP.images.forEach((img: any) => {
+                            if (!existingUrls.has(img.url)) {
+                                updatedProduct.images.push(img);
+                                addedImages++;
+                            }
+                        });
+                        if (addedImages > 0) updatedFields++;
+                    }
+
+                    if (updatedFields > 0) {
+                        toast.update(loadingId, {
+                            render: `Dati caricati dall'ERP per ${product.sku}`,
+                            type: 'success',
+                            isLoading: false,
+                            autoClose: 3000
+                        });
+                        // If everything is found, we can potentially skip web search
+                        // But let's keep it going for missing fields if any
+                    }
+                }
+            } catch (erpErr) {
+                console.warn("ERP lookup failed, falling back to other sources", erpErr);
+            }
+
+
             // 1. LOCAL SEARCH in PDF Content (if available)
             const pdfMatch = pdfPages.find(page => page.text.toLowerCase().includes(product.sku.toLowerCase()));
             if (pdfMatch && updatedProduct.images.length === 0) {
@@ -995,14 +1051,50 @@ export default function WorkspaceClient() {
         setIsMatchingAssets(true);
         let assetsCount = 0;
         let dataCount = 0;
+        let erpMatchCount = 0;
 
         const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
         const skuMappedField = csvMapping.sku;
+
+        // Fetch all products from ERP once to match locally (more performant than individual calls)
+        let dbMap = new Map();
+        try {
+            const res = await axios.get('/api/products');
+            if (Array.isArray(res.data)) {
+                res.data.forEach(p => { if (p.sku) dbMap.set(p.sku.toLowerCase(), p); });
+            }
+        } catch (e) {
+            console.error("Bulk sync ERP fetch error:", e);
+        }
 
         const newProducts = products.map((p: ProductData) => {
             if (!p.sku) return p;
             let updated = { ...p };
             const cleanSku = p.sku.trim();
+
+            // 0. Sync from ERP/Database (Highest priority for established data)
+            const dbMatch = dbMap.get(cleanSku.toLowerCase());
+            if (dbMatch) {
+                erpMatchCount++;
+                systemFieldsKeys.forEach(field => {
+                    const dbVal = (dbMatch as any)[field];
+                    const currentVal = (updated as any)[field];
+                    if (dbVal && (!currentVal || String(currentVal).trim() === '' || currentVal === '€ 0.00')) {
+                        (updated as any)[field] = dbVal;
+                    }
+                });
+                if (dbMatch.extraFields) {
+                    updated.extraFields = { ...(updated.extraFields || {}), ...dbMatch.extraFields };
+                }
+                if (dbMatch.images && dbMatch.images.length > 0) {
+                    const existingUrls = new Set(updated.images.map((img: any) => img.url));
+                    dbMatch.images.forEach((img: any) => {
+                        if (!existingUrls.has(img.url)) {
+                            updated.images.push(img);
+                        }
+                    });
+                }
+            }
 
             // 1. Sync Text Data from CSV if match exists
             if (skuMappedField && csvMasterList.length > 0) {
@@ -1057,7 +1149,7 @@ export default function WorkspaceClient() {
         setProducts(newProducts);
         setTimeout(() => {
             setIsMatchingAssets(false);
-            toast.success(`Associazione completata: ${assetsCount} nuovi immagini e ${dataCount} record dati sincronizzati.`);
+            toast.success(`Associazione completata: ${assetsCount} nuove immagini, ${dataCount} record da CSV e ${erpMatchCount} da ERP.`);
         }, 800);
     };
 

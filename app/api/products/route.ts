@@ -226,10 +226,23 @@ export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
         const catalogId = searchParams.get("catalogId");
+        const sku = searchParams.get("sku");
+        const ean = searchParams.get("ean");
 
         // Base Product Query mapped back to flat structure for the existing Frontend
+        let where: any = {};
+        if (catalogId) {
+            where.catalogs = { some: { catalogId: parseInt(catalogId) } };
+        }
+        if (sku) {
+            where.sku = sku;
+        }
+        if (ean) {
+            where.ean = ean;
+        }
+
         const products = await prisma.product.findMany({
-            where: catalogId ? { catalogs: { some: { catalogId: parseInt(catalogId) } } } : undefined,
+            where: Object.keys(where).length > 0 ? where : undefined,
             include: {
                 texts: true,
                 prices: { where: { listName: "default" } },
