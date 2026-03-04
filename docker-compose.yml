@@ -1,4 +1,5 @@
 version: '3.8'
+name: contenthunter-v5
 
 services:
   # V5 DISMANTLER ENGINE (Python FastAPI)
@@ -8,7 +9,7 @@ services:
       dockerfile: Dockerfile
     container_name: dismantler-v5-backend
     ports:
-      - "9001:8000"
+      - "55012:8000"
     volumes:
       - ./public:/app/public
     env_file:
@@ -22,8 +23,8 @@ services:
       dockerfile: Dockerfile
     container_name: dismantler-v5-ui
     ports:
-      - "9005:3000"
-      - "9000:8000"
+      - "55010:3000"
+      - "55011:8000"
     volumes:
       - ./public/uploads:/app/assets
     env_file:
