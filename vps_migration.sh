@@ -3,8 +3,10 @@
 
 echo "🧹 Pulizia VPS e Migrazione a Python V5..."
 
-# 1. Stop existing Node/TypeScript containers
-echo "🛑 Arresto vecchi container Node.js..."
+# 1. Stop existing project containers (Clean up by name)
+echo "🛑 Pulizia container esistenti..."
+docker stop dismantler-v5-ui dismantler-v5-backend 2>/dev/null
+docker rm dismantler-v5-ui dismantler-v5-backend 2>/dev/null
 docker stop pdf-catalog-app 2>/dev/null
 docker rm pdf-catalog-app 2>/dev/null
 
