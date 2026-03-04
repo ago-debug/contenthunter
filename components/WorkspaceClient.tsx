@@ -1188,7 +1188,7 @@ export default function WorkspaceClient() {
 
         setCurrentPdfUrl(normalizedUrl);
         try {
-            const storageUrl = `/api/storage?path=${encodeURIComponent(normalizedUrl)}`;
+            const storageUrl = normalizedUrl;
             const loadingTask = pdfjsLib.getDocument(localData ? { data: localData } : storageUrl);
             const pdf = await loadingTask.promise;
             const pages: PageData[] = [];

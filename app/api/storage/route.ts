@@ -44,10 +44,10 @@ export async function GET(req: NextRequest) {
 
         // For large files or range requests, use native streaming to preserve server RAM
         const fileStream = fs.createReadStream(fullPath);
-        // @ts-ignore - Readable.toWeb is standard in Node 18+ (Next.js environment)
-        const webStream = Readable.toWeb(fileStream);
 
-        return new Response(webStream as any, {
+        // We avoid Readable.toWeb which causes issues in some Next.js environments
+        // Instead, cast the native node stream to any, or use polyfill.
+        return new Response(fileStream as any, {
             headers: {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `inline; filename="${path.basename(fullPath)}"`,

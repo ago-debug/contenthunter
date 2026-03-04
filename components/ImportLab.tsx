@@ -158,7 +158,7 @@ export default function ImportLab() {
 
         // Clean the URL to ensure it doesn't have leading/trailing issues
         const cleanPath = url.startsWith('/') ? url : `/${url}`;
-        const finalUrl = `/api/storage?path=${encodeURIComponent(cleanPath)}`;
+        const finalUrl = cleanPath;
 
         try {
             console.log(`[PDF-LOAD] Attempting to load from: ${finalUrl}`);
@@ -246,7 +246,7 @@ export default function ImportLab() {
 
             for (const pdf of repository.pdfs) {
                 const cleanPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
-                const finalUrl = `/api/storage?path=${encodeURIComponent(cleanPath)}`;
+                const finalUrl = cleanPath;
 
                 const loadingTask = pdfjsLib.getDocument({
                     url: finalUrl,
