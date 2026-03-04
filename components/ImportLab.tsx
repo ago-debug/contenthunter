@@ -20,7 +20,7 @@ import PdfVisualWorkspace from "./PdfVisualWorkspace";
 
 if (typeof window !== "undefined") {
     // Robust CDN for ESM-based PDF.js workers
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 }
 
 interface StagingProduct {
@@ -153,36 +153,34 @@ export default function ImportLab() {
         }
     };
 
-    const loadPdfPages = async (url: string) => {
-        if (!url) return;
+    const loadPdfPages = async (filePath: string) => {
+        if (!filePath) return;
 
-        // Bypassing the /api/storage proxy for public files improves performance and fixes CORB/R issues
-        let finalUrl = url;
-        if (url.includes("/api/storage?path=")) {
-            const decoded = decodeURIComponent(url.split("path=")[1]);
-            finalUrl = decoded.startsWith("/") ? decoded : `/${decoded}`;
-        } else if (!url.startsWith("/") && !url.startsWith("http")) {
-            finalUrl = `/${url}`;
+        // Correctly handle paths for /api/storage?path=
+        let storagePath = filePath;
+        if (filePath.includes("path=")) {
+            storagePath = decodeURIComponent(filePath.split("path=")[1]);
         }
 
+        // Ensure path starts without slash for the storage proxy
+        const cleanPath = storagePath.startsWith("/") ? storagePath.slice(1) : storagePath;
+        const proxyUrl = `/api/storage?path=${encodeURIComponent(cleanPath)}`;
+
         try {
-            console.log(`[PDF-LOAD] Attempting to load from: ${finalUrl}`);
-            const loadingTask = pdfjsLib.getDocument({
-                url: finalUrl,
-                withCredentials: true,
-                disableRange: true,
-                disableAutoFetch: false
-            });
+            console.log(`[PDF-LOAD] Requesting from storage: ${proxyUrl}`);
+            const loadingTask = pdfjsLib.getDocument(proxyUrl);
             const pdf = await loadingTask.promise;
+
             setPdfInstance(pdf);
             const pages = [];
             for (let i = 1; i <= pdf.numPages; i++) {
                 pages.push({ pageNumber: i });
             }
             setPdfPages(pages);
+            console.log(`[PDF-LOAD] Success: ${pdf.numPages} pages.`);
         } catch (err) {
             console.error("PDF Load Error:", err);
-            toast.error("Impossibile caricare il PDF.");
+            toast.error("Errore nel caricamento del PDF. Verifica il file.");
         }
     };
 

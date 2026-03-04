@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
+import { readFile } from "fs/promises";
 import path from "path";
-import { Readable } from "stream";
 
+/**
+ * PDF STORAGE PROXY (Legacy Reliable Mode)
+ * Reverted to simple readFile to ensure complete file delivery without complex streaming 
+ * issues that were causing "Error: R" in PDF.js.
+ */
 export async function GET(req: NextRequest) {
     const filePathParam = req.nextUrl.searchParams.get("path");
 
@@ -11,52 +15,28 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // Resolve path: strip leading slash and sanitize
         let sanitizedPath = filePathParam.startsWith("/") ? filePathParam.slice(1) : filePathParam;
         sanitizedPath = sanitizedPath.replace(/\/+/g, '/');
 
-        // Use absolute path resolution to be safe on Linux/Plesk
         const publicDir = path.join(process.cwd(), "public");
         const fullPath = path.resolve(publicDir, sanitizedPath);
 
+        // Security check
         if (!fullPath.startsWith(publicDir)) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 
-        if (!fs.existsSync(fullPath)) {
-            return new NextResponse(`File Not Found: ${sanitizedPath}`, { status: 404 });
-        }
+        const data = await readFile(fullPath);
 
-        const stats = fs.statSync(fullPath);
-        const range = req.headers.get("range");
-
-        // For small files (< 2MB) and no direct range request, serve from memory for speed
-        if (!range && stats.size < 2 * 1024 * 1024) {
-            const data = fs.readFileSync(fullPath);
-            return new Response(data, {
-                status: 200,
-                headers: {
-                    "Content-Type": "application/pdf",
-                    "Content-Length": stats.size.toString(),
-                    "Cache-Control": "public, max-age=3600"
-                }
-            });
-        }
-
-        // For large files or range requests, use native streaming to preserve server RAM
-        const fileStream = fs.createReadStream(fullPath);
-
-        // We avoid Readable.toWeb which causes issues in some Next.js environments
-        // Instead, cast the native node stream to any, or use polyfill.
-        return new Response(fileStream as any, {
+        return new NextResponse(data, {
             headers: {
                 "Content-Type": "application/pdf",
-                "Content-Disposition": `inline; filename="${path.basename(fullPath)}"`,
-                "Accept-Ranges": "bytes",
-                "Content-Length": stats.size.toString(),
+                "Cache-Control": "public, max-age=3600"
             }
         });
     } catch (e: any) {
         console.error("Storage API error:", e);
-        return new NextResponse(`Internal Error: ${e.message}`, { status: 500 });
+        return new NextResponse(`Not Found: ${e.message}`, { status: 404 });
     }
 }
