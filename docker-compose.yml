@@ -13,11 +13,6 @@ services:
     env_file:
       - .env
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   ui:
     build:
@@ -34,8 +29,3 @@ services:
     environment:
       - API_URL=https://contenthunter.abreve.it
     restart: always
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
