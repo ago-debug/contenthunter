@@ -17,6 +17,16 @@ def header() -> rx.Component:
                 align_items="start",
                 spacing="0",
             ),
+            rx.button(
+                rx.icon(tag="layout-dashboard", size=16),
+                "DASHBOARD",
+                variant="ghost",
+                on_click=State.back_to_dashboard,
+                font_size="10px",
+                letter_spacing="0.1em",
+                color=muted_text,
+                _hover={"color": primary_color, "bg": "transparent"},
+            ),
             spacing="4",
         ),
         rx.spacer(),
@@ -283,14 +293,101 @@ def phase_extraction() -> rx.Component:
         align_items="start",
     )
 
+def catalog_card(catalog: CatalogEntry) -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            rx.box(
+                rx.icon(tag="folder", color=primary_color, size=24),
+                padding="12px",
+                bg="rgba(249, 115, 22, 0.1)",
+                border_radius="12px",
+            ),
+            rx.vstack(
+                rx.text(catalog.name, font_weight="900", font_size="1.1rem"),
+                rx.text(f"Creato il: {catalog.createdAt}", font_size="0.7rem", color=muted_text),
+                align_items="start",
+                spacing="0",
+            ),
+            rx.spacer(),
+            rx.badge(catalog.status, color_scheme="orange", variant="soft"),
+            width="100%",
+            spacing="4",
+        ),
+        rx.divider(border_color="rgba(255,255,255,0.03)"),
+        rx.hstack(
+            rx.vstack(
+                rx.text("PDF", font_size="10px", color=muted_text, font_weight="900"),
+                rx.text(f"{catalog.pdf_count}", font_weight="900"),
+                align_items="start",
+                spacing="0",
+            ),
+            rx.vstack(
+                rx.text("PRODOTTI", font_size="10px", color=muted_text, font_weight="900"),
+                rx.text(f"{catalog.product_count}", font_weight="900"),
+                align_items="start",
+                spacing="0",
+            ),
+            spacing="8",
+            width="100%",
+        ),
+        rx.button(
+            "Apri Repository",
+            on_click=State.select_catalog(catalog.id),
+            width="100%",
+            bg="rgba(255,255,255,0.03)",
+            border="1px solid rgba(255,255,255,0.05)",
+            _hover={"bg": primary_color, "color": "white", "border_color": primary_color},
+            margin_top="1rem",
+        ),
+        style=style_card,
+        padding="2rem",
+        transition="all 0.3s ease",
+        _hover={"transform": "translateY(-5px)", "border_color": f"{primary_color}44"},
+    )
+
+def phase_dashboard() -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            rx.vstack(
+                rx.heading("I Tuoi Cataloghi", font_size="2.5rem", font_weight="900"),
+                rx.text("Seleziona un catalogo per iniziare lo smontaggio o l'analisi.", color=muted_text),
+                align_items="start",
+            ),
+            rx.spacer(),
+            rx.button(
+                rx.icon(tag="plus", size=18),
+                "Nuovo Catalogo",
+                bg=primary_color,
+                padding="1rem 2rem",
+                border_radius="14px",
+                on_click=State.create_catalog,
+            ),
+            width="100%",
+            margin_bottom="4rem",
+        ),
+        rx.flex(
+            rx.foreach(State.catalogs, catalog_card),
+            display="grid",
+            grid_template_columns="repeat(auto-fill, minmax(320px, 1fr))",
+            gap="32px",
+            width="100%",
+        ),
+        width="100%",
+    )
+
 def index() -> rx.Component:
     return rx.box(
         header(),
         rx.vstack(
-            stepper(),
+            rx.cond(
+                State.active_step > 0,
+                stepper(),
+                rx.spacer()
+            ),
             rx.box(
                 rx.match(
                     State.active_step,
+                    (0, phase_dashboard()),
                     (1, phase_source()),
                     (2, phase_vision()),
                     (3, phase_extraction()),
@@ -318,4 +415,4 @@ app = rx.App(
         accent_color="orange"
     ),
 )
-app.add_page(index, title="DISMANTLER X1 V5")
+app.add_page(index, title="DISMANTLER X1 V5", on_load=State.get_catalogs)

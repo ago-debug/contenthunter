@@ -9,6 +9,14 @@ import base64
 
 import pydantic
 
+class CatalogEntry(pydantic.BaseModel):
+    id: int
+    name: str
+    status: str = "draft"
+    createdAt: str = ""
+    pdf_count: int = 0
+    product_count: int = 0
+
 class Product(pydantic.BaseModel):
     sku: str
     ean: str = ""
@@ -21,7 +29,14 @@ class Product(pydantic.BaseModel):
 
 class State(rx.State):
     """The app state."""
-    active_step: int = 1
+    active_step: int = 0  # 0: Dashboard, 1: Source, 2: Vision, 3: Extraction
+    
+    # Dashboard state
+    catalogs: List[CatalogEntry] = []
+    selected_catalog_id: int = 0
+    new_catalog_name: str = ""
+    
+    # Dismantler state
     uploaded_files: List[str] = []
     products: List[Product] = []
     is_loading: bool = False
@@ -35,16 +50,50 @@ class State(rx.State):
     extraction_progress: int = 0
     total_products_found: int = 0
 
+    # Backend connection
+    BACKEND_URL: str = "http://backend:8000"
+
     @rx.var
     def page_list(self) -> List[int]:
         return list(range(1, self.pdf_num_pages + 1))
 
+    async def get_catalogs(self):
+        """Fetch catalogs from FastAPI backend."""
+        import httpx
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{self.BACKEND_URL}/api/v5/repositories")
+                if response.status_code == 200:
+                    data = response.json()
+                    self.catalogs = [
+                        CatalogEntry(
+                            id=c["id"], 
+                            name=c["name"], 
+                            status=c["status"],
+                            createdAt=c["createdAt"][:10] if c.get("createdAt") else ""
+                        ) for c in data
+                    ]
+        except Exception as e:
+            return rx.toast.error(f"Errore caricamento cataloghi: {str(e)}")
+
+    def select_catalog(self, catalog_id: int):
+        """Choose a catalog and go to its dashboard."""
+        self.selected_catalog_id = catalog_id
+        # In a real app we'd load details here
+        self.active_step = 1 # Lead to file upload for that catalog
+        return rx.toast.info(f"Catalogo selezionato (ID: {catalog_id})")
+
+    def create_catalog(self):
+        """Create a new catalog."""
+        # TODO: Implement POST in backend
+        return rx.toast.warning("Funzione creazione in fase di sviluppo.")
+
+    def back_to_dashboard(self):
+        self.active_step = 0
+
     def next_step(self):
         if self.active_step < 3:
             self.active_step += 1
-            
-    def set_step(self, step: int):
-        self.active_step = step
 
     async def handle_upload(self, files: List[rx.UploadFile]):
         """Handle PDF / XLSX upload."""
