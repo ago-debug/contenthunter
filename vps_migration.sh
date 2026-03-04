@@ -22,7 +22,7 @@ mkdir -p public/uploads public/static_crops
 
 # 5. Start the New V5 Stack
 echo "🏗️ Avvio Stack Python V5 (FastAPI + Reflex)..."
-docker-compose up -d --build
+docker compose up -d --build
 
 echo "✅ Migrazione completata con successo!"
 echo "📡 Backend: http://vps-ip:8000"
