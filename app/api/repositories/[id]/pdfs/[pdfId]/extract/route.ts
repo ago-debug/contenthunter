@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
-const pdfParse = require("pdf-parse");
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const maxDuration = 300; // 5 minutes for AI extraction
@@ -16,118 +15,118 @@ export const config = {
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
+/**
+ * PDF DISMANTLER V4 (Professional Grade)
+ * Uses Gemini 1.5 Pro Multimodal to analyze PDF structure, extract data, 
+ * and identify regions for image isolation.
+ */
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string, pdfId: string }> }
 ) {
     const startTime = Date.now();
     try {
-        console.log(`[AI-EXTRACT] Start request for PDF at ${new Date().toISOString()}`);
         const { id, pdfId } = await params;
         const catalogId = parseInt(id);
         const parsedPdfId = parseInt(pdfId);
 
-        // 1. Fetch PDF from DB
+        console.log(`[AI-DISMANTLER] Processing PDF ${parsedPdfId} for Catalog ${catalogId}`);
+
+        // 1. Fetch PDF Metadata
         const catalogPdf = await prisma.catalogPdf.findUnique({
             where: { id: parsedPdfId }
         });
 
         if (!catalogPdf) {
-            return NextResponse.json({ error: "PDF non trovato." }, { status: 404 });
+            return NextResponse.json({ error: "PDF not found." }, { status: 404 });
         }
 
-        // 2. Read PDF File. NOTE: Path stored as `/uploads/xxx.pdf` originally 
-        // We strip the leading `/` for safely building path inside `public`
+        // 2. Read Physical File
         const safeFilePath = catalogPdf.filePath.startsWith("/") ? catalogPdf.filePath.slice(1) : catalogPdf.filePath;
         const fullPath = path.join(process.cwd(), "public", safeFilePath);
 
         if (!fs.existsSync(fullPath)) {
-            return NextResponse.json({ error: `File fisico PDF non trovato al percorso: ${fullPath}` }, { status: 404 });
+            return NextResponse.json({ error: `Physical file not found at: ${fullPath}` }, { status: 404 });
         }
 
-        const dataBuffer = fs.readFileSync(fullPath);
-        console.log(`Reading file: ${fullPath} (${dataBuffer.length} bytes)`);
-
-        // 3. Extract text
-        let textContent = "";
-        try {
-            console.log("Starting PDF parsing...");
-            const pdfData = await pdfParse(dataBuffer);
-            textContent = pdfData.text;
-            console.log(`Text extracted successfully (${textContent.length} chars)`);
-        } catch (parseError: any) {
-            console.error("PDF Parsing error:", parseError);
-            return NextResponse.json({ error: "Errore durante il parsing del PDF: " + parseError.message }, { status: 500 });
-        }
-
-        if (!textContent || textContent.trim().length === 0) {
-            console.warn("No text found in PDF.");
-            return NextResponse.json({ error: "Il PDF non contiene testo estraibile (potrebbe essere una scansione piatta)." }, { status: 400 });
-        }
+        const pdfBuffer = fs.readFileSync(fullPath);
+        const pdfBase64 = pdfBuffer.toString("base64");
 
         if (!process.env.GEMINI_API_KEY) {
-            return NextResponse.json({ error: "Chiave GEMINI_API_KEY non configurata." }, { status: 500 });
+            return NextResponse.json({ error: "GEMINI_API_KEY not configured." }, { status: 500 });
         }
 
-        // 4. Send to Google Gemini (NotebookLM engine) for structured JSON extraction
-        // gemini-1.5-pro has a 2-million token context window, perfect for giant PDFs
-        const prompt = `Sei un estrattore dati ERP di altissimo livello. 
-Il tuo compito è analizzare il testo estratto da un catalogo PDF e restituire SOLO un oggetto JSON strutturato contenente una lista di prodotti.
+        // 3. Prepare Multi-modal Prompt
+        // We instruct Gemini to act as a layout-aware dismantle engine
+        const prompt = `Sei l'AI "ContentHunter Dismantler". Il tuo compito è smontare completamente questo catalogo PDF.
+        Analizza visivamente la struttura delle pagine e i testi.
+        
+        Per ogni prodotto individuato, restituisci un oggetto JSON strutturato.
+        
+        REGOLE:
+        1. Identifica SKU, EAN, Titolo, Descrizione, Prezzo e Brand.
+        2. ESTRAZIONE TESTI: Prendi tutti i testi tecnici e inseriscili in 'extraFields' se non mappabili nei campi standard.
+        3. MAPPATURA PAGINA: Indica il numero di pagina esatto dove si trova il prodotto.
+        4. IMAGE BBOX: Fornisci le coordinate [ymin, xmin, ymax, xmax] (valori 0-1000) dell'immagine principale del prodotto nella pagina.
+        
+        FORMATO RICHIESTO:
+        {
+          "products": [
+            {
+              "sku": "string",
+              "ean": "string | null",
+              "title": "string",
+              "description": "string | null",
+              "price": number | null,
+              "brand": "string | null",
+              "category": "string | null",
+              "pageNumber": number,
+              "image_bbox": [ymin, xmin, ymax, xmax],
+              "extraFields": [
+                { "key": "colore", "value": "rosso" },
+                { "key": "materiale", "value": "acciaio" }
+              ]
+            }
+          ]
+        }`;
 
-Testo del catalogo:
-"""
-${textContent.substring(0, 1500000)} // Gemini can handle massive contexts
-"""
-
-REGOLE DI ESTRAZIONE:
-1. Trova tutti i prodotti menzionati nel testo.
-2. Formato output esatto richiesto:
-{
-  "products": [
-    {
-      "sku": "codice univoco articolo",
-      "ean": "codice a barre se presente, altrimenti null",
-      "title": "nome o titolo del prodotto",
-      "description": "descrizione testuale se presente (lunga)",
-      "price": 0.00, // numero decimale (es: 100.50)
-      "brand": "marca se dedotta dal contesto",
-      "category": "categoria se dedotta dal contesto",
-      "bulletPoints": "Lista di caratteristiche. Ogni caratteristica su una nuova riga con un trattino. Es: '- Materiale: Ferro\\n- Peso: 2kg'"
-    }
-  ]
-}
-3. Cerca di dedurre il prezzo ed eliminare i simboli valutari.
-4. Assicurati rigorosamente di restituire JSON valido.`;
-
-        // Configure Gemini 1.5 Pro (The brain behind NotebookLM)
         const model = genAI.getGenerativeModel({
             model: "gemini-1.5-pro",
             generationConfig: {
-                temperature: 0.1, // Low temp for deterministic extraction
+                temperature: 0.1,
                 responseMimeType: "application/json",
             }
         });
 
-        console.log("Sending to Gemini AI...");
+        console.log(`[AI-DISMANTLER] Sending PDF to Gemini 1.5 Pro (${pdfBuffer.length} bytes)...`);
+
         const aiResponse = await model.generateContent([
-            { text: "You are a specialized JSON data extractor for ERP systems." },
+            {
+                inlineData: {
+                    data: pdfBase64,
+                    mimeType: "application/pdf"
+                }
+            },
             { text: prompt }
         ]);
 
-        console.log("Gemini AI response received.");
         const resultText = aiResponse.response.text() || "{}";
         const parsedResult = JSON.parse(resultText);
 
         if (!parsedResult.products || !Array.isArray(parsedResult.products)) {
-            throw new Error("Formato JSON restituito non valido o prodotti mancanti.");
+            console.error("Malformed AI response:", resultText);
+            throw new Error("Invalid response format from AI.");
         }
 
         const extractedProducts = parsedResult.products;
+        console.log(`[AI-DISMANTLER] Successfully identified ${extractedProducts.length} products.`);
+
+        // 4. Atomic Save to Staging
         let importedCount = 0;
 
-        // 5. Save Extracted Data to StagingProduct
+        // Use a transaction or sequential creates
         for (const p of extractedProducts) {
-            if (!p.sku || !p.title) continue; // Skip strictly invalid entries
+            if (!p.sku) continue;
 
             const staging = await prisma.stagingProduct.create({
                 data: {
@@ -139,23 +138,50 @@ REGOLE DI ESTRAZIONE:
                 }
             });
 
-            // Texts
+            // Standard Texts
             await prisma.stagingProductText.create({
                 data: {
                     stagingProductId: staging.id,
                     language: "it",
-                    title: String(p.title).trim(),
-                    description: p.description ? String(p.description).trim() : null,
-                    bulletPoints: p.bulletPoints ? String(p.bulletPoints).trim() : null,
+                    title: p.title || "Prodotto senza titolo",
+                    description: p.description || null,
                 }
             });
 
-            // Price
-            if (p.price !== null && typeof p.price === 'number') {
+            // Price insertion
+            if (p.price) {
                 await prisma.stagingProductPrice.create({
                     data: {
                         stagingProductId: staging.id,
-                        price: p.price
+                        price: parseFloat(p.price)
+                    }
+                });
+            }
+
+            // Dynamic Extra Fields (Specs, Bullet points, etc)
+            if (p.extraFields && Array.isArray(p.extraFields)) {
+                for (const ef of p.extraFields) {
+                    await prisma.stagingProductExtra.create({
+                        data: {
+                            stagingProductId: staging.id,
+                            key: ef.key,
+                            value: String(ef.value)
+                        }
+                    });
+                }
+            }
+
+            // Store AI Visual Mapping as metadata in Extra fields for now
+            if (p.image_bbox && p.pageNumber) {
+                await prisma.stagingProductExtra.create({
+                    data: {
+                        stagingProductId: staging.id,
+                        key: "_ai_visual_mapping",
+                        value: JSON.stringify({
+                            page: p.pageNumber,
+                            bbox: p.image_bbox,
+                            pdfId: parsedPdfId
+                        })
                     }
                 });
             }
@@ -163,21 +189,31 @@ REGOLE DI ESTRAZIONE:
             importedCount++;
         }
 
-        // Mark PDF as processed
+        // 5. Cleanup and Metadata Updates
         await prisma.catalogPdf.update({
             where: { id: parsedPdfId },
             data: { processed: true }
         });
 
-        // Set last listino name
         await prisma.catalog.update({
             where: { id: catalogId },
-            data: { lastListinoName: `Estrazione_AI_${catalogPdf.fileName}` }
+            data: { lastListinoName: `Dismantle_V4_${catalogPdf.fileName}` }
         });
 
-        return NextResponse.json({ success: true, count: importedCount });
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`[AI-DISMANTLER] Completed in ${duration}s. Processed ${importedCount} products.`);
+
+        return NextResponse.json({
+            success: true,
+            count: importedCount,
+            duration: `${duration}s`
+        });
+
     } catch (err: any) {
-        console.error("PDF API AI Extraction error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        console.error("PDF DISMANTLER CRITICAL ERROR:", err);
+        return NextResponse.json({
+            error: err.message,
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }, { status: 500 });
     }
 }
