@@ -146,3 +146,6 @@ class State(rx.State):
         if self.current_pdf_url == filename:
             self.current_pdf_url = ""
             self.active_step = 1
+
+    def set_step(self, step: int):
+        self.active_step = step

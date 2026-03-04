@@ -2,295 +2,73 @@ import reflex as rx
 from .state import State, Product, CatalogEntry
 from .styles import *
 
-def header() -> rx.Component:
-    return rx.hstack(
+def sidebar_item(label: str, icon: str, step_id: int) -> rx.Component:
+    is_active = State.active_step == step_id
+    return rx.button(
+        rx.hstack(
+            rx.icon(tag=icon, size=18),
+            rx.text(label),
+            spacing="3",
+        ),
+        on_click=lambda: State.set_step(step_id),
+        style=style_button_sidemenu,
+        **(style_active_sidemenu if is_active else {}),
+    )
+
+def sidebar() -> rx.Component:
+    return rx.vstack(
+        # Logo Area
         rx.hstack(
             rx.box(
-                rx.icon(tag="layers", color=primary_color, size=24),
+                rx.icon(tag="layers", color=primary_color, size=22),
                 padding="10px",
                 bg="rgba(249, 115, 22, 0.1)",
                 border_radius="12px",
             ),
             rx.vstack(
-                rx.text("ContentHunter", font_weight="900", font_size="1.2rem", line_height="1", letter_spacing="-0.02em"),
-                rx.text("DISMANTLER X1 V5.1 (PYTHON POWERED)", font_size="0.6rem", color=primary_color, letter_spacing="0.25em", font_weight="900"),
+                rx.text("ContentHunter", font_weight="900", font_size="1rem", line_height="1"),
+                rx.text("DISMANTLER V5.1", font_size="0.55rem", color=primary_color, letter_spacing="0.2em", font_weight="900"),
                 align_items="start",
                 spacing="0",
             ),
-            rx.button(
-                rx.icon(tag="layout-dashboard", size=16),
-                "DASHBOARD",
-                variant="ghost",
-                on_click=State.back_to_dashboard,
-                font_size="10px",
-                letter_spacing="0.1em",
-                color=muted_text,
-                _hover={"color": primary_color, "bg": "transparent"},
-            ),
-            spacing="4",
+            padding_bottom="3rem",
+            spacing="3",
         ),
-        rx.spacer(),
-        rx.hstack(
-            rx.button(
-                "Export to Master ERP",
-                bg=primary_color,
-                color="white",
-                font_weight="900",
-                font_size="10px",
-                text_transform="uppercase",
-                letter_spacing="0.1em",
-                padding="12px 24px",
-                border_radius="12px",
-                _hover={"transform": "translateY(-2px)", "box_shadow": f"0 10px 20px {primary_color}33"},
-                transition="all 0.4s ease",
-            ),
-            rx.avatar(fallback="AU", size="2", border=f"1px solid {primary_color}44", bg=surface_color),
-            spacing="6",
-        ),
-        width="100%",
-        padding="2rem 4rem",
-        bg=f"rgba(15, 23, 42, 0.85)",
-        backdrop_filter="blur(20px)",
-        border_bottom="1px solid rgba(255,255,255,0.03)",
-        position="sticky",
-        top="0",
-        z_index="100",
-    )
-
-def step_card(num: int, label: str, active: bool) -> rx.Component:
-    return rx.hstack(
-        rx.box(
-            rx.center(rx.text(num, font_weight="900"), height="100%"),
-            width="36px",
-            height="36px",
-            border_radius="50%",
-            bg=rx.cond(active, primary_color, rx.cond(State.active_step > num, "#10B981", surface_color)),
-            color="white",
-            border=rx.cond(active, "none", "1px solid rgba(255,255,255,0.1)"),
-        ),
+        
+        # Navigation
         rx.vstack(
-            rx.text(label, font_weight="900", font_size="11px", color=rx.cond(active, "white", muted_text), letter_spacing="0.1em"),
+            rx.text("MAIN MENU", font_size="10px", color=muted_text, font_weight="900", letter_spacing="0.1em", margin_bottom="0.5rem"),
+            sidebar_item("Dashboard", "layout-dashboard", 0),
+            sidebar_item("Catalogazione PDF", "file-up", 1),
+            sidebar_item("Asset Matcher", "table-properties", 4),
+            sidebar_item("AI Editor Avanzato", "edit-3", 5),
             align_items="start",
-            spacing="0",
-        ),
-        spacing="4",
-        padding="1rem 2rem",
-        opacity=rx.cond(active, 1.0, 0.5),
-        transition="all 0.5s ease",
-    )
-
-def stepper() -> rx.Component:
-    return rx.center(
-        rx.hstack(
-            step_card(1, "ORCHESTRAZIONE", State.active_step == 1),
-            rx.box(width="40px", height="1px", bg="rgba(255,255,255,0.05)"),
-            step_card(2, "VISION & DISCOVERY", State.active_step == 2),
-            rx.box(width="40px", height="1px", bg="rgba(255,255,255,0.05)"),
-            step_card(3, "AI EXTRACTION", State.active_step == 3),
-            bg=surface_color,
-            border_radius="32px",
-            border="1px solid rgba(255,255,255,0.05)",
-            padding="4px",
-            margin="2rem auto",
-        ),
-    )
-
-def phase_source() -> rx.Component:
-    return rx.vstack(
-        rx.vstack(
-            rx.heading("Inizia lo Smontaggio", font_size="2.5rem", font_weight="900", letter_spacing="-0.03em"),
-            rx.text("Il motore Python V5 è pronto per l'analisi multimodale.", color=muted_text, font_size="1.1rem"),
-            text_align="center",
-            spacing="4",
-            margin_bottom="3rem",
-        ),
-        rx.upload(
-            rx.vstack(
-                rx.icon(tag="upload", size=48, color=primary_color),
-                rx.text("Trascina qui il tuo catalogo PDF", font_weight="900", font_size="1.2rem", margin_top="1rem"),
-                rx.text("Supportiamo file PDF multi-pagina (MAX 100MB)", color=muted_text, font_size="0.8rem"),
-                rx.button(
-                    "Sfoglia Computer", 
-                    bg="rgba(255,255,255,0.03)", 
-                    border=f"1px solid {primary_color}44", 
-                    color=primary_color,
-                    padding="12px 32px",
-                    border_radius="12px",
-                    margin_top="1rem",
-                ),
-                align_items="center",
-                spacing="2",
-            ),
-            id="pdf_uploader",
-            multiple=True,
-            accept={
-                "application/pdf": [".pdf"],
-            },
-            max_files=5,
-            padding="6rem",
-            on_drop=State.handle_upload(rx.upload_files(upload_id="pdf_uploader")),
-            border=f"2px dashed rgba(249, 115, 22, 0.2)",
-            border_radius="48px",
-            _hover={"bg": "rgba(249, 115, 22, 0.02)", "border_color": primary_color},
-            transition="all 0.4s ease",
             width="100%",
-            max_width="800px",
+            spacing="1",
         ),
-        width="100%",
-        align_items="center",
-        padding_top="4rem",
-        spacing="6",
-    )
-
-def phase_vision() -> rx.Component:
-    return rx.vstack(
+        
+        rx.spacer(),
+        
+        # Bottom profile
         rx.hstack(
+            rx.avatar(fallback="AG", size="2", bg=surface_color, border=f"1px solid {border_color}"),
             rx.vstack(
-                rx.text("Analisi Visuale", font_size="2rem", font_weight="900", letter_spacing="-0.01em"),
-                rx.text(f"{State.pdf_num_pages} pagine identificate.", color=primary_color, font_weight="900", font_size="0.7rem", letter_spacing="0.1em"),
+                rx.text("Augusto G.", font_size="12px", font_weight="700"),
+                rx.hstack(
+                    rx.box(width="6px", height="6px", bg="#10B981", border_radius="50%"),
+                    rx.text("AI Engine Online", font_size="10px", color="#10B981"),
+                    spacing="2",
+                ),
                 align_items="start",
+                spacing="0",
             ),
-            rx.spacer(),
-            rx.button(
-                "Inizia Smontaggio AI",
-                on_click=State.run_dismantle,
-                bg=primary_color,
-                padding="1rem 3rem",
-                border_radius="16px",
-                font_weight="900",
-                text_transform="uppercase",
-                loading=State.is_extracting,
-            ),
-            width="100%",
-            margin_bottom="3rem",
-        ),
-        rx.flex(
-            # PDF Thumbnail Grid in Python
-            rx.foreach(
-                State.page_list,
-                lambda i: rx.box(
-                    rx.center(
-                        rx.text(f"PAG. {i}", font_weight="900", font_size="10px", color=muted_text),
-                        height="100%",
-                    ),
-                    bg="rgba(255,255,255,0.02)",
-                    border="1px solid rgba(255,255,255,0.05)",
-                    aspect_ratio="1 / 1.4",
-                    border_radius="20px",
-                    _hover={"border_color": primary_color, "transform": "translateY(-4px)"},
-                    transition="all 0.3s ease",
-                    cursor="pointer",
-                )
-            ),
-            display="grid",
-            grid_template_columns="repeat(auto-fill, minmax(180px, 1fr))",
-            gap="24px",
+            spacing="3",
+            padding_top="2rem",
+            border_top=f"1px solid {border_color}",
             width="100%",
         ),
-        width="100%",
-        spacing="6",
-    )
-
-def product_row(product: Product) -> rx.Component:
-    return rx.hstack(
-        rx.box(
-            width="64px",
-            height="64px",
-            bg="rgba(255,255,255,0.02)",
-            border_radius="14px",
-            border="1px solid rgba(255,255,255,0.05)",
-            background_image=f"url({product.image_url})",
-            background_size="cover",
-        ),
-        rx.vstack(
-            rx.text(product.sku, font_weight="900", font_size="14px"),
-            rx.text(product.title, font_size="12px", color=muted_text),
-            align_items="start",
-            spacing="0",
-        ),
-        rx.spacer(),
-        rx.text(f"€ {product.price}", font_weight="900", font_size="14px", color=primary_color),
-        rx.box(width="40px"),
-        rx.badge(f"PAG. {product.page}", color_scheme="orange", variant="soft", padding="4px 12px", border_radius="8px"),
-        rx.button(
-            rx.icon(tag="file-search"),
-            bg="transparent",
-            color=muted_text,
-            _hover={"color": primary_color, "bg": "rgba(255,255,255,0.05)"},
-            on_click=lambda: State.select_product(product.sku),
-        ),
-        width="100%",
-        padding="1rem 2rem",
-        bg="rgba(255,255,255,0.01)",
-        border_radius="24px",
-        border="1px solid rgba(255,255,255,0.03)",
-        _hover={"bg": "rgba(255,255,255,0.03)", "border_color": "rgba(255,255,255,0.1)", "transform": "translateX(10px)"},
-        transition="all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
-    )
-
-def phase_extraction() -> rx.Component:
-    return rx.hstack(
-        # Left: Product List
-        rx.vstack(
-            rx.hstack(
-                rx.vstack(
-                    rx.text("Risultati Estrazione", font_size="2rem", font_weight="900"),
-                    rx.text(f"{State.total_products_found} prodotti rilevati da Gemini 1.5 Pro.", color=primary_color, font_weight="900", font_size="0.7rem", letter_spacing="0.1em"),
-                    align_items="start",
-                ),
-                rx.spacer(),
-                rx.button(
-                    "Sync with ERP",
-                    bg="#10B981",
-                    padding="1rem 3rem",
-                    border_radius="16px",
-                    font_weight="900",
-                    text_transform="uppercase",
-                    box_shadow="0 20px 40px rgba(16, 185, 129, 0.2)",
-                ),
-                width="100%",
-                margin_bottom="3rem",
-            ),
-            rx.vstack(
-                rx.foreach(State.products, product_row),
-                width="100%",
-                spacing="3",
-            ),
-            width="60%",
-            padding_right="4rem",
-            border_right="1px solid rgba(255,255,255,0.03)",
-            spacing="6",
-        ),
-        # Right: Visual Verification Pane
-        rx.vstack(
-            rx.box(
-                rx.vstack(
-                    rx.hstack(
-                        rx.icon(tag="scan-search", color=primary_color),
-                        rx.text("VISUAL VERIFICATION", font_weight="900", font_size="10px", letter_spacing="0.2em"),
-                        spacing="3",
-                    ),
-                    rx.divider(border_color="rgba(255,255,255,0.05)"),
-                    rx.center(
-                        rx.vstack(
-                            rx.icon(tag="file-type-2", size=64, color="rgba(255,255,255,0.05)"),
-                            rx.text("Seleziona un prodotto per vedere il mapping PDF", color=muted_text, font_size="0.8rem"),
-                            spacing="4",
-                        ),
-                        height="500px",
-                    ),
-                    spacing="6",
-                    width="100%",
-                ),
-                style=style_card,
-                height="700px",
-                width="100%",
-            ),
-            width="40%",
-            spacing="6",
-        ),
-        width="100%",
-        align_items="start",
+        
+        style=style_sidebar,
     )
 
 def catalog_card(catalog: CatalogEntry) -> rx.Component:
@@ -304,16 +82,16 @@ def catalog_card(catalog: CatalogEntry) -> rx.Component:
             ),
             rx.vstack(
                 rx.text(catalog.name, font_weight="900", font_size="1.1rem"),
-                rx.text(f"Creato il: {catalog.createdAt}", font_size="0.7rem", color=muted_text),
+                rx.text(f"ID: {catalog.id} • {catalog.createdAt}", font_size="0.7rem", color=muted_text),
                 align_items="start",
                 spacing="0",
             ),
             rx.spacer(),
-            rx.badge(catalog.status, color_scheme="orange", variant="soft"),
+            rx.badge(catalog.status, color_scheme="orange", variant="surface"),
             width="100%",
             spacing="4",
         ),
-        rx.divider(border_color="rgba(255,255,255,0.03)"),
+        rx.divider(border_color=border_color, margin_y="1rem"),
         rx.hstack(
             rx.vstack(
                 rx.text("PDF", font_size="10px", color=muted_text, font_weight="900"),
@@ -334,23 +112,23 @@ def catalog_card(catalog: CatalogEntry) -> rx.Component:
             "Apri Repository",
             on_click=State.select_catalog(catalog.id),
             width="100%",
-            bg="rgba(255,255,255,0.03)",
-            border="1px solid rgba(255,255,255,0.05)",
-            _hover={"bg": primary_color, "color": "white", "border_color": primary_color},
-            margin_top="1rem",
+            bg="rgba(255,255,255,0.02)",
+            border=f"1px solid {border_color}",
+            _hover={"bg": primary_color, "color": "white", "transform": "translateY(-2px)"},
+            margin_top="1.5rem",
+            height="45px",
+            transition="all 0.2s ease",
         ),
         style=style_card,
-        padding="2rem",
-        transition="all 0.3s ease",
-        _hover={"transform": "translateY(-5px)", "border_color": f"{primary_color}44"},
+        padding="1.5rem",
     )
 
 def phase_dashboard() -> rx.Component:
     return rx.vstack(
         rx.hstack(
             rx.vstack(
-                rx.heading("I Tuoi Cataloghi", font_size="2.5rem", font_weight="900"),
-                rx.text("Seleziona un catalogo per iniziare lo smontaggio o l'analisi.", color=muted_text),
+                rx.heading("Dashboard Repository", size="8", font_weight="900"),
+                rx.text("Seleziona una collezione per gestire lo smontaggio AI.", color=muted_text),
                 align_items="start",
             ),
             rx.spacer(),
@@ -363,44 +141,240 @@ def phase_dashboard() -> rx.Component:
                 on_click=State.create_catalog,
             ),
             width="100%",
-            margin_bottom="4rem",
+            margin_bottom="3rem",
         ),
         rx.flex(
             rx.foreach(State.catalogs, catalog_card),
             display="grid",
             grid_template_columns="repeat(auto-fill, minmax(320px, 1fr))",
-            gap="32px",
+            gap="24px",
             width="100%",
         ),
         width="100%",
     )
 
-def index() -> rx.Component:
-    return rx.box(
-        header(),
+def top_bar() -> rx.Component:
+    return rx.hstack(
+        rx.text("Industrial Dismantler X1", font_size="12px", font_weight="900", opacity=0.3),
+        rx.spacer(),
+        rx.button(
+            "Sync Cloud",
+            variant="ghost",
+            size="2",
+            color=muted_text,
+            _hover={"color": primary_color},
+        ),
+        rx.avatar(fallback="AG", size="1"),
+        width="100%",
+        padding="1rem 3rem",
+        border_bottom=f"1px solid {border_color}",
+        bg=f"rgba(11, 15, 26, 0.8)",
+        backdrop_filter="blur(10px)",
+        position="sticky",
+        top="0",
+        z_index="900",
+    )
+
+def step_card(num: int, label: str, active: bool) -> rx.Component:
+    return rx.hstack(
+        rx.box(
+            rx.center(rx.text(num, font_weight="900"), height="100%"),
+            width="32px",
+            height="32px",
+            border_radius="10px",
+            bg=rx.cond(active, primary_color, rx.cond(State.active_step > num, "#10B981", "rgba(255,255,255,0.03)")),
+            color="white",
+        ),
         rx.vstack(
-            rx.cond(
-                State.active_step > 0,
-                stepper(),
-                rx.spacer()
+            rx.text(label, font_weight="900", font_size="10px", color=rx.cond(active, "white", muted_text), letter_spacing="0.1em"),
+            align_items="start",
+            spacing="0",
+        ),
+        spacing="3",
+        opacity=rx.cond(active, 1.0, 0.5),
+    )
+
+def stepper() -> rx.Component:
+    return rx.center(
+        rx.hstack(
+            step_card(1, "SORGENTE", State.active_step == 1),
+            rx.box(width="30px", height="1px", bg=border_color),
+            step_card(2, "VISION", State.active_step == 2),
+            rx.box(width="30px", height="1px", bg=border_color),
+            step_card(3, "ESTRAZIONE", State.active_step == 3),
+            bg=sidebar_bg,
+            border_radius="20px",
+            border=f"1px solid {border_color}",
+            padding="12px 24px",
+            margin_y="2rem",
+        ),
+    )
+
+def phase_source() -> rx.Component:
+    return rx.vstack(
+        rx.center(
+            rx.vstack(
+                rx.heading("Caricamento Documenti", size="8", font_weight="900"),
+                rx.text("Configurazione motore di analisi multimodale", color=muted_text),
+                text_align="center",
+                margin_bottom="3rem",
             ),
+            width="100%",
+        ),
+        rx.upload(
+            rx.vstack(
+                rx.icon(tag="file-up", size=48, color=primary_color),
+                rx.text("Area di Caricamento PDF", font_weight="900", font_size="1.2rem"),
+                rx.text("Seleziona i file per il catalogo scelto", color=muted_text),
+                align_items="center",
+                spacing="3",
+            ),
+            id="pdf_uploader",
+            multiple=True,
+            on_drop=State.handle_upload(rx.upload_files(upload_id="pdf_uploader")),
+            border=f"1px dashed {primary_color}44",
+            border_radius="32px",
+            padding="6rem",
+            bg="rgba(249, 115, 22, 0.01)",
+            _hover={"bg": "rgba(249, 115, 22, 0.03)", "border_color": primary_color},
+            width="100%",
+            max_width="700px",
+            margin="0 auto",
+        ),
+        width="100%",
+    )
+
+def phase_vision() -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            rx.vstack(
+                rx.text("Analisi Visuale", font_size="2rem", font_weight="900"),
+                rx.text(f"{State.pdf_num_pages} pagine identificate.", color=primary_color, font_weight="900", font_size="0.7rem"),
+                align_items="start",
+            ),
+            rx.spacer(),
+            rx.button(
+                "Inizia Smontaggio AI",
+                on_click=State.run_dismantle,
+                bg=primary_color,
+                padding="1rem 3rem",
+                loading=State.is_extracting,
+            ),
+            width="100%",
+            margin_bottom="3rem",
+        ),
+        rx.flex(
+            rx.foreach(
+                State.page_list,
+                lambda i: rx.box(
+                    rx.center(rx.text(f"PAG. {i}", font_weight="900", font_size="10px", color=muted_text)),
+                    bg="rgba(255,255,255,0.02)",
+                    border=f"1px solid {border_color}",
+                    aspect_ratio="1 / 1.4",
+                    border_radius="16px",
+                    _hover={"border_color": primary_color, "transform": "translateY(-4px)"},
+                )
+            ),
+            display="grid",
+            grid_template_columns="repeat(auto-fill, minmax(180px, 1fr))",
+            gap="24px",
+            width="100%",
+        ),
+        width="100%",
+    )
+
+def product_row(product: Product) -> rx.Component:
+    return rx.hstack(
+        rx.box(
+            width="56px", height="56px",
+            bg="rgba(255,255,255,0.02)",
+            border_radius="12px",
+            background_image=f"url({product.image_url})",
+            background_size="cover",
+        ),
+        rx.vstack(
+            rx.text(product.sku, font_weight="900", font_size="14px"),
+            rx.text(product.title, font_size="12px", color=muted_text),
+            align_items="start",
+            spacing="0",
+        ),
+        rx.spacer(),
+        rx.badge(f"PAG. {product.page}", variant="outline"),
+        rx.button(rx.icon(tag="file-search"), variant="ghost", color=muted_text, on_click=lambda: State.select_product(product.sku)),
+        width="100%",
+        padding="1rem",
+        bg="rgba(255,255,255,0.01)",
+        border_radius="16px",
+        border=f"1px solid {border_color}",
+        _hover={"bg": "rgba(255,255,255,0.03)", "transform": "translateX(5px)"},
+    )
+
+def phase_extraction() -> rx.Component:
+    return rx.hstack(
+        rx.vstack(
+            rx.heading("Risultati AI", size="7"),
+            rx.vstack(rx.foreach(State.products, product_row), width="100%", spacing="2"),
+            width="60%",
+            spacing="4",
+        ),
+        rx.vstack(
             rx.box(
+                rx.center(rx.text("Mapping Visuale", color=muted_text)),
+                style=style_card,
+                height="600px",
+                width="100%",
+            ),
+            width="40%",
+        ),
+        width="100%",
+        align_items="start",
+    )
+
+def phase_matcher() -> rx.Component:
+    return rx.vstack(
+        rx.heading("Asset Matcher", size="8"),
+        rx.text("Confronto dati e riconciliazione listini (In fase di sviluppo)", color=muted_text),
+        width="100%",
+    )
+
+def phase_editor() -> rx.Component:
+    return rx.vstack(
+        rx.heading("AI Editor Avanzato", size="8"),
+        rx.text("Editing granulare e SEO Generation (In fase di sviluppo)", color=muted_text),
+        width="100%",
+    )
+
+def index() -> rx.Component:
+    return rx.hstack(
+        sidebar(),
+        rx.vstack(
+            top_bar(),
+            rx.box(
+                rx.cond(
+                    (State.active_step > 0) & (State.active_step < 4),
+                    stepper(),
+                ),
                 rx.match(
                     State.active_step,
                     (0, phase_dashboard()),
                     (1, phase_source()),
                     (2, phase_vision()),
                     (3, phase_extraction()),
+                    (4, phase_matcher()),
+                    (5, phase_editor()),
                 ),
                 width="100%",
-                padding="0 4rem 4rem 4rem",
+                padding="3rem 4rem",
             ),
-            width="100%",
-            max_width="1400px",
-            margin="0 auto",
-            spacing="6",
+            flex="1",
+            margin_left="280px",
+            min_height="100vh",
+            align_items="stretch",
+            spacing="0",
+            bg=bg_color,
         ),
-        style=style_mission_control,
+        width="100%",
+        spacing="0",
     )
 
 app = rx.App(
@@ -415,4 +389,4 @@ app = rx.App(
         accent_color="orange"
     ),
 )
-app.add_page(index, title="DISMANTLER X1 V5", on_load=State.get_catalogs)
+app.add_page(index, title="DISMANTLER X1 V5.1", on_load=State.get_catalogs)
