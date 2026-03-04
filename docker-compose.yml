@@ -1,8 +1,6 @@
-version: '3.8'
 name: contenthunter-v5
 
 services:
-  # V5 DISMANTLER ENGINE (Python FastAPI)
   backend:
     build:
       context: ./backend
@@ -15,8 +13,12 @@ services:
     env_file:
       - .env
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # V5 INDUSTRIAL UI (Python Reflex)
   ui:
     build:
       context: ./v5_python
@@ -30,7 +32,10 @@ services:
     env_file:
       - .env
     environment:
-      - API_URL=http://backend:8000
-    depends_on:
-      - backend
+      - API_URL=https://contenthunter.abreve.it
     restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
