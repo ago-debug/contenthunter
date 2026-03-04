@@ -1,14 +1,35 @@
 version: '3.8'
 
 services:
-  web:
+  # V5 DISMANTLER ENGINE (Python FastAPI)
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: pdf-catalog-app
+    container_name: dismantler-v5-backend
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./public:/app/public
+    env_file:
+      - .env
+    restart: always
+
+  # V5 INDUSTRIAL UI (Python Reflex)
+  ui:
+    build:
+      context: ./v5_python
+      dockerfile: Dockerfile
+    container_name: dismantler-v5-ui
     ports:
       - "3000:3000"
+      - "8000:8000"
+    volumes:
+      - ./public/uploads:/app/assets
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - NODE_ENV=production
+      - API_URL=http://backend:8000
+    depends_on:
+      - backend
     restart: always

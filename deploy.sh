@@ -18,17 +18,13 @@ else
     git pull origin main
 fi
 
-# 2. Sync Database and Build
-echo "🏗️ Syncing Database and Building Docker containers..."
-# Ensure Prisma client is generated inside the build context if needed, 
-# although Dockerfile handles it, running it here can help with external scripts.
-npx prisma generate
-npx prisma db push --accept-data-loss
-
-docker-compose up -d --build
+# 2. Migration and Build
+echo "🏗️ Migrating from TypeScript and Building Python V5 Containers..."
+chmod +x ./vps_migration.sh
+./vps_migration.sh
 
 # 3. Cleanup unused images
 echo "🧹 Cleaning up old images..."
 docker image prune -f
 
-echo "✅ Docker deployment completed successfully!"
+echo "✅ V5 Python deployment completed successfully!"
