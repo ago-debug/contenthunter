@@ -12,9 +12,9 @@ docker rm pdf-catalog-app 2>/dev/null
 echo "🗑️ Rimozione artefatti TypeScript..."
 rm -rf node_modules .next package-lock.json tsconfig.json
 
-# 3. Clean up old Docker images
-echo "🧹 Pruning immagini obsolete..."
-docker image prune -a -f
+# 3. Clean up (Solo per questo progetto)
+echo "🧹 Pulizia locale..."
+# docker image prune -f # Rimosso il prune globale -a per sicurezza
 
 # 4. Prepare Python Volumes
 echo "📁 Preparazione cartelle storage..."
