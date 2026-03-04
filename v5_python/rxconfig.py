@@ -2,9 +2,6 @@ import reflex as rx
 
 config = rx.Config(
     app_name="v5_python",
-    admin_dash=rx.AdminDashConfig(
-        enabled=False
-    ),
     tailwind={
         "theme": {
             "extend": {

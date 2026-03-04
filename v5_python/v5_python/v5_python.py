@@ -27,7 +27,7 @@ def sidebar() -> rx.Component:
             ),
             rx.vstack(
                 rx.text("ContentHunter", font_weight="900", font_size="1rem", line_height="1"),
-                rx.text("DISMANTLER V5.1", font_size="0.55rem", color=primary_color, letter_spacing="0.2em", font_weight="900"),
+                rx.text("DISMANTLER V5.2", font_size="0.55rem", color=primary_color, letter_spacing="0.2em", font_weight="900"),
                 align_items="start",
                 spacing="0",
             ),
@@ -388,5 +388,6 @@ app = rx.App(
         radius="large", 
         accent_color="orange"
     ),
+    overlay_component=None,
 )
-app.add_page(index, title="DISMANTLER X1 V5.1", on_load=State.get_catalogs)
+app.add_page(index, title="CONTENTHUNTER | DISMANTLER V5.2", on_load=State.get_catalogs)
