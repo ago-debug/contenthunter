@@ -5,12 +5,12 @@ import path from "path";
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: Promise<{ id: string, stagingId: string }> }
+    { params }: { params: Promise<{ id: string, productId: string }> }
 ) {
     try {
-        const { id, stagingId } = await params;
+        const { id, productId } = await params;
         const catalogId = parseInt(id);
-        const parsedStagingId = parseInt(stagingId);
+        const parsedStagingId = parseInt(productId);
 
         const { dataUrl, page, bbox, sku } = await req.json();
 
