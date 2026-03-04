@@ -1,14 +1,15 @@
 import reflex as rx
 
-# Colors
-bg_color = "#0B0F1A"
-surface_color = "#161B2E"
-sidebar_bg = "#111625"
-primary_color = "#F97316"
-secondary_color = "#38BDF8"
+# Colors - Professional Grayscale / Platinum Theme
+bg_color = "#0A0A0B"
+surface_color = "#121214"
+sidebar_bg = "#0F0F11"
+primary_color = "#F8FAFC"      # Platinum White
+secondary_color = "#94A3B8"     # Muted Slate
 text_color = "#F8FAFC"
 muted_text = "rgba(255, 255, 255, 0.4)"
-border_color = "rgba(255, 255, 255, 0.05)"
+border_color = "rgba(255, 255, 255, 0.08)"
+accent_gray = "#27272A"
 
 # Styles
 style_mission_control = {
@@ -19,11 +20,11 @@ style_mission_control = {
 }
 
 style_sidebar = {
-    "width": "280px",
+    "width": "260px",
     "height": "100vh",
     "bg": sidebar_bg,
     "border_right": f"1px solid {border_color}",
-    "padding": "2rem 1.5rem",
+    "padding": "2rem 1.2rem",
     "position": "fixed",
     "left": "0",
     "top": "0",
@@ -33,22 +34,28 @@ style_sidebar = {
 style_card = {
     "bg": surface_color,
     "border": f"1px solid {border_color}",
-    "border_radius": "24px",
-    "box_shadow": "0 20px 40px -12px rgba(0, 0, 0, 0.6)",
+    "border_radius": "16px",
+    "box_shadow": "0 20px 40px -12px rgba(0, 0, 0, 0.8)",
     "padding": "2rem",
 }
 
 style_button_sidemenu = {
     "width": "100%",
     "justify_content": "start",
-    "padding": "1.2rem 1.5rem",
-    "border_radius": "14px",
+    "padding": "1rem 1.2rem",
+    "border_radius": "10px",
     "font_size": "13px",
     "font_weight": "600",
     "color": muted_text,
     "bg": "transparent",
-    "_hover": {"bg": "rgba(249, 115, 22, 0.05)", "color": primary_color},
-    "transition": "all 0.2s ease",
+    "_hover": {"bg": "rgba(255, 255, 255, 0.03)", "color": primary_color},
+    "transition": "all 0.15s ease",
+}
+
+style_active_sidemenu = {
+    "bg": "rgba(255, 255, 255, 0.05)",
+    "color": primary_color,
+    "border": f"1px solid {border_color}",
 }
 
 style_active_sidemenu = {
