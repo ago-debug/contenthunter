@@ -88,7 +88,7 @@ def stepper() -> rx.Component:
 def phase_source() -> rx.Component:
     return rx.vstack(
         rx.vstack(
-            rx.heading("Inizie lo Smontaggio", font_size="3.5rem", font_weight="900", letter_spacing="-0.03em"),
+            rx.heading("Inizie lo Smontaggio", font_size="2.5rem", font_weight="900", letter_spacing="-0.03em"),
             rx.text("Il motore Python V5 è pronto per l'analisi multimodale.", color=muted_text, font_size="1.1rem"),
             text_align="center",
             spacing="4",
@@ -129,6 +129,7 @@ def phase_source() -> rx.Component:
         width="100%",
         align_items="center",
         padding_top="4rem",
+        spacing="6",
     )
 
 def phase_vision() -> rx.Component:
@@ -151,7 +152,7 @@ def phase_vision() -> rx.Component:
                 loading=State.is_extracting,
             ),
             width="100%",
-            margin_bottom="2rem",
+            margin_bottom="3rem",
         ),
         rx.flex(
             # PDF Thumbnail Grid in Python
@@ -177,6 +178,7 @@ def phase_vision() -> rx.Component:
             width="100%",
         ),
         width="100%",
+        spacing="6",
     )
 
 def product_row(product: Product) -> rx.Component:
@@ -247,6 +249,7 @@ def phase_extraction() -> rx.Component:
             width="60%",
             padding_right="4rem",
             border_right="1px solid rgba(255,255,255,0.03)",
+            spacing="6",
         ),
         # Right: Visual Verification Pane
         rx.vstack(
@@ -274,6 +277,7 @@ def phase_extraction() -> rx.Component:
                 width="100%",
             ),
             width="40%",
+            spacing="6",
         ),
         width="100%",
         align_items="start",
@@ -297,6 +301,7 @@ def index() -> rx.Component:
             width="100%",
             max_width="1400px",
             margin="0 auto",
+            spacing="6",
         ),
         style=style_mission_control,
     )

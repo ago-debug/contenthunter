@@ -18,5 +18,6 @@ config = rx.Config(
                 }
             }
         }
-    }
+    },
+    disable_plugins=['reflex.plugins.sitemap.SitemapPlugin'],
 )
