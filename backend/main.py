@@ -29,7 +29,18 @@ pdf_engine = PDFDismantleEngine(api_key=settings.GEMINI_API_KEY)
 
 @app.get("/api/v5/repositories")
 def get_repositories(db: Session = Depends(get_db)):
-    return db.query(Catalog).all()
+    catalogs = db.query(Catalog).all()
+    results = []
+    for c in catalogs:
+        results.append({
+            "id": c.id,
+            "name": c.name,
+            "status": c.status,
+            "createdAt": c.createdAt.isoformat() if c.createdAt else None,
+            "pdf_count": db.query(CatalogPdf).filter(CatalogPdf.catalogId == c.id).count(),
+            "product_count": db.query(StagingProduct).filter(StagingProduct.catalogId == c.id).count()
+        })
+    return results
 
 @app.post("/api/v5/pdfs/upload")
 async def upload_pdf(catalog_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):

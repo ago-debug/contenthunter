@@ -70,7 +70,9 @@ class State(rx.State):
                             id=c["id"], 
                             name=c["name"], 
                             status=c["status"],
-                            createdAt=c["createdAt"][:10] if c.get("createdAt") else ""
+                            createdAt=c["createdAt"][:10] if c.get("createdAt") else "",
+                            pdf_count=c.get("pdf_count", 0),
+                            product_count=c.get("product_count", 0)
                         ) for c in data
                     ]
         except Exception as e:
