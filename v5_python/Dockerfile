@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app code
 COPY . .
 
+# Set API URL for production export
+ENV API_URL=https://contenthunter.abreve.it
+
 # Initialize Reflex and export frontend for production
 RUN reflex init
 RUN reflex export --frontend-only
@@ -23,4 +26,4 @@ RUN reflex export --frontend-only
 EXPOSE 3000
 EXPOSE 8000
 
-CMD ["reflex", "run", "--env", "prod", "--frontend-port", "3000", "--backend-port", "8000", "--api-url", "https://contenthunter.abreve.it"]
+CMD ["reflex", "run", "--env", "prod", "--frontend-port", "3000", "--backend-port", "8000"]
