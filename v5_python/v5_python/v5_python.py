@@ -3,7 +3,6 @@ from .state import State, Product, CatalogEntry
 from .styles import *
 
 def sidebar_item(label: str, icon: str, step_id: int) -> rx.Component:
-    is_active = State.active_step == step_id
     return rx.button(
         rx.hstack(
             rx.icon(tag=icon, size=18),
@@ -11,8 +10,11 @@ def sidebar_item(label: str, icon: str, step_id: int) -> rx.Component:
             spacing="3",
         ),
         on_click=lambda: State.set_step(step_id),
-        style=style_button_sidemenu,
-        **(style_active_sidemenu if is_active else {}),
+        style=rx.cond(
+            State.active_step == step_id,
+            {**style_button_sidemenu, **style_active_sidemenu},
+            style_button_sidemenu,
+        ),
     )
 
 def sidebar() -> rx.Component:
