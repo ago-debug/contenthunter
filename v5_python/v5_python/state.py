@@ -7,7 +7,7 @@ import fitz  # PyMuPDF
 import google.generativeai as genai
 import base64
 
-class Product(rx.Base):
+class Product(rx.BaseModel):
     sku: str
     ean: str = ""
     title: str = ""
