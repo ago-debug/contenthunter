@@ -344,7 +344,21 @@ def index() -> rx.Component:
     )
 
 app = rx.App(
-    style={"bg": bg_color, "color": text_color, "& .rx-Badge": {"display": "none !important"}},
+    style={
+        "bg": bg_color,
+        "color": text_color,
+        # Aggressive branding removal
+        "& .rx-Badge": {"display": "none !important"},
+        "& .reflex-badge": {"display": "none !important"},
+        "& footer": {"display": "none !important"},
+        "& [class*='reflex']": {"display": "none !important"},
+    },
+    theme=rx.theme(
+        appearance="dark", 
+        has_background=True, 
+        radius="small", 
+        accent_color="gray",
+    ),
     overlay_component=None,
 )
-app.add_page(index, title="CONTENTHUNTER PIM V5.5", on_load=State.get_catalogs)
+app.add_page(index, title="CONTENTHUNTER | DISMANTLER V5.2", on_load=State.get_catalogs)

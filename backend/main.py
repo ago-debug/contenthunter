@@ -20,6 +20,15 @@ from core.config import settings
 
 app = FastAPI(title="ContentHunter V5 - Master PIM API")
 
+@app.get("/api/v5/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        # Test DB connection
+        db.execute("SELECT 1")
+        return {"status": "ok", "database": "connected", "timestamp": datetime.now().isoformat()}
+    except Exception as e:
+        return {"status": "error", "database": str(e)}
+
 # Add CORS
 app.add_middleware(
     CORSMiddleware,

@@ -1,14 +1,14 @@
 import reflex as rx
 
-# Colors - Professional Grayscale / Platinum Theme
-bg_color = "#0A0A0B"
+# Colors - Strict Professional Grayscale (Platinum/Slate)
+bg_color = "#0B0B0C"
 surface_color = "#121214"
-sidebar_bg = "#0F0F11"
-primary_color = "#F8FAFC"      # Platinum White
+sidebar_bg = "#0D0D0F"
+primary_color = "#FFFFFF"      # Pure White
 secondary_color = "#94A3B8"     # Muted Slate
 text_color = "#F8FAFC"
 muted_text = "rgba(255, 255, 255, 0.4)"
-border_color = "rgba(255, 255, 255, 0.08)"
+border_color = "rgba(255, 255, 255, 0.06)"
 accent_gray = "#27272A"
 
 # Styles
@@ -34,22 +34,21 @@ style_sidebar = {
 style_card = {
     "bg": surface_color,
     "border": f"1px solid {border_color}",
-    "border_radius": "16px",
-    "box_shadow": "0 20px 40px -12px rgba(0, 0, 0, 0.8)",
-    "padding": "2rem",
+    "border_radius": "12px",
+    "box_shadow": "0 10px 30px -10px rgba(0, 0, 0, 0.5)",
 }
 
 style_button_sidemenu = {
     "width": "100%",
     "justify_content": "start",
     "padding": "1rem 1.2rem",
-    "border_radius": "10px",
+    "border_radius": "8px",
     "font_size": "13px",
     "font_weight": "600",
     "color": muted_text,
     "bg": "transparent",
-    "_hover": {"bg": "rgba(255, 255, 255, 0.03)", "color": primary_color},
-    "transition": "all 0.15s ease",
+    "_hover": {"bg": "rgba(255, 255, 255, 0.04)", "color": primary_color},
+    "transition": "all 0.1s ease",
 }
 
 style_active_sidemenu = {
