@@ -109,13 +109,13 @@ def editor_modal() -> rx.Component:
                         rx.vstack(
                             rx.text("Titolo Prodotto", font_weight="700", font_size="13px"),
                             rx.input(
-                                value=State.selected_product_details["translations"]["it"]["title"],
+                                value=State.editor_title,
                                 on_change=lambda val: State.update_product_field("translations", {"it": {"title": val}}),
                                 width="100%",
                             ),
                             rx.text("Descrizione Estesa", font_weight="700", font_size="13px", margin_top="1rem"),
                             rx.text_area(
-                                value=State.selected_product_details["translations"]["it"]["description"],
+                                value=State.editor_description,
                                 on_change=lambda val: State.update_product_field("translations", {"it": {"description": val}}),
                                 width="100%",
                                 height="200px",
@@ -146,7 +146,7 @@ def editor_modal() -> rx.Component:
                             ),
                             rx.text("SEO Meta Text", font_weight="700"),
                             rx.text_area(
-                                value=State.selected_product_details["translations"]["it"]["seoAiText"],
+                                value=State.editor_seo_text,
                                 width="100%", height="150px",
                             ),
                             width="100%",
@@ -207,7 +207,7 @@ def phase_erp() -> rx.Component:
                 padding_left="1rem",
             ),
             rx.select(
-                ["all"] + [b["name"] for b in State.available_brands],
+                State.brand_options,
                 placeholder="Tutti i Brand",
                 on_change=lambda val: State.set_filter("brand", val),
                 width="200px",
@@ -215,7 +215,7 @@ def phase_erp() -> rx.Component:
                 border=f"1px solid {border_color}",
             ),
             rx.select(
-                ["all"] + [c["name"] for c in State.available_categories],
+                State.category_options,
                 placeholder="Tutte Categorie",
                 on_change=lambda val: State.set_filter("category", val),
                 width="200px",

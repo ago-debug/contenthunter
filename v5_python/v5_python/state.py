@@ -53,6 +53,27 @@ class State(rx.State):
     available_brands: List[Dict[str, Any]] = []
     available_categories: List[Dict[str, Any]] = []
 
+    @rx.var
+    def brand_options(self) -> List[str]:
+        return ["all"] + [b["name"] for b in self.available_brands]
+
+    @rx.var
+    def category_options(self) -> List[str]:
+        return ["all"] + [c["name"] for c in self.available_categories]
+
+    @rx.var
+    def editor_title(self) -> str:
+        # Safe access to nested dictionary using .get()
+        return self.selected_product_details.get("translations", {}).get("it", {}).get("title", "")
+
+    @rx.var
+    def editor_description(self) -> str:
+        return self.selected_product_details.get("translations", {}).get("it", {}).get("description", "")
+
+    @rx.var
+    def editor_seo_text(self) -> str:
+        return self.selected_product_details.get("translations", {}).get("it", {}).get("seoAiText", "")
+
     # Dismantler state
     uploaded_files: List[str] = []
     products: List[Product] = [] # Staging products from current session
