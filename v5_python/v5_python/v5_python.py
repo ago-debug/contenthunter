@@ -49,9 +49,11 @@ def header() -> rx.Component:
 
 def step_card(num: int, label: str, active: bool) -> rx.Component:
     return rx.hstack(
-        rx.circle(
-            rx.text(num, font_weight="900"),
-            size="36px",
+        rx.box(
+            rx.center(rx.text(num, font_weight="900"), height="100%"),
+            width="36px",
+            height="36px",
+            border_radius="50%",
             bg=rx.cond(active, primary_color, rx.cond(State.active_step > num, "#10B981", surface_color)),
             color="white",
             border=rx.cond(active, "none", "1px solid rgba(255,255,255,0.1)"),
