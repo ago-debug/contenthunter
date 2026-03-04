@@ -6,16 +6,17 @@ const nextConfig = {
   },
   output: 'standalone',
   transpilePackages: ['lucide-react'],
-  // Suppress HMR (Hot Module Replacement) errors when running dev on a remote server
-  devIndicators: {
-    appIsrStatus: false,
-    buildActivity: false,
-  },
   experimental: {
     serverActions: {
       bodySizeLimit: '100mb',
     },
   },
+  webpack: (config) => {
+    config.resolve.fallback = { ...config.resolve.fallback, fs: false };
+    // Ignore optional dependencies that might be missing
+    config.module.noParse = /debug\/src\/browser\.js/;
+    return config;
+  }
 }
 
 module.exports = nextConfig

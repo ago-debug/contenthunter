@@ -19,8 +19,8 @@ import { useCatalog } from "./CatalogContext";
 import PdfVisualWorkspace from "./PdfVisualWorkspace";
 
 if (typeof window !== "undefined") {
-    // Legacy build is robust across dev/prod environments
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    // Robust CDN for ESM-based PDF.js workers
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 }
 
 interface StagingProduct {
@@ -156,16 +156,20 @@ export default function ImportLab() {
     const loadPdfPages = async (url: string) => {
         if (!url) return;
 
-        // Clean the URL to ensure it doesn't have leading/trailing issues
-        const cleanPath = url.startsWith('/') ? url : `/${url}`;
-        const finalUrl = cleanPath;
+        // Bypassing the /api/storage proxy for public files improves performance and fixes CORB/R issues
+        let finalUrl = url;
+        if (url.includes("/api/storage?path=")) {
+            const decoded = decodeURIComponent(url.split("path=")[1]);
+            finalUrl = decoded.startsWith("/") ? decoded : `/${decoded}`;
+        } else if (!url.startsWith("/") && !url.startsWith("http")) {
+            finalUrl = `/${url}`;
+        }
 
         try {
             console.log(`[PDF-LOAD] Attempting to load from: ${finalUrl}`);
             const loadingTask = pdfjsLib.getDocument({
                 url: finalUrl,
                 withCredentials: true,
-                // Disable range requests to force full file download (safer for unstable servers)
                 disableRange: true,
                 disableAutoFetch: false
             });
@@ -178,7 +182,7 @@ export default function ImportLab() {
             setPdfPages(pages);
         } catch (err) {
             console.error("PDF Load Error:", err);
-            toast.error("Impossibile caricare l'anteprima PDF (Struttura non valida o sessione scaduta).");
+            toast.error("Impossibile caricare il PDF.");
         }
     };
 
