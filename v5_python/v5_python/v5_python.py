@@ -1,5 +1,5 @@
 import reflex as rx
-from .state import State, Product
+from .state import State, Product, CatalogEntry
 from .styles import *
 
 def header() -> rx.Component:
