@@ -19,9 +19,8 @@ COPY . .
 RUN reflex init
 RUN reflex export --frontend-only
 
-# Reflex production usually runs a backend and a frontend
-# For simplicity in this container, we run in production mode
-# Port 3000 is the default Reflex frontend port
+# Expose ports
 EXPOSE 3000
+EXPOSE 8000
 
-CMD ["reflex", "run", "--env", "prod", "--frontend-port", "3000"]
+CMD ["reflex", "run", "--env", "prod", "--frontend-port", "3000", "--backend-port", "8000", "--api-url", "http://0.0.0.0:8000", "--loglevel", "debug"]
