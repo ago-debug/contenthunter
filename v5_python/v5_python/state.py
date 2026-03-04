@@ -35,6 +35,10 @@ class State(rx.State):
     extraction_progress: int = 0
     total_products_found: int = 0
 
+    @rx.var
+    def page_list(self) -> List[int]:
+        return list(range(1, self.pdf_num_pages + 1))
+
     def next_step(self):
         if self.active_step < 3:
             self.active_step += 1

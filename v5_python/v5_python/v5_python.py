@@ -157,7 +157,7 @@ def phase_vision() -> rx.Component:
         rx.flex(
             # PDF Thumbnail Grid in Python
             rx.foreach(
-                rx.range(1, State.pdf_num_pages + 1),
+                State.page_list,
                 lambda i: rx.box(
                     rx.center(
                         rx.text(f"PAG. {i}", font_weight="900", font_size="10px", color=muted_text),
