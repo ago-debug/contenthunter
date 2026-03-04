@@ -68,8 +68,9 @@ def master_product_row(p: rx.Var[dict]) -> rx.Component:
         rx.table.cell(rx.text(f"€ {p['price']}", font_weight="800")),
         rx.table.cell(
             rx.button(
-                rx.icon(tag="external-link", size=14),
+                rx.icon(tag="edit-3", size=14),
                 variant="ghost",
+                on_click=State.open_product_editor(p["sku"]),
                 _hover={"bg": "rgba(255,255,255,0.05)"},
             ),
             text_align="right"
@@ -77,7 +78,104 @@ def master_product_row(p: rx.Var[dict]) -> rx.Component:
         _hover={"bg": "rgba(255,255,255,0.01)"},
     )
 
-def phase_erp() -> rx.Component: # Now renamed to PIM Master Library
+def editor_modal() -> rx.Component:
+    return rx.dialog.root(
+        rx.dialog.content(
+            rx.vstack(
+                rx.hstack(
+                    rx.vstack(
+                        rx.heading(f"Modifica Prodotto: {State.selected_product_details['sku']}", size="6"),
+                        rx.text(State.selected_product_details['brand'], color=muted_text, font_size="12px"),
+                        align_items="start",
+                    ),
+                    rx.spacer(),
+                    rx.dialog.close(
+                        rx.button(rx.icon(tag="x"), variant="ghost", on_click=State.close_editor)
+                    ),
+                    width="100%",
+                    border_bottom=f"1px solid {border_color}",
+                    padding_bottom="1.5rem",
+                ),
+                
+                # Modal Tabs
+                rx.tabs.root(
+                    rx.tabs.list(
+                        rx.tabs.trigger("Generale", value="info"),
+                        rx.tabs.trigger("Assets & Media", value="images"),
+                        rx.tabs.trigger("SEO & AI", value="seo"),
+                        rx.tabs.trigger("Specifiche EAV", value="attributes"),
+                    ),
+                    rx.tabs.content(
+                        rx.vstack(
+                            rx.text("Titolo Prodotto", font_weight="700", font_size="13px"),
+                            rx.input(
+                                value=State.selected_product_details["translations"]["it"]["title"],
+                                on_change=lambda val: State.update_product_field("translations", {"it": {"title": val}}),
+                                width="100%",
+                            ),
+                            rx.text("Descrizione Estesa", font_weight="700", font_size="13px", margin_top="1rem"),
+                            rx.text_area(
+                                value=State.selected_product_details["translations"]["it"]["description"],
+                                on_change=lambda val: State.update_product_field("translations", {"it": {"description": val}}),
+                                width="100%",
+                                height="200px",
+                            ),
+                            spacing="2",
+                            align_items="start",
+                        ),
+                        value="info",
+                        padding_top="1.5rem",
+                    ),
+                    rx.tabs.content(
+                        rx.vstack(
+                            rx.heading("Media Management", size="4"),
+                            rx.text("Riorganizza o aggiungi immagini per questo SKU.", color=muted_text),
+                            width="100%",
+                            height="300px",
+                            justify_content="center",
+                        ),
+                        value="images",
+                    ),
+                    rx.tabs.content(
+                        rx.vstack(
+                            rx.button(
+                                "Rigenera con AI (Pro)",
+                                on_click=State.generate_ai_description,
+                                loading=State.is_generating_ai,
+                                bg="white", color="black",
+                            ),
+                            rx.text("SEO Meta Text", font_weight="700"),
+                            rx.text_area(
+                                value=State.selected_product_details["translations"]["it"]["seoAiText"],
+                                width="100%", height="150px",
+                            ),
+                            width="100%",
+                        ),
+                        value="seo",
+                    ),
+                    width="100%",
+                    default_value="info",
+                ),
+                
+                rx.hstack(
+                    rx.spacer(),
+                    rx.button("Annulla", variant="ghost", on_click=State.close_editor),
+                    rx.button("Salva Modifiche", on_click=State.save_product_changes, bg="white", color="black"),
+                    width="100%",
+                    border_top=f"1px solid {border_color}",
+                    padding_top="1.5rem",
+                ),
+                spacing="4",
+            ),
+            bg=surface_color,
+            color=text_color,
+            border=f"1px solid {border_color}",
+            max_width="800px",
+        ),
+        open=State.is_editor_open,
+    )
+
+def phase_erp() -> rx.Component:
     return rx.vstack(
         rx.hstack(
             rx.vstack(
@@ -235,6 +333,7 @@ def index() -> rx.Component:
                 width="100%",
                 padding="3rem",
             ),
+            editor_modal(),
             flex="1",
             margin_left="260px",
             min_height="100vh",

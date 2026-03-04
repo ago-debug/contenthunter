@@ -44,7 +44,12 @@ class State(rx.State):
     category_filter: str = "all"
     current_page_master: int = 1
     
-    # Filters data
+    # Editor State
+    selected_product_details: Dict[str, Any] = {}
+    is_editor_open: bool = False
+    active_editor_tab: str = "info" # info, images, seo, attributes
+    is_generating_ai: bool = False
+
     available_brands: List[Dict[str, Any]] = []
     available_categories: List[Dict[str, Any]] = []
 
@@ -63,7 +68,12 @@ class State(rx.State):
     total_products_found: int = 0
 
     # Backend connection
+    # Local check for dev, otherwise standard
     BACKEND_URL: str = "http://backend:8000"
+
+    @rx.var
+    def page_list(self) -> List[int]:
+        return list(range(1, self.pdf_num_pages + 1))
 
     async def get_catalogs(self):
         """Initial load of repositories and filters."""
@@ -113,6 +123,80 @@ class State(rx.State):
                     self.total_master_products = data["total"]
             except Exception as e:
                 return rx.toast.error(f"Errore PIM: {str(e)}")
+
+    async def open_product_editor(self, sku: str):
+        """Fetch full details and open modal."""
+        import httpx
+        self.is_editor_open = True
+        self.active_editor_tab = "info"
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.get(f"{self.BACKEND_URL}/api/v5/products/{sku}")
+                if resp.status_code == 200:
+                    self.selected_product_details = resp.json()
+                else:
+                    self.is_editor_open = False
+                    return rx.toast.error("Impossibile caricare il prodotto.")
+            except:
+                self.is_editor_open = False
+
+    def close_editor(self):
+        self.is_editor_open = False
+        self.selected_product_details = {}
+
+    def set_editor_tab(self, tab: str):
+        self.active_editor_tab = tab
+
+    def update_product_field(self, field: str, value: Any, subfield: str = None):
+        """Guru dynamic update of nested dictionary state."""
+        if subfield:
+            if field not in self.selected_product_details: self.selected_product_details[field] = {}
+            self.selected_product_details[field][subfield] = value
+        else:
+            self.selected_product_details[field] = value
+
+    async def generate_ai_description(self):
+        """Call Python backend for AI Content Generation."""
+        self.is_generating_ai = True
+        yield # Force UI update
+        import httpx
+        try:
+            # We use the existing AI logic but adapted for the Master PIM
+            resp = await httpx.post(
+                f"{self.BACKEND_URL}/api/v5/ai/describe",
+                json={"product_data": self.selected_product_details},
+                timeout=60.0 # AI can be slow
+            )
+            if resp.status_code == 200:
+                ai_data = resp.json()
+                # Update IT translation with AI results
+                it_text = self.selected_product_details.get("translations", {}).get("it", {})
+                it_text["description"] = ai_data.get("description", it_text.get("description"))
+                it_text["seoAiText"] = ai_data.get("seoAiText", it_text.get("seoAiText"))
+                
+                self.selected_product_details["translations"]["it"] = it_text
+                rx.toast.success("AI Content generato con successo!")
+        except Exception as e:
+            rx.toast.error(f"AI Error: {str(e)}")
+        finally:
+            self.is_generating_ai = False
+
+    async def save_product_changes(self):
+        """Save PIM Master record."""
+        import httpx
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(
+                    f"{self.BACKEND_URL}/api/v5/products/save",
+                    json=self.selected_product_details
+                )
+                if resp.status_code == 200:
+                    rx.toast.success("Prodotto Master aggiornato.")
+                    self.is_editor_open = False
+                    return State.get_master_products
+                else:
+                    rx.toast.error("Errore durante il salvataggio.")
+            except: pass
 
     def set_filter(self, key: str, value: str):
         if key == "search": self.search_term = value
