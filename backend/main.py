@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 
-from .database.connection import get_db, init_db
-from .database.models import Catalog, CatalogPdf, StagingProduct, StagingProductText, StagingProductPrice, StagingProductExtra, StagingProductImage
-from .pdf_processing.engine import PDFDismantleEngine
-from .core.config import settings
+from database.connection import get_db, init_db
+from database.models import Catalog, CatalogPdf, StagingProduct, StagingProductText, StagingProductPrice, StagingProductExtra, StagingProductImage
+from pdf_processing.engine import PDFDismantleEngine
+from core.config import settings
 
 app = FastAPI(title="ContentHunter V5 Dismantler API")
 
