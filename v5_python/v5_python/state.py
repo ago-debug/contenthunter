@@ -29,16 +29,28 @@ class Product(pydantic.BaseModel):
 
 class State(rx.State):
     """The app state."""
-    active_step: int = 0  # 0: Dashboard, 1: Source, 2: Vision, 3: Extraction
+    active_step: int = 0  # 0: Dashboard, 1: Source, 2: Vision, 3: Extraction, 4: Matcher, 5: Editor, 6: ERP
     
     # Dashboard state
     catalogs: List[CatalogEntry] = []
     selected_catalog_id: int = 0
     new_catalog_name: str = ""
     
+    # Master PIM state
+    master_products: List[Dict[str, Any]] = []
+    total_master_products: int = 0
+    search_term: str = ""
+    brand_filter: str = "all"
+    category_filter: str = "all"
+    current_page_master: int = 1
+    
+    # Filters data
+    available_brands: List[Dict[str, Any]] = []
+    available_categories: List[Dict[str, Any]] = []
+
     # Dismantler state
     uploaded_files: List[str] = []
-    products: List[Product] = []
+    products: List[Product] = [] # Staging products from current session
     is_loading: bool = False
     current_pdf_url: str = ""
     pdf_num_pages: int = 0
@@ -53,18 +65,15 @@ class State(rx.State):
     # Backend connection
     BACKEND_URL: str = "http://backend:8000"
 
-    @rx.var
-    def page_list(self) -> List[int]:
-        return list(range(1, self.pdf_num_pages + 1))
-
     async def get_catalogs(self):
-        """Fetch catalogs from FastAPI backend."""
+        """Initial load of repositories and filters."""
         import httpx
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.BACKEND_URL}/api/v5/repositories")
-                if response.status_code == 200:
-                    data = response.json()
+        async with httpx.AsyncClient() as client:
+            # 1. Catalogs
+            try:
+                resp = await client.get(f"{self.BACKEND_URL}/api/v5/repositories")
+                if resp.status_code == 200:
+                    data = resp.json()
                     self.catalogs = [
                         CatalogEntry(
                             id=c["id"], 
@@ -75,77 +84,49 @@ class State(rx.State):
                             product_count=c.get("product_count", 0)
                         ) for c in data
                     ]
-        except Exception as e:
-            return rx.toast.error(f"Errore caricamento cataloghi: {str(e)}")
+            except: pass
+
+            # 2. Brands & Categories for filters
+            try:
+                resp_b = await client.get(f"{self.BACKEND_URL}/api/v5/brands")
+                if resp_b.status_code == 200: self.available_brands = resp_b.json()
+                
+                resp_c = await client.get(f"{self.BACKEND_URL}/api/v5/categories")
+                if resp_c.status_code == 200: self.available_categories = resp_c.json()
+            except: pass
+
+    async def get_master_products(self):
+        """Fetch production products from PIM."""
+        import httpx
+        params = {
+            "page": self.current_page_master,
+            "search": self.search_term if self.search_term else None,
+            "brand": self.brand_filter,
+            "category": self.category_filter
+        }
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.get(f"{self.BACKEND_URL}/api/v5/products", params=params)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    self.master_products = data["products"]
+                    self.total_master_products = data["total"]
+            except Exception as e:
+                return rx.toast.error(f"Errore PIM: {str(e)}")
+
+    def set_filter(self, key: str, value: str):
+        if key == "search": self.search_term = value
+        elif key == "brand": self.brand_filter = value
+        elif key == "category": self.category_filter = value
+        self.current_page_master = 1
+        return State.get_master_products
 
     def select_catalog(self, catalog_id: int):
-        """Choose a catalog and go to its dashboard."""
         self.selected_catalog_id = catalog_id
-        # In a real app we'd load details here
-        self.active_step = 1 # Lead to file upload for that catalog
-        return rx.toast.info(f"Catalogo selezionato (ID: {catalog_id})")
-
-    def create_catalog(self):
-        """Create a new catalog."""
-        # TODO: Implement POST in backend
-        return rx.toast.warning("Funzione creazione in fase di sviluppo.")
-
-    def back_to_dashboard(self):
-        self.active_step = 0
-
-    def next_step(self):
-        if self.active_step < 3:
-            self.active_step += 1
-
-    async def handle_upload(self, files: List[rx.UploadFile]):
-        """Handle PDF / XLSX upload."""
-        self.is_loading = True
-        for file in files:
-            # We save the file to the assets/ folder for direct serving
-            content = await file.read()
-            filename = f"{int(datetime.now().timestamp())}_{file.filename}"
-            filepath = os.path.join("assets", filename)
-            
-            with open(filepath, "wb") as f:
-                f.write(content)
-            
-            if file.filename.endswith(".pdf"):
-                self.uploaded_files.append(filename)
-                self.current_pdf_url = filename
-                # Get PDF info
-                doc = fitz.open(filepath)
-                self.pdf_num_pages = doc.page_count
-                doc.close()
-                self.active_step = 2 # Auto move to Vision
-                
-        self.is_loading = False
-        return rx.toast.success("File caricato e analizzato dal motore V5.")
-
-    def run_dismantle(self):
-        """Execute AI Dismantling."""
-        self.is_extracting = True
-        # In a real app, we'd call Gemini here.
-        # For now, let's simulate findings.
-        self.products = [
-            Product(sku="ART-101", title="Sedia Ergonomica Pro", price=129.90, page=1),
-            Product(sku="ART-202", title="Lampada Design Orion", price=89.00, page=2),
-            Product(sku="ART-303", title="Scrivania Minimal X", price=245.00, page=3),
-        ]
-        self.total_products_found = len(self.products)
-        self.is_extracting = False
-        self.active_step = 3
-        return rx.toast.success("Smontaggio completato: 3 prodotti identificati.")
-
-    def select_product(self, sku: str):
-        """Select a product for visual mapping."""
-        # Selection logic...
-        pass
-
-    def delete_pdf(self, filename: str):
-        self.uploaded_files = [f for f in self.uploaded_files if f != filename]
-        if self.current_pdf_url == filename:
-            self.current_pdf_url = ""
-            self.active_step = 1
+        self.active_step = 1 # Go to upload
+        return rx.toast.info(f"Catalogo {catalog_id} selezionato.")
 
     def set_step(self, step: int):
         self.active_step = step
+        if step == 6: # Master ERP / PIM Phase
+            return State.get_master_products

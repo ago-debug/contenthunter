@@ -2,18 +2,23 @@ import os
 import shutil
 import uuid
 import json
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy import func, or_
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from database.connection import get_db, init_db
-from database.models import Catalog, CatalogPdf, StagingProduct, StagingProductText, StagingProductPrice, StagingProductExtra, StagingProductImage
+from database.models import (
+    Catalog, CatalogPdf, Category, Brand, Tag, 
+    Product, ProductText, ProductPrice, ProductExtra, ProductImage, ProductHistory,
+    StagingProduct, StagingProductText, StagingProductPrice, StagingProductExtra, StagingProductImage
+)
 from pdf_processing.engine import PDFDismantleEngine
 from core.config import settings
 
-app = FastAPI(title="ContentHunter V5 Dismantler API")
+app = FastAPI(title="ContentHunter V5 - Master PIM API")
 
 # Add CORS
 app.add_middleware(
@@ -27,11 +32,10 @@ app.add_middleware(
 # Initialize Engine
 pdf_engine = PDFDismantleEngine(api_key=settings.GEMINI_API_KEY)
 
-from sqlalchemy import func
+# --- REPOSITORY & CATALOGS ---
 
 @app.get("/api/v5/repositories")
 def get_repositories(db: Session = Depends(get_db)):
-    # Senior optimization: Get catalogs and counts in a single efficient query
     catalog_stats = db.query(
         Catalog.id,
         Catalog.name,
@@ -43,7 +47,6 @@ def get_repositories(db: Session = Depends(get_db)):
     
     results = []
     for c in catalog_stats:
-        # Get product count separately or via another join if needed
         p_count = db.query(StagingProduct).filter(StagingProduct.catalogId == c.id).count()
         results.append({
             "id": c.id,
@@ -55,16 +58,100 @@ def get_repositories(db: Session = Depends(get_db)):
         })
     return results
 
+# --- MASTER PIM PRODUCTS (The Core) ---
+
+@app.get("/api/v5/products")
+def get_products(
+    db: Session = Depends(get_db),
+    page: int = 1,
+    limit: int = 50,
+    search: Optional[str] = None,
+    brand: Optional[str] = None,
+    category: Optional[str] = None
+):
+    query = db.query(Product)
+    
+    if search:
+        search_filter = or_(
+            Product.sku.ilike(f"%{search}%"),
+            Product.ean.ilike(f"%{search}%"),
+            Product.brand.ilike(f"%{search}%")
+        )
+        query = query.filter(search_filter)
+    
+    if brand and brand != "all":
+        query = query.filter(Product.brand == brand)
+    
+    if category and category != "all":
+        query = query.filter(or_(
+            Product.category == category,
+            Product.categoryId == int(category) if category.isdigit() else False
+        ))
+
+    total = query.count()
+    products = query.offset((page - 1) * limit).limit(limit).all()
+    
+    results = []
+    for p in products:
+        # Load main translation (IT)
+        text_it = next((t for t in p.texts if t.language == "it"), None)
+        image_main = next((img.imageUrl for img in p.images), None)
+        
+        results.append({
+            "id": p.id,
+            "sku": p.sku,
+            "ean": p.ean,
+            "title": text_it.title if text_it else "Untitled",
+            "description": text_it.description if text_it else "",
+            "brand": p.brand,
+            "category": p.category,
+            "price": p.prices[0].price if p.prices else 0.0,
+            "imageUrl": image_main
+        })
+        
+    return {"total": total, "products": results}
+
+@app.get("/api/v5/products/{sku}")
+def get_product_detail(sku: str, db: Session = Depends(get_db)):
+    p = db.query(Product).filter(Product.sku == sku).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    translations = {}
+    for t in p.texts:
+        translations[t.language] = {
+            "title": t.title,
+            "description": t.description,
+            "bulletPoints": t.bulletPoints,
+            "seoAiText": t.seoAiText
+        }
+        
+    return {
+        "id": p.id,
+        "sku": p.sku,
+        "ean": p.ean,
+        "brand": p.brand,
+        "category": p.category,
+        "categoryId": p.categoryId,
+        "subCategoryId": p.subCategoryId,
+        "subSubCategoryId": p.subSubCategoryId,
+        "translations": translations,
+        "images": [img.imageUrl for img in p.images],
+        "extraFields": {ef.key: ef.value for ef in p.extra_fields},
+        "prices": [{"list": pr.listName, "price": pr.price} for pr in p.prices]
+    }
+
+# --- PDF PROCESSING (Dismantle) ---
+
 @app.post("/api/v5/pdfs/upload")
 async def upload_pdf(catalog_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    # File storage
     filename = f"{int(datetime.now().timestamp())}_{file.filename}"
     upload_path = os.path.join(settings.UPLOAD_DIR, filename)
     
-    with open(upload_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    with os.makedirs(os.path.dirname(upload_path), exist_ok=True):
+        with open(upload_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
     
-    # Database record
     new_pdf = CatalogPdf(
         catalogId=catalog_id,
         fileName=file.filename,
@@ -84,22 +171,14 @@ async def dismantle_pdf(pdf_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="PDF not found")
         
     full_path = os.path.join(settings.PUBLIC_DIR, pdf_record.filePath.lstrip("/"))
-    if not os.path.exists(full_path):
-         raise HTTPException(status_code=404, detail="Physical PDF file missing")
-
-    # Call AI Engine
     extracted_products = pdf_engine.dismantle_pdf(full_path)
     
-    # Clear existing staging for this catalog to avoid duplicates
     db.query(StagingProduct).filter(StagingProduct.catalogId == pdf_record.catalogId).delete()
     
-    imported_count = 0
     for p_data in extracted_products:
         sku = p_data.get("sku")
-        if not sku:
-            continue
+        if not sku: continue
             
-        # Create staging product
         staging = StagingProduct(
             catalogId=pdf_record.catalogId,
             sku=str(sku),
@@ -108,25 +187,18 @@ async def dismantle_pdf(pdf_id: int, db: Session = Depends(get_db)):
             category=p_data.get("category")
         )
         db.add(staging)
-        db.flush() # Get staging.id
+        db.flush()
         
-        # Texts
         db.add(StagingProductText(
             stagingProductId=staging.id,
             title=p_data.get("title", "Prodotto senza titolo"),
             description=p_data.get("description", ""),
         ))
         
-        # Prices
         if p_data.get("price"):
-            db.add(StagingProductPrice(
-                stagingProductId=staging.id,
-                price=float(p_data.get("price"))
-            ))
+            db.add(StagingProductPrice(stagingProductId=staging.id, price=float(p_data.get("price"))))
             
-        # AI Visual Mapping (Extra fields for now)
         if p_data.get("image_bbox"):
-            # Auto-crop image from PDF
             crop_path = pdf_engine.crop_product_image(
                 pdf_path=full_path,
                 page_number=p_data.get("pageNumber", 1),
@@ -137,20 +209,20 @@ async def dismantle_pdf(pdf_id: int, db: Session = Depends(get_db)):
             image_url = f"/static_crops/{os.path.basename(crop_path)}"
             db.add(StagingProductImage(stagingProductId=staging.id, imageUrl=image_url))
             
-            # Map coordinates for UI
-            db.add(StagingProductExtra(
-                stagingProductId=staging.id,
-                key="_ai_visual_mapping",
-                value=json.dumps({
-                    "page": p_data.get("pageNumber"),
-                    "bbox": p_data.get("image_bbox")
-                })
-            ))
-            
-        imported_count += 1
-        
     db.commit()
-    return {"success": True, "count": imported_count}
+    return {"success": True, "count": len(extracted_products)}
+
+# --- HELPER APIS (Categories, Brands) ---
+
+@app.get("/api/v5/categories")
+def get_categories(db: Session = Depends(get_db)):
+    cats = db.query(Category).all()
+    return [{"id": c.id, "name": c.name, "parentId": c.parentId} for c in cats]
+
+@app.get("/api/v5/brands")
+def get_brands(db: Session = Depends(get_db)):
+    brands = db.query(Brand).all()
+    return [{"id": b.id, "name": b.name, "logoUrl": b.logoUrl} for b in brands]
 
 if __name__ == "__main__":
     import uvicorn
