@@ -27,18 +27,31 @@ app.add_middleware(
 # Initialize Engine
 pdf_engine = PDFDismantleEngine(api_key=settings.GEMINI_API_KEY)
 
+from sqlalchemy import func
+
 @app.get("/api/v5/repositories")
 def get_repositories(db: Session = Depends(get_db)):
-    catalogs = db.query(Catalog).all()
+    # Senior optimization: Get catalogs and counts in a single efficient query
+    catalog_stats = db.query(
+        Catalog.id,
+        Catalog.name,
+        Catalog.status,
+        Catalog.createdAt,
+        func.count(CatalogPdf.id).label("pdf_count")
+    ).outerjoin(CatalogPdf, Catalog.id == CatalogPdf.catalogId)\
+    .group_by(Catalog.id).all()
+    
     results = []
-    for c in catalogs:
+    for c in catalog_stats:
+        # Get product count separately or via another join if needed
+        p_count = db.query(StagingProduct).filter(StagingProduct.catalogId == c.id).count()
         results.append({
             "id": c.id,
             "name": c.name,
             "status": c.status,
             "createdAt": c.createdAt.isoformat() if c.createdAt else None,
-            "pdf_count": db.query(CatalogPdf).filter(CatalogPdf.catalogId == c.id).count(),
-            "product_count": db.query(StagingProduct).filter(StagingProduct.catalogId == c.id).count()
+            "pdf_count": c.pdf_count,
+            "product_count": p_count
         })
     return results
 
