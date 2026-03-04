@@ -121,72 +121,83 @@ export async function POST(
         const extractedProducts = parsedResult.products;
         console.log(`[AI-DISMANTLER] Successfully identified ${extractedProducts.length} products.`);
 
-        // 4. Atomic Save to Staging
+        // 4. Atomic Cleanup & Save to Staging
+        // We delete existing staging products to avoid duplicates during re-runs
+        await prisma.stagingProduct.deleteMany({ where: { catalogId } });
+
         let importedCount = 0;
 
-        // Use a transaction or sequential creates
         for (const p of extractedProducts) {
             if (!p.sku) continue;
 
-            const staging = await prisma.stagingProduct.create({
-                data: {
-                    catalogId,
-                    sku: String(p.sku).trim(),
-                    ean: p.ean ? String(p.ean).trim() : null,
-                    brand: p.brand ? String(p.brand).trim() : null,
-                    category: p.category ? String(p.category).trim() : null,
-                }
-            });
-
-            // Standard Texts
-            await prisma.stagingProductText.create({
-                data: {
-                    stagingProductId: staging.id,
-                    language: "it",
-                    title: p.title || "Prodotto senza titolo",
-                    description: p.description || null,
-                }
-            });
-
-            // Price insertion
-            if (p.price) {
-                await prisma.stagingProductPrice.create({
+            try {
+                const staging = await prisma.stagingProduct.create({
                     data: {
-                        stagingProductId: staging.id,
-                        price: parseFloat(p.price)
+                        catalogId,
+                        sku: String(p.sku).trim(),
+                        ean: p.ean ? String(p.ean).trim() : null,
+                        brand: p.brand ? String(p.brand).trim() : null,
+                        category: p.category ? String(p.category).trim() : null,
                     }
                 });
-            }
 
-            // Dynamic Extra Fields (Specs, Bullet points, etc)
-            if (p.extraFields && Array.isArray(p.extraFields)) {
-                for (const ef of p.extraFields) {
+                // Standard Texts
+                await prisma.stagingProductText.create({
+                    data: {
+                        stagingProductId: staging.id,
+                        language: "it",
+                        title: p.title || "Prodotto senza titolo",
+                        description: p.description || null,
+                        bulletPoints: p.bulletPoints || null,
+                    }
+                });
+
+                // Price insertion
+                if (p.price) {
+                    const parsedPrice = typeof p.price === 'number' ? p.price : parseFloat(String(p.price).replace(/[^0-9.]/g, ''));
+                    if (!isNaN(parsedPrice)) {
+                        await prisma.stagingProductPrice.create({
+                            data: {
+                                stagingProductId: staging.id,
+                                price: parsedPrice
+                            }
+                        });
+                    }
+                }
+
+                // Dynamic Extra Fields (Specs, Bullet points, etc)
+                if (p.extraFields && Array.isArray(p.extraFields)) {
+                    for (const ef of p.extraFields) {
+                        await prisma.stagingProductExtra.create({
+                            data: {
+                                stagingProductId: staging.id,
+                                key: ef.key,
+                                value: String(ef.value)
+                            }
+                        });
+                    }
+                }
+
+                // Store AI Visual Mapping as metadata in Extra fields for now
+                if (p.image_bbox && p.pageNumber) {
                     await prisma.stagingProductExtra.create({
                         data: {
                             stagingProductId: staging.id,
-                            key: ef.key,
-                            value: String(ef.value)
+                            key: "_ai_visual_mapping",
+                            value: JSON.stringify({
+                                page: p.pageNumber,
+                                bbox: p.image_bbox,
+                                pdfId: parsedPdfId
+                            })
                         }
                     });
                 }
-            }
 
-            // Store AI Visual Mapping as metadata in Extra fields for now
-            if (p.image_bbox && p.pageNumber) {
-                await prisma.stagingProductExtra.create({
-                    data: {
-                        stagingProductId: staging.id,
-                        key: "_ai_visual_mapping",
-                        value: JSON.stringify({
-                            page: p.pageNumber,
-                            bbox: p.image_bbox,
-                            pdfId: parsedPdfId
-                        })
-                    }
-                });
+                importedCount++;
+            } catch (pErr) {
+                console.error(`[AI-DISMANTLER] Error importing product SKU ${p.sku}:`, pErr);
+                // Continue with next product
             }
-
-            importedCount++;
         }
 
         // 5. Cleanup and Metadata Updates

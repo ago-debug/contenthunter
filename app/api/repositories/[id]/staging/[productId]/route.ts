@@ -19,9 +19,15 @@ export async function PUT(
                 brand: body.brand,
                 category: body.category,
                 texts: {
-                    update: {
+                    upsert: {
                         where: { stagingProductId_language: { stagingProductId: id, language: "it" } },
-                        data: {
+                        update: {
+                            title: body.texts[0]?.title,
+                            description: body.texts[0]?.description,
+                            bulletPoints: body.texts[0]?.bulletPoints,
+                        },
+                        create: {
+                            language: "it",
                             title: body.texts[0]?.title,
                             description: body.texts[0]?.description,
                             bulletPoints: body.texts[0]?.bulletPoints,
@@ -31,8 +37,8 @@ export async function PUT(
                 prices: {
                     upsert: {
                         where: { stagingProductId_listName: { stagingProductId: id, listName: "default" } },
-                        update: { price: parseFloat(body.prices[0]?.price || "0") },
-                        create: { listName: "default", price: parseFloat(body.prices[0]?.price || "0") }
+                        update: { price: parseFloat(String(body.prices[0]?.price || "0").replace(/[^0-9.]/g, '')) },
+                        create: { listName: "default", price: parseFloat(String(body.prices[0]?.price || "0").replace(/[^0-9.]/g, '')) }
                     }
                 }
             }
