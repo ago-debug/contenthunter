@@ -347,16 +347,19 @@ app = rx.App(
     style={
         "bg": bg_color,
         "color": text_color,
-        # Aggressive branding removal
+        "font_family": "Inter, sans-serif",
+        # Aggressive branding removal - No mercy
         "& .rx-Badge": {"display": "none !important"},
         "& .reflex-badge": {"display": "none !important"},
+        "& img[src*='reflex']": {"display": "none !important"},
+        "& a[href*='reflex.dev']": {"display": "none !important"},
         "& footer": {"display": "none !important"},
-        "& [class*='reflex']": {"display": "none !important"},
+        "& .rt-BaseBadge": {"display": "none !important"},
     },
     theme=rx.theme(
         appearance="dark", 
         has_background=True, 
-        radius="small", 
+        radius="none", 
         accent_color="gray",
     ),
     overlay_component=None,
