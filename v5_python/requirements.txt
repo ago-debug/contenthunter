@@ -2,7 +2,7 @@ reflex==0.8.27
 pymupdf==1.23.22
 google-generativeai==0.4.0
 sqlalchemy==2.0.28
-sqlmodel==0.0.22
+sqlmodel==0.0.27
 pymysql==1.1.0
 python-dotenv==1.0.1
 pydantic-settings==2.2.1
