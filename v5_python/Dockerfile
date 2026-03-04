@@ -23,4 +23,4 @@ RUN reflex export --frontend-only
 EXPOSE 3000
 EXPOSE 8000
 
-CMD ["reflex", "run", "--env", "prod", "--frontend-port", "3000", "--backend-port", "8000"]
+CMD ["reflex", "run", "--env", "prod", "--frontend-port", "3000", "--backend-port", "8000", "--api-url", "https://contenthunter.abreve.it"]

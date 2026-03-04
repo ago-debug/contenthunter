@@ -13,7 +13,7 @@ def header() -> rx.Component:
             ),
             rx.vstack(
                 rx.text("ContentHunter", font_weight="900", font_size="1.2rem", line_height="1", letter_spacing="-0.02em"),
-                rx.text("DISMANTLER X1 V5 (PYTHON POWERED)", font_size="0.6rem", color=primary_color, letter_spacing="0.25em", font_weight="900"),
+                rx.text("DISMANTLER X1 V5.1 (PYTHON POWERED)", font_size="0.6rem", color=primary_color, letter_spacing="0.25em", font_weight="900"),
                 align_items="start",
                 spacing="0",
             ),
@@ -98,7 +98,7 @@ def stepper() -> rx.Component:
 def phase_source() -> rx.Component:
     return rx.vstack(
         rx.vstack(
-            rx.heading("Inizie lo Smontaggio", font_size="2.5rem", font_weight="900", letter_spacing="-0.03em"),
+            rx.heading("Inizia lo Smontaggio", font_size="2.5rem", font_weight="900", letter_spacing="-0.03em"),
             rx.text("Il motore Python V5 è pronto per l'analisi multimodale.", color=muted_text, font_size="1.1rem"),
             text_align="center",
             spacing="4",
