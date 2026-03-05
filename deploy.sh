@@ -18,8 +18,18 @@ else
     git pull origin main
 fi
 
-# 2. Installazione Dipendenze e Build
-echo "📦 Installazione dipendenze npm..."
+# 2. Controllo .env
+if [ ! -f ".env" ]; then
+    echo "❌ ERRORE CRITICO: Il file .env manca in $TARGET_DIR!"
+    echo "Prisma e Next.js richiedono il DATABASE_URL. Crealo prima di riavviare il deploy."
+    exit 1
+fi
+
+# 3. Installazione Dipendenze e Build
+echo "🧹 Pulizia cache moduli (Fix per Tailwind Oxide & SWC)..."
+rm -rf node_modules package-lock.json
+
+echo "📦 Installazione dipendenze npm pulita..."
 npm install
 
 echo "🗄️ Generazione Prisma Client e aggiornamento DB..."
