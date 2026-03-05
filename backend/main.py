@@ -21,16 +21,19 @@ except Exception as e:
     print(f"Path Error: {e}")
 
 try:
+    # Import FASTAPI FIRST
     from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
     from fastapi.middleware.cors import CORSMiddleware
     from sqlalchemy.orm import Session
     from sqlalchemy import func, or_
     
-    # Import locali
+    # Import LOCALI (Fix circolare risolto in connection.py)
     from database.connection import get_db, init_db
-    from database.models import Product, Brand, Category, Catalog
+    # Carichiamo i modelli esplicitamente
+    import database.models as models
     from core.config import settings
-    print("Core modules loaded successfully")
+    
+    print("Core modules loaded successfully. Circular imports resolved.")
 except Exception as e:
     print(f"CRITICAL BOOT ERROR: {str(e)}")
     import traceback
@@ -52,26 +55,29 @@ def startup_event():
     print("Verifica database...")
     try:
         init_db()
-        print("Database connesso.")
+        print("Inizializzazione database completata.")
     except Exception as e:
-        print(f"DATABASE CONNECTION FAILED: {str(e)}")
+        print(f"DATABASE CONNECTION WARNING: {str(e)}")
 
-# Routes semplificate per test
+# --- API ROUTES ---
+
 @app.get("/api/v5/health")
 def health_check():
-    return {"status": "ok", "backend": "online"}
+    return {"status": "ok", "backend": "online", "mode": "native-pm2"}
 
 @app.get("/api/v5/repositories")
 def get_repositories(db: Session = Depends(get_db)):
     try:
+        from database.models import Catalog
         return db.query(Catalog).all()
     except Exception as e:
-        print(f"DB Fetch Error: {e}")
+        print(f"DB Fetch Error (Repos): {e}")
         return []
 
 @app.get("/api/v5/products")
 def get_products(db: Session = Depends(get_db), limit: int = 50):
     try:
+        from database.models import Product
         products = db.query(Product).limit(limit).all()
         results = []
         for p in products:
