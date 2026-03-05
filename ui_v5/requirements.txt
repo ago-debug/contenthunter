@@ -1,6 +1,0 @@
-nicegui[pydantic]
-httpx
-python-dotenv
-sqlalchemy
-pymysql
-cryptography
