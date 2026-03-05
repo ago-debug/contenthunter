@@ -18,6 +18,7 @@ class PIMApp:
         self.loading = False
         self.selected_product = None
         self.product_modal = None
+        self.active_tab = 'base' # For modal tabs
 
     async def navigate_to(self, page_name: str):
         self.active_page = page_name
@@ -30,6 +31,7 @@ class PIMApp:
             'products': '/api/v5/products',
             'brands': '/api/v5/brands',
             'categories': '/api/v5/categories',
+            'repos': '/api/v5/repositories',
         }
         
         endpoint = endpoint_map.get(page_name)
@@ -69,7 +71,7 @@ app_logic = PIMApp()
 # --- DESIGN SYSTEM ---
 def setup_styles():
     ui.colors(primary='#111827', secondary='#F3F4F6', accent='#6B7280')
-    ui.query('body').style('background-color: #F3F4F6; font-family: "Inter", sans-serif;')
+    ui.query('body').style('background-color: #F8F9FA; font-family: "Inter", sans-serif;')
     ui.add_head_html('''
         <style>
             .q-drawer { background: #FFFFFF !important; border-right: 1px solid #E5E7EB !important; }
@@ -115,6 +117,7 @@ def setup_styles():
             .row-avatar {
                 width: 44px; height: 44px; border-radius: 14px; background: #E9ECEF;
                 display: flex; items-center; justify-center; color: #D32F2F; font-weight: 900;
+                border: 1px solid #DEE2E6;
             }
             .item-title { font-size: 14px; font-weight: 800; color: #212529; }
             .item-subtitle { font-size: 11px; font-weight: 700; color: #ADB5BD; text-transform: uppercase; }
@@ -130,6 +133,9 @@ def setup_styles():
                 border-radius: 20px; background: white; border: 1px solid #F1F5F9; 
                 padding: 30px; 
             }
+            
+            /* Modal / Tabs */
+            .custom-tab { font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; }
         </style>
     ''')
 
@@ -146,6 +152,7 @@ def sidebar_area():
         sidebar_button('Dashboard', 'dashboard', 'dashboard')
         sidebar_button('Master ERP', 'inventory', 'products')
         sidebar_button('Import Lab', 'auto_awesome', 'import')
+        sidebar_button('Cataloghi', 'folder', 'repos')
         
         ui.label('ANAGRAFICHE').classes('group-label')
         sidebar_button('Brand Library', 'branding_watermark', 'brands')
@@ -159,7 +166,7 @@ def sidebar_area():
                     ui.label('a').classes('text-xl')
                 with ui.column().classes('gap-0'):
                     ui.label('Administrator').classes('text-sm font-black text-slate-800')
-                    ui.label('V. 7.5').classes('text-[9px] font-black text-slate-400')
+                    ui.label('SYSTEM ADMIN').classes('text-[9px] font-black text-slate-400')
             
              with ui.button(on_click=lambda: ui.notify('Logout')).classes('w-full justify-start py-6 px-10 text-slate-400 font-bold').props('flat no-caps'):
                 with ui.row().classes('items-center gap-4'):
@@ -184,54 +191,91 @@ async def content_area():
     page = app_logic.active_page
     with ui.column().classes('w-full p-12 gap-8 max-w-[1400px] mx-auto'):
         
-        # Dashboard KPIs
+        # Dashboard Header / KPIs
         if page == 'dashboard':
+            with ui.column().classes('gap-1 mb-4'):
+                ui.label('Industrial Data Control').classes('text-4xl font-black text-slate-900 tracking-tighter')
+                ui.label('Dashboard di monitoraggio asset e prestazioni sistema').classes('text-slate-400 text-sm font-medium')
+            
             with ui.row().classes('w-full gap-6'):
-                kpi_box('TOTAL PRODUCTS', '3.840', 'inventory_2')
-                kpi_box('REPOSITORIES', '14', 'folder')
-                kpi_box('PENDING SYNC', '3', 'sync')
+                kpi_box('PRODOTTI IN MASTER', '3.840', 'inventory_2')
+                kpi_box('REPOSITORIES PDF', '14', 'folder_open')
+                kpi_box('AI JOBS PENDING', '3', 'auto_awesome')
+                kpi_box('STORAGE USED', '82%', 'storage')
 
-        # MEDICAL-STYLE TABLE
+        # MEDICAL-STYLE LIST (The main list shared by Master ERP, Brands, Categories)
         with ui.column().classes('medical-table w-full shadow-sm'):
-            # Table Header
+            # Table Header DYNAMICS
             with ui.row().classes('w-full bg-white border-b items-center'):
-                ui.label('NOME PRODOTTO E SKU').classes('table-header-cell flex-[2.5]')
-                ui.label('CODICE IDENTIFICATIVO').classes('table-header-cell flex-1')
-                ui.label('VALORE / STATO').classes('table-header-cell flex-1 text-center')
-                ui.label('BRAND / CATEGORIA').classes('table-header-cell flex-1.5')
+                if page == 'products' or page == 'dashboard':
+                    ui.label('NOME PRODOTTO E SKU').classes('table-header-cell flex-[2.5]')
+                    ui.label('CODICE IDENTIFICATIVO').classes('table-header-cell flex-1')
+                    ui.label('VALORE / STATO').classes('table-header-cell flex-1 text-center')
+                    ui.label('BRAND / CATEGORIA').classes('table-header-cell flex-1.5')
+                elif page == 'brands':
+                    ui.label('BRAND NAME').classes('table-header-cell flex-[2.5]')
+                    ui.label('BRAND ID').classes('table-header-cell flex-1')
+                    ui.label('PRODUCTS COUNT').classes('table-header-cell flex-1 text-center')
+                    ui.label('LOGO STATUS').classes('table-header-cell flex-1.5')
+                elif page == 'categories':
+                    ui.label('CATEGORY NAME').classes('table-header-cell flex-[2.5]')
+                    ui.label('CAT ID').classes('table-header-cell flex-1')
+                    ui.label('PARENT CATEGORY').classes('table-header-cell flex-1 text-center')
+                    ui.label('HIERARCHY').classes('table-header-cell flex-1.5')
+                elif page == 'repos':
+                    ui.label('REPOSITORY NAME').classes('table-header-cell flex-[2.5]')
+                    ui.label('REPO ID').classes('table-header-cell flex-1')
+                    ui.label('DOCS COUNT').classes('table-header-cell flex-1 text-center')
+                    ui.label('SYNC STATUS').classes('table-header-cell flex-1.5')
+                
                 ui.label('AZIONI').classes('table-header-cell w-20 text-right')
 
             # Table Body
             if not app_logic.data:
-                ui.label('Nessun dato disponibile.').classes('p-20 text-slate-300 italic text-center w-full font-black uppercase tracking-widest text-xs')
+                ui.label('NESSUN ASSET TROVATO NEL DATABASE.').classes('p-20 text-slate-300 italic text-center w-full font-black uppercase tracking-widest text-xs')
             else:
-                for p in app_logic.data:
-                    with ui.row().classes('w-full table-row items-center').on('click', lambda p=p: app_logic.open_product_detail(p['sku'])):
+                for item in app_logic.data:
+                    with ui.row().classes('w-full table-row items-center').on('click', lambda item=item: app_logic.open_product_detail(item.get('sku')) if page == 'products' else None):
+                        
                         # Col 1: Avatar + Title/Sub
                         with ui.row().classes('flex-[2.5] items-center gap-4'):
                             with ui.element('div').classes('row-avatar'):
-                                ui.label(p['title'][0].upper() if p['title'] else 'P')
+                                title = item.get('title') or item.get('name') or 'N'
+                                ui.label(title[0].upper())
                             with ui.column().classes('gap-0'):
-                                ui.label(p['title'].upper()).classes('item-title truncate max-w-sm')
-                                ui.label(f"PRODUCT ID: {p['id']}").classes('item-subtitle')
+                                ui.label(title.upper()).classes('item-title truncate max-w-sm')
+                                sub = f"SKU: {item.get('sku')}" if page == 'products' else f"ID: {item.get('id')}"
+                                ui.label(sub).classes('item-subtitle')
                         
                         # Col 2: Identifiers
                         with ui.column().classes('flex-1 gap-0'):
-                            ui.label(p['sku']).classes('col-bold')
+                            if page == 'products':
+                                ui.label(item.get('sku', 'N/A')).classes('col-bold')
+                            else:
+                                ui.label(f"#{item.get('id')}").classes('col-bold')
                         
-                        # Col 3: Price/Status
+                        # Col 3: Money/Status or Counts
                         with ui.column().classes('flex-1 items-center gap-1'):
-                            ui.label(f"€ {p['price'] or 0.0:.2f}").classes('price-tag')
-                            with ui.element('span').classes('status-tag'): ui.label('PRONTO')
+                            if page == 'products':
+                                ui.label(f"€ {item.get('price') or 0.0:.2f}").classes('price-tag')
+                                with ui.element('span').classes('status-tag'): ui.label('VALIDATO')
+                            else:
+                                ui.label(str(item.get('product_count', 0))).classes('price-tag')
+                                with ui.element('span').classes('status-tag'): ui.label('ATTIVO')
                         
-                        # Col 4: Info boxes
+                        # Col 4: Relations
                         with ui.column().classes('flex-1.5 gap-1'):
-                            with ui.row().classes('items-center gap-2 info-box'):
-                                ui.icon('o_business', size='14px')
-                                ui.label(p.get('brand', 'DEFAULT BRAND'))
-                            with ui.row().classes('items-center gap-2 info-box'):
-                                ui.icon('o_layers', size='14px')
-                                ui.label(p.get('category', 'MASTER CAT'))
+                            if page == 'products':
+                                with ui.row().classes('items-center gap-2 info-box'):
+                                    ui.icon('o_business', size='14px')
+                                    ui.label(item.get('brand', 'NO BRAND'))
+                                with ui.row().classes('items-center gap-2 info-box'):
+                                    ui.icon('o_layers', size='14px')
+                                    ui.label(item.get('category', 'UNCATEGORIZED'))
+                            else:
+                                with ui.row().classes('items-center gap-2 info-box'):
+                                    ui.icon('o_info', size='14px')
+                                    ui.label('SISTEMA')
                         
                         # Col 5: Chevron
                         ui.icon('chevron_right', color='slate-300').classes('w-20 text-right')
@@ -247,22 +291,55 @@ def kpi_box(label, value, icon):
 def modal_content():
     p = app_logic.selected_product
     if not p: return
-    with ui.column().classes('p-16 gap-8 w-full'):
-        ui.label(p['sku']).classes('text-xs font-black text-blue-500 tracking-widest')
-        ui.label(p['translations'].get('it', {}).get('title', 'Prodotto')).classes('text-3xl font-black tracking-tighter')
-        ui.button('CHIUDI', on_click=app_logic.product_modal.close).classes('bg-slate-900 text-white rounded-xl px-12 py-4 font-black')
+    with ui.column().classes('p-12 gap-8 w-full'):
+        with ui.row().classes('w-full justify-between items-start'):
+            with ui.column().classes('gap-1'):
+                ui.label(p['sku']).classes('text-xs font-black text-blue-500 tracking-widest')
+                ui.label(p['translations'].get('it', {}).get('title', 'Prodotto')).classes('text-4xl font-black tracking-tighter text-slate-900')
+            ui.button(icon='close', on_click=app_logic.product_modal.close).props('flat round').classes('text-slate-300')
+        
+        # Professional Tabs
+        with ui.row().classes('w-full border-b border-slate-100 mb-4'):
+            modal_tab('BASE DATA', 'base')
+            modal_tab('AI SEO CONTENT', 'seo')
+            modal_tab('SPECIFICATIONS', 'extra')
+        
+        if app_logic.active_tab == 'base':
+            with ui.grid(columns=2).classes('w-full gap-8'):
+                with ui.column().classes('gap-4'):
+                    ui.label('DESCRIZIONE COMMERCIALE (IT)').classes('text-[10px] font-black text-slate-400')
+                    ui.textarea(value=p['translations'].get('it', {}).get('description', '')).classes('w-full').props('outlined rounded-2xl h-40')
+                with ui.column().classes('gap-6'):
+                    ui.label('DATI ANAGRAFICI').classes('text-[10px] font-black text-slate-400')
+                    ui.input('Brand', value=p.get('brand')).classes('w-full').props('outlined rounded-xl')
+                    ui.input('MSRP Price', value=str(p.get('price'))).classes('w-full').props('outlined rounded-xl prefix="€"')
+
+        with ui.row().classes('w-full justify-end mt-6'):
+            ui.button('CHIUDI SCHEDA', on_click=app_logic.product_modal.close).classes('text-slate-400 font-bold px-8 py-4').props('flat no-caps')
+            ui.button('SALVA MODIFICHE', icon='save').classes('bg-slate-900 text-white px-12 py-4 rounded-xl font-black ml-4 shadow-xl').props('no-caps')
+
+def modal_tab(label, tab_id):
+    is_active = app_logic.active_tab == tab_id
+    with ui.button(label, on_click=lambda: set_modal_tab(tab_id)).classes(f'custom-tab px-6 py-4 {"text-slate-900 border-b-2 border-slate-900" if is_active else "text-slate-300"}').props('flat no-caps'):
+        pass
+
+def set_modal_tab(tab_id):
+    app_logic.active_tab = tab_id
+    modal_content.refresh()
 
 @ui.page('/')
 async def main_page():
     setup_styles()
-    with ui.dialog().classes('w-full max-w-5xl') as product_modal:
+    with ui.dialog().classes('w-full max-w-6xl') as product_modal:
         app_logic.product_modal = product_modal
-        with ui.card().classes('p-0 w-full rounded-[2.5rem] bg-white border-0'):
+        with ui.card().classes('p-0 w-full rounded-[2rem] bg-white border-0 shadow-2xl overflow-hidden'):
             modal_content()
 
-    with ui.left_drawer(value=True, fixed=True).classes('p-0 shadow-none'):
+    with ui.left_drawer(value=True, fixed=True).classes('p-0 shadow-none border-r'):
         sidebar_area()
     with ui.column().classes('flex-1 w-full'):
         await content_area()
+        if not app_logic.data:
+            await app_logic.navigate_to('dashboard')
 
 ui.run(title=TITLE, host='0.0.0.0', port=PORT, show=False, reload=False)
