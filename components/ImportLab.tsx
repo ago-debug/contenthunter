@@ -106,6 +106,10 @@ export default function ImportLab() {
     const [bulkValue, setBulkValue] = useState<string>("");
     const [bulkOnlyEmpty, setBulkOnlyEmpty] = useState<boolean>(true);
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+    const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
+    const [imagePickerItems, setImagePickerItems] = useState<{ fileName: string; relativePath: string; url: string }[]>([]);
+    const [imagePickerLoading, setImagePickerLoading] = useState(false);
+    const [imagePickerSelection, setImagePickerSelection] = useState<string[]>([]);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -249,6 +253,90 @@ export default function ImportLab() {
             });
         } finally {
             setIsBulkUpdating(false);
+        }
+    };
+
+    const openImagePicker = async () => {
+        if (!catalogIdParam || !selectedProduct) {
+            toast.warning("Seleziona un prodotto del repository prima di aggiungere immagini.");
+            return;
+        }
+
+        setIsImagePickerOpen(true);
+        setImagePickerLoading(true);
+        setImagePickerItems([]);
+        setImagePickerSelection([]);
+
+        try {
+            const res = await axios.get(`/api/repositories/${catalogIdParam}/images`, {
+                params: { sku: selectedProduct.sku }
+            });
+            const imgs = Array.isArray(res.data?.images) ? res.data.images : [];
+            setImagePickerItems(imgs);
+        } catch (err) {
+            console.error("Image picker load error:", err);
+            toast.error("Errore nel caricamento immagini dalla cartella.");
+        } finally {
+            setImagePickerLoading(false);
+        }
+    };
+
+    const handleConfirmImagePicker = async () => {
+        if (!catalogIdParam || !selectedProduct) {
+            setIsImagePickerOpen(false);
+            return;
+        }
+        if (imagePickerSelection.length === 0) {
+            setIsImagePickerOpen(false);
+            return;
+        }
+
+        const toastId = toast.loading("Associazione immagini in corso...");
+        try {
+            const productId = selectedProduct.id;
+            const addedImages: any[] = [];
+
+            for (const rel of imagePickerSelection) {
+                const item = imagePickerItems.find(i => i.relativePath === rel);
+                if (!item) continue;
+                const payload = { imageUrl: item.url };
+                try {
+                    const res = await axios.post(`/api/repositories/${catalogIdParam}/staging/${productId}/images`, payload);
+                    const imgRec = res.data?.image;
+                    if (imgRec) {
+                        addedImages.push(imgRec);
+                    }
+                } catch (e) {
+                    console.error("Attach single image error:", e);
+                }
+            }
+
+            if (addedImages.length > 0) {
+                setSelectedProduct(prev => {
+                    if (!prev) return prev;
+                    return {
+                        ...prev,
+                        images: [...prev.images, ...addedImages]
+                    };
+                });
+            }
+
+            toast.update(toastId, {
+                render: `Associate ${addedImages.length} immagini al prodotto.`,
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+        } catch (err) {
+            console.error("Confirm image picker error:", err);
+            toast.update(toastId, {
+                render: "Errore durante l'associazione immagini.",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } finally {
+            setIsImagePickerOpen(false);
         }
     };
 
@@ -1310,8 +1398,14 @@ export default function ImportLab() {
                                                         <button
                                                             className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                                                             onClick={() => {
+                                                                const imgUrl = img.imageUrl;
+                                                                if (catalogIdParam && selectedProduct.id && imgUrl) {
+                                                                    axios.delete(`/api/repositories/${catalogIdParam}/staging/${selectedProduct.id}/images`, {
+                                                                        data: { imageUrl: imgUrl }
+                                                                    }).catch(e => console.error("Image detach error:", e));
+                                                                }
                                                                 const p = { ...selectedProduct };
-                                                                p.images.splice(i, 1);
+                                                                p.images = p.images.filter((_: any, idx: number) => idx !== i);
                                                                 setSelectedProduct(p);
                                                             }}
                                                         >
@@ -1319,7 +1413,11 @@ export default function ImportLab() {
                                                         </button>
                                                     </div>
                                                 ))}
-                                                <button className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 text-slate-300 hover:border-orange-200 hover:text-orange-400 transition-all">
+                                                <button
+                                                    type="button"
+                                                    onClick={openImagePicker}
+                                                    className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 text-slate-300 hover:border-orange-200 hover:text-orange-400 transition-all"
+                                                >
                                                     <Plus className="w-5 h-5" />
                                                     <span className="text-[8px] font-black uppercase">Aggiungi</span>
                                                 </button>
@@ -1459,6 +1557,119 @@ export default function ImportLab() {
                                         <Database className="w-4 h-4" />
                                     )}
                                     Conferma Importazione nel Lab
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Image Picker Modal */}
+            <AnimatePresence>
+                {isImagePickerOpen && (
+                    <div className="fixed inset-0 z-[180] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                            className="w-full max-w-5xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+                        >
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-slate-900">
+                                        <ImageIconLucide className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-lg font-black text-slate-900 tracking-tight">
+                                            Associa immagini da cartella
+                                        </h2>
+                                        <p className="text-[11px] font-medium text-slate-400 uppercase tracking-widest">
+                                            SKU {selectedProduct?.sku} – anteprima immagini trovate nella cartella repository
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setIsImagePickerOpen(false)}
+                                    className="p-2 rounded-full hover:bg-slate-50 transition-colors"
+                                >
+                                    <X className="w-6 h-6 text-slate-300" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                                {imagePickerLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
+                                        <RefreshCw className="w-6 h-6 animate-spin" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                                            Scansione cartella immagini...
+                                        </span>
+                                    </div>
+                                ) : imagePickerItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-slate-300 gap-3">
+                                        <ImageIconLucide className="w-10 h-10" />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-center">
+                                            Nessuna immagine trovata per questa SKU.
+                                        </span>
+                                        <span className="text-[10px] font-medium text-slate-400 text-center max-w-md">
+                                            Verifica che i file immagine nella cartella contengano lo SKU nel nome
+                                            (es. <code className="font-mono">SKU123.jpg</code> oppure <code className="font-mono">SKU123_front.png</code>).
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                                        {imagePickerItems.map((img) => {
+                                            const checked = imagePickerSelection.includes(img.relativePath);
+                                            return (
+                                                <button
+                                                    key={img.relativePath}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setImagePickerSelection(prev =>
+                                                            checked
+                                                                ? prev.filter(p => p !== img.relativePath)
+                                                                : [...prev, img.relativePath]
+                                                        );
+                                                    }}
+                                                    className={`relative aspect-square rounded-2xl border overflow-hidden group ${
+                                                        checked
+                                                            ? "border-orange-500 ring-2 ring-orange-500/40"
+                                                            : "border-slate-100 hover:border-orange-200"
+                                                    }`}
+                                                >
+                                                    <img
+                                                        src={img.url}
+                                                        alt={img.fileName}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                    <div className="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/10 transition-colors" />
+                                                    <div className="absolute bottom-1 left-1 right-1 text-[9px] font-bold text-white bg-slate-900/60 rounded-lg px-1 py-0.5 line-clamp-1">
+                                                        {img.fileName}
+                                                    </div>
+                                                    {checked && (
+                                                        <div className="absolute top-1 right-1 bg-orange-500 text-white rounded-full p-1">
+                                                            <Check className="w-3 h-3" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+                                <button
+                                    onClick={() => setIsImagePickerOpen(false)}
+                                    className="flex-1 py-3 bg-white border border-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:bg-slate-100 transition-colors"
+                                >
+                                    Annulla
+                                </button>
+                                <button
+                                    onClick={handleConfirmImagePicker}
+                                    disabled={imagePickerSelection.length === 0}
+                                    className="flex-[2] py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                                >
+                                    <ImageIconLucide className="w-4 h-4" />
+                                    Associa {imagePickerSelection.length || ""} immagine
+                                    {imagePickerSelection.length === 1 ? "" : "e"}
                                 </button>
                             </div>
                         </motion.div>

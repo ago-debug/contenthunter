@@ -4,10 +4,14 @@ import { prisma } from "@/lib/prisma";
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { name, logoUrl } = await req.json();
+        const { name, logoUrl, aiContentGuidelines } = await req.json();
         const brand = await prisma.brand.update({
             where: { id: Number(id) },
-            data: { name, logoUrl }
+            data: {
+                ...(name !== undefined && { name }),
+                ...(logoUrl !== undefined && { logoUrl }),
+                ...(aiContentGuidelines !== undefined && { aiContentGuidelines: aiContentGuidelines || null })
+            }
         });
         return NextResponse.json(brand);
     } catch (err) {

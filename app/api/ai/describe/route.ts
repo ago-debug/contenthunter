@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { OpenAI } from "openai";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
     try {
@@ -11,8 +12,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No product data provided" }, { status: 400 });
         }
 
+        let brandGuidelines = "";
+        const brandName = (productData.brand || "").toString().trim();
+        const brandId = productData.brandId != null ? Number(productData.brandId) : null;
+        if (brandName || brandId) {
+            const brand = await prisma.brand.findFirst({
+                where: brandId ? { id: brandId } : { name: brandName }
+            });
+            if (brand?.aiContentGuidelines) {
+                brandGuidelines = `
+
+LINEA GUIDA BRAND "${brand.name}" (rispetta rigorosamente tono e stile):
+${brand.aiContentGuidelines}
+`;
+            }
+        }
+
         const prompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
+${brandGuidelines}
 NON usare formule di marketing generiche o frasi come "Scopri", "Perfetto per", "Ideale per", "Non lasciarti sfuggire", "Scegli", "Approfitta" o simili.
 La descrizione deve attenersi rigorosamente alle informazioni fornite: non inventare mai caratteristiche, applicazioni o valori che non compaiono chiaramente nei dati di input.
 

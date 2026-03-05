@@ -240,11 +240,12 @@ model ProductTag {
 }
 
 model Brand {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  logoUrl   String?
-  products  Product[]
-  createdAt DateTime  @default(now())
+  id                  Int       @id @default(autoincrement())
+  name                String    @unique
+  logoUrl             String?
+  aiContentGuidelines String?   @db.Text
+  products            Product[]
+  createdAt           DateTime  @default(now())
 }
 
 model BulletPoint {

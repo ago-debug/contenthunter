@@ -8,6 +8,7 @@ export default function BrandsPage() {
             fields={[
                 { key: "name", label: "Brand Name", type: "text" },
                 { key: "logoUrl", label: "Logo URL", type: "text" },
+                { key: "aiContentGuidelines", label: "Linee guida AI (tono, stile)", type: "textarea", required: false },
             ]}
         />
     );

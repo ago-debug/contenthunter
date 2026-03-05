@@ -11,8 +11,9 @@ interface TableManagerProps {
     fields: {
         key: string;
         label: string;
-        type: "text" | "number" | "select";
+        type: "text" | "number" | "select" | "textarea";
         options?: { value: string | number; label: string }[];
+        required?: boolean;
     }[];
 }
 
@@ -148,8 +149,10 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                             filteredData.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-all group">
                                     {fields.map((f) => (
-                                        <td key={f.key} className="px-6 py-4 text-sm font-bold text-slate-600">
-                                            {item[f.key]}
+                                        <td key={f.key} className="px-6 py-4 text-sm font-bold text-slate-600 max-w-[200px]">
+                                            {f.type === "textarea" && item[f.key]
+                                                ? (String(item[f.key]).slice(0, 60) + (String(item[f.key]).length > 60 ? "…" : ""))
+                                                : (item[f.key] ?? "—")}
                                         </td>
                                     ))}
                                     <td className="px-6 py-4 text-right">
@@ -204,14 +207,25 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                                 <div key={f.key} className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         {f.label}
+                                        {(f as any).required !== false && f.type !== "textarea" ? " *" : ""}
                                     </label>
-                                    <input
-                                        type={f.type === "number" ? "number" : "text"}
-                                        required
-                                        className="w-full h-12 bg-slate-50 border border-slate-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white transition-all"
-                                        value={formData[f.key] || ""}
-                                        onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
-                                    />
+                                    {f.type === "textarea" ? (
+                                        <textarea
+                                            rows={5}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white transition-all resize-y min-h-[100px]"
+                                            value={formData[f.key] || ""}
+                                            onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
+                                            placeholder="Tono, stile e linee guida per i contenuti AI di questo brand…"
+                                        />
+                                    ) : (
+                                        <input
+                                            type={f.type === "number" ? "number" : "text"}
+                                            required={f.type !== "textarea" && (f as any).required !== false}
+                                            className="w-full h-12 bg-slate-50 border border-slate-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white transition-all"
+                                            value={formData[f.key] || ""}
+                                            onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
+                                        />
+                                    )}
                                 </div>
                             ))}
 

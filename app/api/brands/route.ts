@@ -14,9 +14,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const { name, logoUrl } = await req.json();
+        const { name, logoUrl, aiContentGuidelines } = await req.json();
         const brand = await prisma.brand.create({
-            data: { name, logoUrl }
+            data: { name, logoUrl, aiContentGuidelines: aiContentGuidelines || null }
         });
         return NextResponse.json(brand);
     } catch (err) {
