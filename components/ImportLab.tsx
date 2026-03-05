@@ -198,6 +198,78 @@ export default function ImportLab() {
         }
     };
 
+    const handlePushToMasterErp = async () => {
+        if (!catalogIdParam) {
+            toast.warning("Apri prima un repository specifico per poter fare il push verso il Master ERP.");
+            return;
+        }
+        if (products.length === 0) {
+            toast.info("Nessun prodotto in staging da inviare al Master ERP.");
+            return;
+        }
+
+        if (!confirm(`Confermi il push di ${products.length} prodotti verso il Master ERP?`)) return;
+
+        const toastId = toast.loading("Invio prodotti al Master ERP in corso...");
+        let successCount = 0;
+        let errorCount = 0;
+
+        try {
+            for (const p of products) {
+                try {
+                    const baseText = (p.texts && p.texts[0]) || {};
+                    const basePrice = (p.prices && p.prices[0]) || {};
+
+                    const extraObj: Record<string, string> = {};
+                    (p.extraFields || []).forEach((ex: any) => {
+                        if (ex.key) {
+                            extraObj[ex.key] = ex.value?.toString() ?? "";
+                        }
+                    });
+
+                    const images = (p.images || []).map((img: any) => ({
+                        url: img.imageUrl || img.url
+                    }));
+
+                    await axios.post("/api/products", {
+                        sku: p.sku,
+                        ean: p.ean,
+                        parentSku: p.parentSku,
+                        brand: p.brand,
+                        category: p.category,
+                        title: baseText.title,
+                        description: baseText.description,
+                        bulletPoints: baseText.bulletPoints,
+                        price: basePrice.price,
+                        images,
+                        extraFields: extraObj,
+                        catalogId: parseInt(catalogIdParam),
+                    });
+
+                    successCount++;
+                } catch (err) {
+                    console.error("Push singolo prodotto fallito:", err);
+                    errorCount++;
+                }
+            }
+
+            toast.update(toastId, {
+                render: `Push completato: ${successCount} prodotti sincronizzati, ${errorCount} errori.`,
+                type: errorCount > 0 ? "warning" : "success",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } catch (err: any) {
+            console.error("Push Master ERP error:", err);
+            toast.update(toastId, {
+                render: "Errore durante il push verso il Master ERP.",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        }
+    };
+
     // Recursive Image Association (Batch Mode)
     const handleFolderImageAssociation = async () => {
         if (!repository?.imageFolderPath || !catalogIdParam) {
@@ -715,7 +787,10 @@ export default function ImportLab() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button className="flex-1 sm:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-2xl shadow-slate-300 flex items-center justify-center gap-3 group">
+                        <button
+                            onClick={handlePushToMasterErp}
+                            className="flex-1 sm:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-2xl shadow-slate-300 flex items-center justify-center gap-3 group"
+                        >
                             <Sparkles className="w-4 h-4 text-orange-400 group-hover:scale-125 transition-transform" />
                             <span className="whitespace-nowrap">Push to Master ERP</span>
                         </button>
