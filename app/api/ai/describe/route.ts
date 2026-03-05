@@ -12,27 +12,38 @@ export async function POST(req: Request) {
         }
 
         const prompt = `
-Sei un copywriter e-commerce senior. Genera una scheda prodotto professionale in ${language}.
-Identifica e separa i dati tecnici dai testi di marketing.
+Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
+NON usare formule di marketing generiche o frasi come "Scopri", "Perfetto per", "Ideale per", "Non lasciarti sfuggire", "Scegli", "Approfitta" o simili.
+La descrizione deve attenersi rigorosamente alle informazioni fornite: non inventare mai caratteristiche, applicazioni o valori che non compaiono chiaramente nei dati di input.
 
-Dati di input:
-SKU: ${productData.sku || ''}
-Titolo: ${productData.title || ''}
-Descrizione Tecnica/PDF: ${productData.docDescription || ''}
-Brand/Cat: ${productData.brand || ''} / ${productData.category || ''}
+IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
+- SKU: ${productData.sku || ''}
+- EAN: ${productData.ean || ''}
+- Titolo: ${productData.title || ''}
 
-Nelle tue elaborazioni, fai affidamento esclusivamente sui dati forniti o su fatti di cui hai certezza assoluta (100%). Non inventare informazioni tecniche, specifiche o varianti inesistenti.
+DATI TECNICI DI RIFERIMENTO:
+- Brand/Categoria: ${productData.brand || ''} / ${productData.category || ''}
+- Descrizione Tecnica/PDF originale (se presente, trattala come fonte principale, senza aggiungere fronzoli): 
+${productData.docDescription || ''}
+
+- Altri campi tecnici disponibili (possono essere usati per arricchire in modo aderente alla realtà, non per inventare):
+${productData.extraFieldsPreview || ''}
+
+REGOLE TASSATIVE:
+1. Usa ESCLUSIVAMENTE i dati forniti o fatti di cui hai certezza assoluta (100%). Non inventare informazioni tecniche, specifiche o varianti inesistenti.
+2. Mantieni uno stile sobrio, senza call-to-action o frasi emozionali. Testo "piatto", chiaro e focalizzato sulle caratteristiche.
+3. Se un'informazione non è presente nei dati, lascia il campo vuoto o non forzare un contenuto.
 
 FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 
 ---SHORT_DESCRIPTION---
-[Scrivi qui 1 paragrafo breve, max 2-3 frasi, per meta description o estratto rapido SEO, evidenziando il valore del prodotto]
+[Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]
 
 ---DESCRIPTION---
-[Scrivi qui 3 paragrafi brevi e incisivi di copywriting emozionale, SEO oriented]
+[Scrivi qui 1-3 paragrafi brevi che descrivano il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
 
 ---BULLET_POINTS---
-[Estrai 5-8 punti chiave tecnici del prodotto, uno per riga, stile bullet point]
+[Estrai 5-8 punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
 
 ---TECHNICAL_FIELDS---
 Colore: [Valore]

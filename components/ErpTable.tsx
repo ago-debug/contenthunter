@@ -42,6 +42,8 @@ export default function ErpTable() {
     const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
     const [attributeTab, setAttributeTab] = useState<'values' | 'products'>('values');
     const [attrLoading, setAttrLoading] = useState(false);
+    const [aiRespectExisting, setAiRespectExisting] = useState(true);
+    const [aiUseExistingAsModel, setAiUseExistingAsModel] = useState(true);
 
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -199,10 +201,16 @@ export default function ErpTable() {
                 body: JSON.stringify({
                     productData: {
                         ...cleanProductData,
-                        docDescription: docDescription?.substring(0, 2000) || "",
+                        docDescription: aiUseExistingAsModel
+                            ? (docDescription?.substring(0, 2000) || "")
+                            : "",
                         extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
                     },
-                    language: "it"
+                    language: "it",
+                    options: {
+                        respectExisting: aiRespectExisting,
+                        useExistingAsModel: aiUseExistingAsModel
+                    }
                 })
             });
 
@@ -266,11 +274,23 @@ export default function ErpTable() {
                         const tt = { ...(prev.translations || {}) };
                         if (!tt[editLang]) tt[editLang] = {};
 
+                        const existing = tt[editLang];
+
+                        const shouldOverwriteDesc = !aiRespectExisting || !existing?.description;
+                        const shouldOverwriteShort = !aiRespectExisting || !existing?.seoAiText;
+                        const shouldOverwriteBullets = !aiRespectExisting || !existing?.bulletPoints;
+
                         tt[editLang] = {
                             ...tt[editLang],
-                            seoAiText: newShortDescription || tt[editLang].seoAiText,
-                            description: newDescription || (accumulated.includes('---TECHNICAL_FIELDS---') ? "" : accumulated.replace('---DESCRIPTION---', '').trim()),
-                            bulletPoints: newBullets || tt[editLang].bulletPoints,
+                            seoAiText: shouldOverwriteShort && newShortDescription
+                                ? newShortDescription
+                                : existing?.seoAiText,
+                            description: shouldOverwriteDesc && (newDescription || accumulated.includes('---TECHNICAL_FIELDS---'))
+                                ? (newDescription || accumulated.replace('---DESCRIPTION---', '').trim())
+                                : existing?.description,
+                            bulletPoints: shouldOverwriteBullets && newBullets
+                                ? newBullets
+                                : existing?.bulletPoints,
                         };
 
                         return {
