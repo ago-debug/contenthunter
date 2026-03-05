@@ -101,7 +101,7 @@ async def main_page():
             ui.label('SISTEMA').classes('text-[10px] text-gray-400 font-bold px-4 mb-2 mt-4 uppercase')
             sidebar_item('Impostazioni', 'settings')
 
-        ui.spacer()
+        ui.space()
         
         # Pulsante Gradient tipo Bitrix
         ui.button('Fai l\'upgrade del piano', icon='rocket_launch').classes('w-full py-4 gradient-btn text-xs mb-4').props('no-caps flat')
