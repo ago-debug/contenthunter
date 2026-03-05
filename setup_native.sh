@@ -33,7 +33,7 @@ sudo npm install -g pm2
 
 # 6. Avvio Processi
 echo "🚀 Lancio Applicazione..."
-pm2 delete all 2>/dev/null
+pm2 delete pim-ui pim-backend 2>/dev/null
 pm2 start ecosystem.config.js
 pm2 save
 
