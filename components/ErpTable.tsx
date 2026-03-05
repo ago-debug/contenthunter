@@ -13,10 +13,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
 import { SearchableSelect } from "./SearchableSelect";
 import { MultiSearchableSelect } from "./MultiSearchableSelect";
-import { useCatalog } from "./CatalogContext";
 
 export default function ErpTable() {
-    const { catalogId } = useCatalog();
     const [products, setProducts] = useState<any[]>([]);
     const [allCategories, setAllCategories] = useState<any[]>([]);
     const [projectName, setProjectName] = useState("Nessun progetto aperto");
@@ -364,9 +362,7 @@ export default function ErpTable() {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const res = await axios.get("/api/products", {
-                params: catalogId ? { catalogId } : {}
-            });
+            const res = await axios.get("/api/products");
             if (Array.isArray(res.data)) {
                 setProducts(res.data);
             } else {
@@ -387,11 +383,7 @@ export default function ErpTable() {
         if (!selectedProduct) return;
         setIsSaving(true);
         try {
-            const payload = {
-                ...selectedProduct,
-                catalogId: selectedProduct.catalogId || catalogId || undefined
-            };
-            await axios.post("/api/products", payload);
+            await axios.post("/api/products", selectedProduct);
             toast.success("Prodotto aggiornato con successo");
             setSelectedProduct(null);
             fetchProducts(); // refresh table
