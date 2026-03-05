@@ -152,7 +152,8 @@ async def main_page():
                 ui.label('PIM SYSTEM V.5').classes('text-[8px] font-bold text-blue-500 mt-1.5 tracking-[0.3em] uppercase')
             
         # Menu Area
-        ui.scroll_area().classes('flex-1 pr-2').content.append(sidebar_area())
+        with ui.scroll_area().classes('flex-1 pr-2'):
+            sidebar_area()
 
         ui.space()
         # AI Card
