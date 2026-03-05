@@ -31,7 +31,7 @@ def sidebar_item(label: str, icon: str, badge: str = None, active: bool = False)
             ui.icon(icon).classes('text-lg opacity-70')
             ui.label(label).classes('text-[13px] tracking-tight')
             if badge:
-                ui.spacer()
+                ui.space()
                 with ui.element('span').classes('badge-red'):
                     ui.label(badge)
 
