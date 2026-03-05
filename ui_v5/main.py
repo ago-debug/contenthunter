@@ -282,4 +282,4 @@ async def main_page():
         if not app_logic.data and not app_logic.loading:
             await app_logic.navigate_to('dashboard')
 
-ui.run(title=TITLE, port=3001)
+ui.run(title=TITLE, port=3001, host='0.0.0.0')
