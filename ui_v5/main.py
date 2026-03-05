@@ -1,21 +1,13 @@
 from nicegui import ui
 import httpx
 import os
-import logging
 from dotenv import load_dotenv
-
-# Setup Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("PIM-UI")
 
 load_dotenv()
 
 # CONFIGURAZIONE
 BACKEND_URL = os.getenv("API_URL", "http://backend:8000")
 TITLE = "CONTENTHUNTER PIM | ENTERPRISE"
-PORT = 3001
-
-logger.info(f"Avvio UI su porta {PORT} con BACKEND_URL: {BACKEND_URL}")
 
 # STILI TEMA (Bitrix24 Inspired)
 def setup_styles():
@@ -32,6 +24,7 @@ def setup_styles():
             .product-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border: 1px solid #E2E8F0; }
             .product-card:hover { transform: translateY(-4px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); border-color: #3B82F6; }
             .badge-red { background: #FF5752; color: white; border-radius: 6px; padding: 2px 6px; font-size: 9px; font-weight: 900; }
+            .q-table__card { box-shadow: none !important; border: 1px solid #E2E8F0 !important; border-radius: 16px !important; }
         </style>
     ''')
 
@@ -44,7 +37,6 @@ class PIMApp:
         self.product_detail_loading = False
 
     async def navigate_to(self, page_name: str):
-        logger.info(f"Navigazione verso: {page_name}")
         self.active_page = page_name
         self.loading = True
         self.selected_product = None
@@ -66,11 +58,7 @@ class PIMApp:
                     if resp.status_code == 200:
                         raw_data = resp.json()
                         self.data = raw_data.get('products', raw_data) if page_name == 'products' else raw_data
-                    else:
-                        logger.error(f"Errore Backend: {resp.status_code}")
-                        self.data = []
             except Exception as e:
-                logger.error(f"Errore connessione DB: {e}")
                 ui.notify(f"Errore DB: {str(e)}", type='negative')
                 self.data = []
         
@@ -81,7 +69,6 @@ class PIMApp:
         self.product_detail_loading = True
         product_modal.open()
         modal_content.refresh()
-        
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{BACKEND_URL}/api/v5/products/{sku}", timeout=10)
@@ -93,7 +80,6 @@ class PIMApp:
         except Exception as e:
             ui.notify(f"Errore: {str(e)}", type='negative')
             product_modal.close()
-            
         self.product_detail_loading = False
         modal_content.refresh()
 
@@ -129,64 +115,73 @@ def content_area():
     if app_logic.loading:
         with ui.column().classes('w-full items-center justify-center p-20'):
             ui.spinner_ios(size='lg', color='primary')
-            ui.label('CARICAMENTO...').classes('text-slate-400 mt-4 font-black text-[10px]')
+            ui.label('CARICAMENTO...').classes('text-slate-400 mt-4 font-black uppercase tracking-[0.2em] text-[10px]')
         return
 
     page = app_logic.active_page
     with ui.column().classes('max-w-7xl mx-auto w-full px-10 py-10 gap-8'):
         if page == 'dashboard':
             with ui.row().classes('w-full justify-between items-center'):
-                ui.label('Dashboard Repository').classes('text-3xl font-black text-slate-900 tracking-tight')
-                ui.button('NUOVO CATALOGO', icon='add').classes('rounded-xl px-8 py-4 bg-slate-900 text-white font-black text-xs').props('no-caps')
-            
+                with ui.column().classes('gap-1'):
+                    ui.label('Dashboard Repository').classes('text-3xl font-black text-slate-900 tracking-tight')
+                    ui.label('Collezioni e canali di importazione PDF.').classes('text-slate-400 text-sm font-medium')
+                ui.button('NUOVO CATALOGO', icon='add').classes('rounded-xl px-8 py-4 bg-slate-900 text-white font-black text-xs shadow-lg').props('no-caps')
             with ui.grid(columns=3).classes('w-full gap-6'):
                 for c in app_logic.data:
                     with ui.card().classes('main-card p-6 gap-4 product-card'):
-                        ui.label(c['name']).classes('text-lg font-black text-slate-800')
+                        ui.label(c['name']).classes('text-lg font-black text-slate-800 tracking-tight')
                         ui.label(f"Importati: {c.get('product_count', 0)}").classes('text-xs text-slate-400 font-bold')
 
         elif page == 'products':
             ui.label('Master ERP Library').classes('text-3xl font-black text-slate-900 tracking-tight')
             with ui.column().classes('w-full gap-4'):
-                for p in app_logic.data:
-                    with ui.card().classes('main-card p-4 product-card').on('click', lambda p=p: app_logic.open_product_detail(p['sku'])):
-                        with ui.row().classes('items-center w-full gap-6'):
-                            ui.label(p['sku']).classes('text-[10px] font-black text-blue-500')
-                            ui.label(p['title']).classes('text-sm font-black text-slate-900 flex-1')
-                            ui.label(f"€ {p['price'] or 0.0:.2f}").classes('text-lg font-black text-slate-900')
+                if not app_logic.data:
+                    ui.label('Nessun prodotto trovato.').classes('text-slate-400 italic py-10 text-center w-full')
+                else:
+                    for p in app_logic.data:
+                        with ui.card().classes('main-card p-4 product-card hover:border-blue-500').on('click', lambda p=p: app_logic.open_product_detail(p['sku'])):
+                            with ui.row().classes('items-center w-full gap-6'):
+                                with ui.element('div').classes('w-16 h-16 bg-slate-50 rounded-xl flex items-center justify-center border'):
+                                    ui.icon('inventory_2', size='md').classes('text-slate-200')
+                                with ui.column().classes('flex-1 gap-1'):
+                                    ui.label(p['sku']).classes('text-[10px] font-black text-blue-500 tracking-widest uppercase')
+                                    ui.label(p['title']).classes('text-sm font-black text-slate-900 truncate max-w-md')
+                                with ui.column().classes('items-end gap-1'):
+                                    ui.label(f"€ {p['price'] or 0.0:.2f}").classes('text-lg font-black text-slate-900')
+                                ui.icon('chevron_right').classes('text-slate-300 ml-4')
 
 @ui.refreshable
 def modal_content():
     if app_logic.product_detail_loading:
-        ui.spinner_ios(size='lg', color='primary')
+        with ui.column().classes('w-full h-[400px] items-center justify-center'):
+            ui.spinner_ios(size='lg', color='primary')
         return
     p = app_logic.selected_product
-    if p:
-        with ui.column().classes('p-10 w-full'):
-            ui.label(f"SKU: {p['sku']}").classes('text-xs font-black text-blue-500')
-            ui.label(p['translations'].get('it', {}).get('title', 'Untitled')).classes('text-2xl font-black')
-            ui.button('CHIUDI', on_click=product_modal.close).classes('mt-10')
+    if not p: return
+    with ui.column().classes('w-full p-10 gap-6'):
+        ui.label(f"SKU: {p['sku']}").classes('text-xs font-black text-blue-500')
+        ui.label(p['translations'].get('it', {}).get('title', 'Untitled')).classes('text-2xl font-black text-slate-900')
+        ui.textarea('Descrizione', value=p['translations'].get('it', {}).get('description', '')).classes('w-full').props('outlined rounded')
+        ui.button('CHIUDI', on_click=product_modal.close).classes('mt-4 bg-slate-900 text-white rounded-xl px-10 py-3')
 
 with ui.dialog().classes('w-full max-w-[1000px]') as product_modal:
-    with ui.card().classes('p-0 w-full rounded-3xl bg-white'):
+    with ui.card().classes('p-0 w-full overflow-hidden rounded-[2rem] bg-white'):
         modal_content()
 
 @ui.page('/')
 async def main_page():
     setup_styles()
-    
-    with ui.header().classes('bg-white text-slate-800 border-b border-slate-200 px-10 py-3 flex justify-between items-center z-10'):
+    with ui.header().classes('bg-white/80 backdrop-blur-md text-slate-800 border-b border-slate-200 px-10 py-3 flex justify-between items-center z-10'):
         ui.label('CONTENTHUNTER PIM V5').classes('text-[9px] font-black tracking-[0.3em]')
         ui.avatar('AG').classes('bg-slate-900 text-white')
 
     with ui.left_drawer(value=True, fixed=True).classes('p-6 flex flex-col gap-0 shadow-sm overflow-hidden'):
-        ui.label('CH').classes('text-2xl font-black mb-10 px-2')
+        ui.label('ContentHunter').classes('text-xl font-black mb-10 px-2')
         sidebar_area()
 
     with ui.column().classes('flex-1 w-full bg-[#F4F7F9] min-h-screen'):
-        content_area() # Chiamata corretta senza await per @ui.refreshable
+        content_area()
         if not app_logic.data and not app_logic.loading:
             await app_logic.navigate_to('dashboard')
 
-# RUN CONFIGURATION FOR DOCKER
-ui.run(title=TITLE, port=PORT, host='0.0.0.0', reload=False)
+ui.run(title=TITLE, port=3001, host='0.0.0.0', show=False, reload=False)
