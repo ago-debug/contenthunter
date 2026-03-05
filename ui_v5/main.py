@@ -13,8 +13,9 @@ load_dotenv()
 # CONFIGURAZIONE
 BACKEND_URL = os.getenv("API_URL", "http://backend:8000")
 TITLE = "CONTENTHUNTER PIM | ENTERPRISE"
+PORT = 3001
 
-logger.info(f"Avvio UI con BACKEND_URL: {BACKEND_URL}")
+logger.info(f"Avvio UI su porta {PORT} con BACKEND_URL: {BACKEND_URL}")
 
 # STILI TEMA (Bitrix24 Inspired)
 def setup_styles():
@@ -188,4 +189,4 @@ async def main_page():
             await app_logic.navigate_to('dashboard')
 
 # RUN CONFIGURATION FOR DOCKER
-ui.run(title=TITLE, port=3001, host='0.0.0.0', reload=False)
+ui.run(title=TITLE, port=PORT, host='0.0.0.0', reload=False)
