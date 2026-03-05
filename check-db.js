@@ -7,8 +7,7 @@ async function main() {
     if (catalogs.length === 0) {
         const newCatalog = await prisma.catalog.create({
             data: {
-                name: 'Default Catalog',
-                filePath: 'none'
+                name: 'Default Catalog'
             }
         });
         console.log('Created default catalog:', newCatalog);
