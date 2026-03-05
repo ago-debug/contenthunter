@@ -6,9 +6,7 @@ import json
 import logging
 from datetime import datetime
 
-# --- EMERGENCY LOGGING ---
-print(f"--- [BACKEND BOOT] {datetime.now()} ---")
-# Aggiunta manuale del path della root e della cartella backend
+# --- SYSTEM PATH RESOLUTION ---
 try:
     current_dir = os.path.dirname(os.path.abspath(__file__))
     root_dir = os.path.dirname(current_dir)
@@ -16,24 +14,21 @@ try:
         sys.path.append(current_dir)
     if root_dir not in sys.path:
         sys.path.append(root_dir)
-    print(f"Paths added: {current_dir}, {root_dir}")
+    print(f"--- [BACKEND BOOT] {datetime.now()} ---")
+    print(f"Paths: {current_dir}")
 except Exception as e:
     print(f"Path Error: {e}")
 
 try:
-    # Import FASTAPI FIRST
     from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
     from fastapi.middleware.cors import CORSMiddleware
     from sqlalchemy.orm import Session
     from sqlalchemy import func, or_
     
-    # Import LOCALI (Fix circolare risolto in connection.py)
+    # Imports defined after Base in connection to avoid circularity
     from database.connection import get_db, init_db
-    # Carichiamo i modelli esplicitamente
-    import database.models as models
     from core.config import settings
-    
-    print("Core modules loaded successfully. Circular imports resolved.")
+    print("Core modules loaded. System stable.")
 except Exception as e:
     print(f"CRITICAL BOOT ERROR: {str(e)}")
     import traceback
@@ -52,32 +47,28 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event():
-    print("Verifica database...")
+    print("Inizializzazione Database...")
     try:
         init_db()
-        print("Inizializzazione database completata.")
+        print("Database pronto e tabelle verificate.")
     except Exception as e:
-        print(f"DATABASE CONNECTION WARNING: {str(e)}")
+        print(f"DB INIT WARNING: {str(e)}")
 
 # --- API ROUTES ---
 
 @app.get("/api/v5/health")
 def health_check():
-    return {"status": "ok", "backend": "online", "mode": "native-pm2"}
+    return {"status": "ok", "backend": "online", "version": "5.5"}
 
 @app.get("/api/v5/repositories")
 def get_repositories(db: Session = Depends(get_db)):
-    try:
-        from database.models import Catalog
-        return db.query(Catalog).all()
-    except Exception as e:
-        print(f"DB Fetch Error (Repos): {e}")
-        return []
+    from database.models import Catalog
+    return db.query(Catalog).all()
 
 @app.get("/api/v5/products")
-def get_products(db: Session = Depends(get_db), limit: int = 50):
+def get_products(db: Session = Depends(get_db), limit: int = 100):
+    from database.models import Product
     try:
-        from database.models import Product
         products = db.query(Product).limit(limit).all()
         results = []
         for p in products:
@@ -85,16 +76,46 @@ def get_products(db: Session = Depends(get_db), limit: int = 50):
             results.append({
                 "id": p.id,
                 "sku": p.sku,
-                "title": text_it.title if text_it else "Prodotto",
-                "brand": p.brand,
+                "title": text_it.title if text_it else "Asset",
+                "brand": p.brand or "No Brand",
                 "price": p.prices[0].price if p.prices else 0.0,
             })
         return results
     except Exception as e:
-        print(f"DB Products Error: {e}")
+        print(f"DB Error: {e}")
         return []
+
+@app.get("/api/v5/products/{sku}")
+def get_product_detail(sku: str, db: Session = Depends(get_db)):
+    from database.models import Product
+    p = db.query(Product).filter(Product.sku == sku).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    translations = {}
+    for t in p.texts:
+        translations[t.language] = {
+            "title": t.title,
+            "description": t.description
+        }
+    
+    return {
+        "sku": p.sku,
+        "brand": p.brand,
+        "price": p.prices[0].price if p.prices else 0.0,
+        "translations": translations
+    }
+
+@app.get("/api/v5/brands")
+def get_brands(db: Session = Depends(get_db)):
+    from database.models import Brand
+    return db.query(Brand).all()
+
+@app.get("/api/v5/categories")
+def get_categories(db: Session = Depends(get_db)):
+    from database.models import Category
+    return db.query(Category).all()
 
 if __name__ == "__main__":
     import uvicorn
-    print("Avvio server su porta 8000...")
     uvicorn.run(app, host="0.0.0.0", port=8000)
