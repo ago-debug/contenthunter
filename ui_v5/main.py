@@ -178,7 +178,7 @@ def sidebar_button(label: str, icon: str, page_name: str):
 async def content_area():
     if app_logic.loading:
         with ui.column().classes('w-full items-center justify-center p-32'):
-            ui.spinner_ios(size='xl', color='primary')
+            ui.spinner(size='xl', color='primary')
         return
 
     page = app_logic.active_page
