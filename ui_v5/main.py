@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- CONFIGURAZIONE ---
-BACKEND_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
+BACKEND_URL = os.getenv("API_URL", "http://127.0.0.1:3000") # Next.js gira nativamente sulla 3000
 TITLE = "CONTENTHUNTER PIM | CLINICAL"
 PORT = 3001
 
@@ -27,11 +27,11 @@ class PIMApp:
         content_area.refresh()
         
         endpoint_map = {
-            'dashboard': '/api/v5/repositories',
-            'products': '/api/v5/products',
-            'brands': '/api/v5/brands',
-            'categories': '/api/v5/categories',
-            'catalogues': '/api/v5/repositories',
+            'dashboard': '/api/repositories',
+            'products': '/api/products',
+            'brands': '/api/brands',
+            'categories': '/api/categories',
+            'catalogues': '/api/catalogues',
         }
         
         endpoint = endpoint_map.get(page_name)
@@ -54,7 +54,7 @@ class PIMApp:
             modal_content.refresh()
         try:
             async with httpx.AsyncClient() as client:
-                resp = await client.get(f"{BACKEND_URL}/api/v5/products/{sku}", timeout=10)
+                resp = await client.get(f"{BACKEND_URL}/api/products/{sku}", timeout=10)
                 if resp.status_code == 200:
                     self.selected_product = resp.json()
         except: pass
@@ -75,7 +75,6 @@ def setup_styles():
         <style>
             .q-drawer { background: #FFFFFF !important; border-right: 1px solid #F0F0F0 !important; width: 280px !important; }
             
-            /* Sidebar Button (Replica dello screenshot) */
             .sidebar-btn { 
                 margin: 1px 12px !important; 
                 border-radius: 12px !important; 
@@ -86,6 +85,12 @@ def setup_styles():
                 text-transform: none !important;
                 font-size: 14px !important;
                 letter-spacing: -0.01em;
+            }
+            .sidebar-btn .q-btn__content {
+                justify-content: flex-start !important;
+                flex-wrap: nowrap !important;
+                gap: 12px;
+                width: 100%;
             }
             .sidebar-btn:hover { background-color: #F8F9FA !important; color: #1A1A1A !important; }
             .sidebar-btn.active { 
@@ -175,14 +180,13 @@ def sidebar_area():
 
 def sidebar_button(label: str, icon: str, page_name: str):
     is_active = app_logic.active_page == page_name
-    with ui.button(on_click=lambda: app_logic.navigate_to(page_name)).classes(f'sidebar-btn {"active" if is_active else ""}').props('flat no-caps'):
-        with ui.row().classes('items-center gap-4 w-full flex-nowrap'):
-            ui.icon(icon, size='22px').classes('material-icons-outlined shrink-0')
-            ui.label(label).classes('truncate')
+    with ui.button(on_click=lambda: app_logic.navigate_to(page_name)).classes(f'sidebar-btn {"active" if is_active else ""} w-[calc(100%-24px)]').props('flat no-caps'):
+        ui.icon(icon, size='22px').classes('material-icons-outlined')
+        ui.label(label).classes('truncate text-left')
 
 # --- CONTENT ---
 @ui.refreshable
-async def content_area():
+def content_area():
     if app_logic.loading:
         with ui.column().classes('w-full items-center justify-center p-40'):
             ui.spinner(size='xl', color='primary', thickness=2)
@@ -250,8 +254,12 @@ def modal_content():
         ui.button('CHIUDI', on_click=app_logic.product_modal.close).classes('bg-slate-900 text-white rounded-xl px-12 py-4 font-black')
 
 @ui.page('/')
-async def main_page():
+def main_page():
     setup_styles()
+    
+    # Init data
+    ui.timer(0.1, lambda: app_logic.navigate_to('products'), once=True)
+    
     with ui.dialog().classes('w-full max-w-5xl') as product_modal:
         app_logic.product_modal = product_modal
         with ui.card().classes('p-0 w-full rounded-[2.5rem] bg-white border-0 shadow-2xl overflow-hidden'):
@@ -259,7 +267,7 @@ async def main_page():
 
     with ui.left_drawer(value=True, fixed=True).classes('p-0 shadow-none'):
         sidebar_area()
-    with ui.column().classes('flex-1 w-full bg-[#FBFBFB] min-h-screen'):
-        await content_area()
+    with ui.column().classes('flex-1 w-full bg-[#FBFBFB] min-h-screen relative overflow-y-auto max-h-[100vh]'):
+        content_area()
 
 ui.run(title="CONTENTHUNTER PIM", host='0.0.0.0', port=PORT, show=False, reload=False)
