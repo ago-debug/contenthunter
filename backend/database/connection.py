@@ -34,7 +34,19 @@ def get_db():
         db.close()
 
 def init_db():
-    # Carichiamo i modelli qui per assicurarci che siano registrati nel Base
-    import database.models
-    # Crea le tabelle se non esistono
-    Base.metadata.create_all(bind=engine)
+    try:
+        print("Sincronizzazione modelli...")
+        import database.models
+        tables = list(Base.metadata.tables.keys())
+        print(f"Tabelle registrate in Metadata: {tables}")
+        
+        if not tables:
+            print("WARNING: Nessuna tabella trovata nei modelli. Verifica l'ereditarietà da Base.")
+            
+        print("Esecuzione create_all...")
+        Base.metadata.create_all(bind=engine)
+        print("create_all completato senza errori.")
+    except Exception as e:
+        print(f"CRITICAL ERROR in init_db: {str(e)}")
+        import traceback
+        traceback.print_exc()
