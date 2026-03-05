@@ -3,7 +3,7 @@
 # Configuration
 APP_NAME="pdf-catalog"
 REPO_URL="https://github.com/ago-debug/contenthunter.git"
-TARGET_DIR="/var/www/pdf-catalog"
+TARGET_DIR="/var/www/vhosts/contenthunter.abreve.it/httpdocs"
 
 echo "🚀 Avvio Deploy Nativo Node.js (Next.js) per $APP_NAME..."
 
