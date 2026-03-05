@@ -102,6 +102,10 @@ export default function ImportLab() {
     // V4 DISMANTLER STATES
     const [isVisualMode, setIsVisualMode] = useState(false);
     const [selectedMapping, setSelectedMapping] = useState<any | null>(null);
+    const [bulkField, setBulkField] = useState<"brand" | "category">("brand");
+    const [bulkValue, setBulkValue] = useState<string>("");
+    const [bulkOnlyEmpty, setBulkOnlyEmpty] = useState<boolean>(true);
+    const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -195,6 +199,56 @@ export default function ImportLab() {
             setIsProductModalOpen(false);
         } catch (err: any) {
             toast.update(toastId, { render: "Errore nel salvataggio", type: "error", isLoading: false, autoClose: 3000 });
+        }
+    };
+
+    const handleBulkStagingUpdate = async () => {
+        if (!catalogIdParam) {
+            toast.warning("Seleziona prima un repository per applicare modifiche massime.");
+            return;
+        }
+        if (!bulkValue.trim()) {
+            toast.warning("Inserisci un valore da applicare (es. Brand).");
+            return;
+        }
+        if (!products.length) {
+            toast.info("Non ci sono prodotti in staging su cui applicare la modifica.");
+            return;
+        }
+
+        const label = bulkField === "brand" ? "Brand" : "Categoria";
+        if (!confirm(`Applicare il valore "${bulkValue.trim()}" al campo ${label} su ${products.length} prodotti${bulkOnlyEmpty ? " solo dove vuoto" : ""}?`)) {
+            return;
+        }
+
+        setIsBulkUpdating(true);
+        const toastId = toast.loading("Applicazione modifica massiva in corso...");
+        try {
+            const res = await axios.post(`/api/repositories/${catalogIdParam}/staging/bulk`, {
+                field: bulkField,
+                value: bulkValue,
+                onlyEmpty: bulkOnlyEmpty,
+            });
+
+            toast.update(toastId, {
+                render: `Aggiornati ${res.data.updatedCount || 0} prodotti in staging.`,
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+
+            // Ricarica i dati del repository per vedere le modifiche
+            fetchRepository(parseInt(catalogIdParam));
+        } catch (err: any) {
+            console.error("Bulk staging update error:", err);
+            toast.update(toastId, {
+                render: "Errore durante l'aggiornamento massivo.",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } finally {
+            setIsBulkUpdating(false);
         }
     };
 
@@ -794,6 +848,39 @@ export default function ImportLab() {
                             <Sparkles className="w-4 h-4 text-orange-400 group-hover:scale-125 transition-transform" />
                             <span className="whitespace-nowrap">Push to Master ERP</span>
                         </button>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                            <select
+                                value={bulkField}
+                                onChange={(e) => setBulkField(e.target.value as "brand" | "category")}
+                                className="px-2 py-1 rounded-lg border border-slate-200 bg-white font-black uppercase tracking-widest text-slate-500"
+                            >
+                                <option value="brand">Brand</option>
+                                <option value="category">Categoria</option>
+                            </select>
+                            <input
+                                type="text"
+                                placeholder={`Valore ${bulkField === "brand" ? "Brand" : "Categoria"}`}
+                                value={bulkValue}
+                                onChange={(e) => setBulkValue(e.target.value)}
+                                className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white min-w-[140px]"
+                            />
+                            <label className="inline-flex items-center gap-1 text-slate-500">
+                                <input
+                                    type="checkbox"
+                                    checked={bulkOnlyEmpty}
+                                    onChange={(e) => setBulkOnlyEmpty(e.target.checked)}
+                                    className="w-3 h-3 rounded border-slate-300 text-slate-900"
+                                />
+                                <span>Solo se vuoto</span>
+                            </label>
+                            <button
+                                onClick={handleBulkStagingUpdate}
+                                disabled={isBulkUpdating}
+                                className="px-3 py-1.5 bg-slate-100 text-slate-900 rounded-xl font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-200 disabled:opacity-50"
+                            >
+                                {isBulkUpdating ? "In corso..." : "Applica a tutti"}
+                            </button>
+                        </div>
                     </div>
                 </div>
 
