@@ -39,7 +39,6 @@ class PIMApp:
                     resp = await client.get(f"{BACKEND_URL}{endpoint}", timeout=15)
                     if resp.status_code == 200:
                         raw_data = resp.json()
-                        # Gestione flessibile della risposta (array o oggetto con chiave products)
                         if isinstance(raw_data, dict) and 'products' in raw_data:
                             self.data = raw_data['products']
                         elif isinstance(raw_data, list):
@@ -54,7 +53,6 @@ class PIMApp:
         content_area.refresh()
 
     async def open_product_detail(self, sku: str):
-        self.product_detail_loading = True
         if self.product_modal:
             self.product_modal.open()
             modal_content.refresh()
@@ -64,7 +62,6 @@ class PIMApp:
                 if resp.status_code == 200:
                     self.selected_product = resp.json()
         except: pass
-        self.product_detail_loading = False
         modal_content.refresh()
 
 app_logic = PIMApp()
@@ -72,17 +69,17 @@ app_logic = PIMApp()
 # --- DESIGN SYSTEM ---
 def setup_styles():
     ui.colors(primary='#111827', secondary='#F3F4F6', accent='#6B7280')
-    ui.query('body').style('background-color: #F8F9FA; font-family: "Inter", sans-serif;')
+    ui.query('body').style('background-color: #F3F4F6; font-family: "Inter", sans-serif;')
     ui.add_head_html('''
         <style>
             .q-drawer { background: #FFFFFF !important; border-right: 1px solid #E5E7EB !important; }
             
-            /* Sidebar Item Fixed */
+            /* Sidebar Item */
             .sidebar-btn { 
                 margin: 4px 16px !important; 
                 border-radius: 12px !important; 
                 transition: all 0.2s; 
-                color: #1F2937 !important; 
+                color: #4A5568 !important; 
                 font-weight: 700 !important;
                 height: 52px !important;
                 text-transform: none !important;
@@ -91,11 +88,7 @@ def setup_styles():
                 background-color: #111827 !important; 
                 color: #FFFFFF !important; 
             }
-            /* Assicura che icona e testo siano bianchi quando attivo */
-            .sidebar-btn.active .q-icon, 
-            .sidebar-btn.active .q-btn__content { 
-                color: #FFFFFF !important; 
-            }
+            .sidebar-btn.active .q-icon { color: #FFFFFF !important; }
             
             .group-label { 
                 font-size: 11px; font-weight: 800; color: #94A3B8; 
@@ -107,14 +100,35 @@ def setup_styles():
                 border: 1px solid #F1F5F9;
             }
             
+            /* Medical-Style List */
+            .medical-table {
+                background: white; border-radius: 16px; border: 1px solid #E2E8F0; overflow: hidden;
+            }
+            .table-header-cell {
+                font-size: 10px; font-weight: 800; color: #ADB5BD; letter-spacing: 0.1em; text-transform: uppercase;
+                padding: 20px 24px;
+            }
+            .table-row {
+                padding: 18px 24px; border-bottom: 1px solid #F1F3F5; transition: all 0.2s;
+            }
+            .table-row:hover { background-color: #F8FAFC; cursor: pointer; }
+            .row-avatar {
+                width: 44px; height: 44px; border-radius: 14px; background: #E9ECEF;
+                display: flex; items-center; justify-center; color: #D32F2F; font-weight: 900;
+            }
+            .item-title { font-size: 14px; font-weight: 800; color: #212529; }
+            .item-subtitle { font-size: 11px; font-weight: 700; color: #ADB5BD; text-transform: uppercase; }
+            .col-bold { font-size: 13px; font-weight: 800; color: #495057; }
+            .price-tag { color: #2D6A4F; font-size: 13px; font-weight: 900; }
+            .status-tag { 
+                background: #FFF0F0; color: #D32F2F; font-size: 9px; font-weight: 900; 
+                padding: 2px 8px; border-radius: 6px; text-transform: uppercase;
+            }
+            .info-box { font-size: 12px; color: #868E96; font-weight: 600; }
+
             .kpi-card { 
                 border-radius: 20px; background: white; border: 1px solid #F1F5F9; 
-                padding: 30px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); 
-            }
-
-            .product-table-row:hover {
-                background-color: #F9FAFB !important;
-                cursor: pointer;
+                padding: 30px; 
             }
         </style>
     ''')
@@ -122,20 +136,16 @@ def setup_styles():
 # --- SIDEBAR ---
 @ui.refreshable
 def sidebar_area():
-    with ui.column().classes('w-full gap-0 h-full'):
-        # Logo Section
+    with ui.column().classes('w-full h-full'):
         with ui.column().classes('items-center w-full py-14 px-6'):
             with ui.element('div').classes('w-28 h-28 bg-[#111827] rounded-[2rem] flex items-center justify-center shadow-xl mb-6'):
                 ui.icon('precision_manufacturing', size='3.5rem', color='white')
             ui.label('CONTENT HUNTER').classes('text-lg font-black tracking-[0.2em] text-[#111827]')
-            ui.label('ENGINE PIM').classes('text-[9px] font-black text-slate-300 tracking-[0.5em] -mt-1')
 
-        # Main Navigation
         ui.label('MENU PRINCIPALE').classes('group-label')
         sidebar_button('Dashboard', 'dashboard', 'dashboard')
         sidebar_button('Master ERP', 'inventory', 'products')
         sidebar_button('Import Lab', 'auto_awesome', 'import')
-        sidebar_button('Cataloghi', 'folder', 'repos')
         
         ui.label('ANAGRAFICHE').classes('group-label')
         sidebar_button('Brand Library', 'branding_watermark', 'brands')
@@ -143,18 +153,15 @@ def sidebar_area():
         
         ui.space()
         
-        # User & Footer
-        with ui.column().classes('w-full gap-0'):
-            ui.label('V. 7.0 [05/03/2026]').classes('px-8 py-4 text-[10px] font-black text-slate-300 uppercase letter-spacing-widest')
-            
-            with ui.row().classes('profile-card items-center gap-4'):
+        with ui.column().classes('w-full mt-auto'):
+             with ui.row().classes('profile-card items-center gap-4'):
                 with ui.element('div').classes('w-12 h-12 bg-white rounded-xl flex items-center justify-center text-[#111827] font-black border shadow-sm'):
                     ui.label('a').classes('text-xl')
                 with ui.column().classes('gap-0'):
                     ui.label('Administrator').classes('text-sm font-black text-slate-800')
-                    ui.label('SYSTEM ADMIN').classes('text-[9px] font-black text-slate-400 uppercase')
+                    ui.label('V. 7.5').classes('text-[9px] font-black text-slate-400')
             
-            with ui.button(on_click=lambda: ui.notify('Logout')).classes('w-full justify-start py-6 px-10 text-slate-400 font-bold').props('flat no-caps'):
+             with ui.button(on_click=lambda: ui.notify('Logout')).classes('w-full justify-start py-6 px-10 text-slate-400 font-bold').props('flat no-caps'):
                 with ui.row().classes('items-center gap-4'):
                     ui.icon('logout', size='22px')
                     ui.label('ESCI')
@@ -172,62 +179,69 @@ async def content_area():
     if app_logic.loading:
         with ui.column().classes('w-full items-center justify-center p-32'):
             ui.spinner_ios(size='xl', color='primary')
-            ui.label('ECCESSO AI DATI...').classes('text-slate-300 mt-6 font-black tracking-widest text-[10px]')
         return
 
     page = app_logic.active_page
-    with ui.column().classes('w-full p-16 gap-12 max-w-[1400px] mx-auto'):
+    with ui.column().classes('w-full p-12 gap-8 max-w-[1400px] mx-auto'):
         
-        # Header dinamico basato sulla pagina
-        with ui.column().classes('gap-1 mb-4'):
-            title = 'Dashboard' if page == 'dashboard' else 'Master ERP Library' if page == 'products' else 'Anagrafiche'
-            subtitle = 'Inserimento e interrogazione dati PIM'
-            ui.label(title).classes('text-4xl font-black text-slate-900 tracking-tighter')
-            ui.label(subtitle).classes('text-slate-400 text-sm font-medium')
-
+        # Dashboard KPIs
         if page == 'dashboard':
-            with ui.row().classes('w-full gap-8'):
-                kpi_box('PRODOTTI', '3.840', 'inventory_2')
-                kpi_box('CATALOGHI', '14', 'folder')
-                kpi_box('SYNC', 'ONLINE', 'cloud_done')
-            
-            with ui.column().classes('w-full kpi-card'):
-                ui.label('ATTIVITÀ RECENTI').classes('text-[10px] font-black text-slate-400 tracking-widest mb-6')
-                if not app_logic.data:
-                    ui.label('Nessuna attività recente trovato.').classes('text-slate-400 italic')
-                else:
-                    for item in app_logic.data[:5]:
-                        with ui.row().classes('w-full py-5 border-b border-slate-50 items-center justify-between'):
-                            ui.label(item.get('name', 'Sync Repository')).classes('font-black text-slate-800')
-                            ui.badge('COMPLETATO').props('color=emerald-1 text-emerald-7 font-bold')
+            with ui.row().classes('w-full gap-6'):
+                kpi_box('TOTAL PRODUCTS', '3.840', 'inventory_2')
+                kpi_box('REPOSITORIES', '14', 'folder')
+                kpi_box('PENDING SYNC', '3', 'sync')
 
-        elif page == 'products':
-            with ui.column().classes('w-full kpi-card p-0 overflow-hidden'):
-                # Header Tabella
-                with ui.row().classes('w-full bg-slate-50 p-6 border-b border-slate-100 items-center gap-6'):
-                    ui.label('SKU').classes('w-32 text-[10px] font-black text-slate-400 tracking-widest')
-                    ui.label('DESCRIZIONE PRODOTTO').classes('flex-1 text-[10px] font-black text-slate-400 tracking-widest')
-                    ui.label('PREZZO').classes('w-32 text-[10px] font-black text-slate-400 tracking-widest text-right')
-                    ui.label('STATO').classes('w-32 text-[10px] font-black text-slate-400 tracking-widest text-center')
+        # MEDICAL-STYLE TABLE
+        with ui.column().classes('medical-table w-full shadow-sm'):
+            # Table Header
+            with ui.row().classes('w-full bg-white border-b items-center'):
+                ui.label('NOME PRODOTTO E SKU').classes('table-header-cell flex-[2.5]')
+                ui.label('CODICE IDENTIFICATIVO').classes('table-header-cell flex-1')
+                ui.label('VALORE / STATO').classes('table-header-cell flex-1 text-center')
+                ui.label('BRAND / CATEGORIA').classes('table-header-cell flex-1.5')
+                ui.label('AZIONI').classes('table-header-cell w-20 text-right')
 
-                # Lista Prodotti
-                if not app_logic.data:
-                    ui.label('Nessun prodotto trovato.').classes('p-10 text-slate-400 italic text-center w-full')
-                else:
-                    for p in app_logic.data:
-                        with ui.row().classes('w-full p-6 border-b border-slate-50 items-center gap-6 product-table-row').on('click', lambda p=p: app_logic.open_product_detail(p['sku'])):
-                            ui.label(p['sku']).classes('w-32 font-black text-blue-500 text-xs')
-                            ui.label(p['title']).classes('flex-1 font-black text-slate-800 truncate')
-                            ui.label(f"€ {p['price'] or 0.0:.2f}").classes('w-32 font-black text-slate-900 text-right')
-                            with ui.element('div').classes('w-32 flex justify-center'):
-                                ui.badge('PRONTO').props('color=blue-50 text-blue-600 font-bold px-4 rounded-lg')
+            # Table Body
+            if not app_logic.data:
+                ui.label('Nessun dato disponibile.').classes('p-20 text-slate-300 italic text-center w-full font-black uppercase tracking-widest text-xs')
+            else:
+                for p in app_logic.data:
+                    with ui.row().classes('w-full table-row items-center').on('click', lambda p=p: app_logic.open_product_detail(p['sku'])):
+                        # Col 1: Avatar + Title/Sub
+                        with ui.row().classes('flex-[2.5] items-center gap-4'):
+                            with ui.element('div').classes('row-avatar'):
+                                ui.label(p['title'][0].upper() if p['title'] else 'P')
+                            with ui.column().classes('gap-0'):
+                                ui.label(p['title'].upper()).classes('item-title truncate max-w-sm')
+                                ui.label(f"PRODUCT ID: {p['id']}").classes('item-subtitle')
+                        
+                        # Col 2: Identifiers
+                        with ui.column().classes('flex-1 gap-0'):
+                            ui.label(p['sku']).classes('col-bold')
+                        
+                        # Col 3: Price/Status
+                        with ui.column().classes('flex-1 items-center gap-1'):
+                            ui.label(f"€ {p['price'] or 0.0:.2f}").classes('price-tag')
+                            with ui.element('span').classes('status-tag'): ui.label('PRONTO')
+                        
+                        # Col 4: Info boxes
+                        with ui.column().classes('flex-1.5 gap-1'):
+                            with ui.row().classes('items-center gap-2 info-box'):
+                                ui.icon('o_business', size='14px')
+                                ui.label(p.get('brand', 'DEFAULT BRAND'))
+                            with ui.row().classes('items-center gap-2 info-box'):
+                                ui.icon('o_layers', size='14px')
+                                ui.label(p.get('category', 'MASTER CAT'))
+                        
+                        # Col 5: Chevron
+                        ui.icon('chevron_right', color='slate-300').classes('w-20 text-right')
 
 def kpi_box(label, value, icon):
-    with ui.column().classes('kpi-card flex-1'):
-        with ui.element('div').classes('p-3 bg-slate-50 rounded-xl mb-4 inline-block border'):
-            ui.icon(icon, color='slate-900', size='24px')
-        ui.label(label).classes('text-[10px] font-black text-slate-400 tracking-widest uppercase')
-        ui.label(value).classes('text-2xl font-black text-slate-900 mt-1 tracking-tighter')
+    with ui.column().classes('kpi-card flex-1 shadow-sm'):
+        with ui.element('div').classes('p-3 bg-slate-50 rounded-xl mb-3 inline-block'):
+            ui.icon(icon, color='slate-900', size='20px')
+        ui.label(label).classes('text-[10px] font-black text-slate-400 tracking-widest')
+        ui.label(value).classes('text-2xl font-black text-slate-900 mt-1')
 
 @ui.refreshable
 def modal_content():
@@ -236,8 +250,7 @@ def modal_content():
     with ui.column().classes('p-16 gap-8 w-full'):
         ui.label(p['sku']).classes('text-xs font-black text-blue-500 tracking-widest')
         ui.label(p['translations'].get('it', {}).get('title', 'Prodotto')).classes('text-3xl font-black tracking-tighter')
-        ui.textarea('Descrizione', value=p['translations'].get('it', {}).get('description', '')).classes('w-full').props('outlined rounded-2xl')
-        ui.button('CHIUDI', on_click=app_logic.product_modal.close).classes('bg-slate-900 text-white rounded-xl px-12 py-4 font-black shadow-xl')
+        ui.button('CHIUDI', on_click=app_logic.product_modal.close).classes('bg-slate-900 text-white rounded-xl px-12 py-4 font-black')
 
 @ui.page('/')
 async def main_page():
