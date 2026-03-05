@@ -36,6 +36,5 @@ def get_db():
 def init_db():
     # Carichiamo i modelli qui per assicurarci che siano registrati nel Base
     import database.models
-    # Non creiamo le tabelle se esistono già (Plesk/Production)
-    # Base.metadata.create_all(bind=engine)
-    pass
+    # Crea le tabelle se non esistono
+    Base.metadata.create_all(bind=engine)
