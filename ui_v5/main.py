@@ -36,9 +36,10 @@ class PIMApp:
         
         endpoint = endpoint_map.get(page_name)
         if endpoint:
+            url = f"{BACKEND_URL}{endpoint}"
             try:
                 async with httpx.AsyncClient() as client:
-                    resp = await client.get(f"{BACKEND_URL}{endpoint}", timeout=15)
+                    resp = await client.get(url, timeout=15)
                     if resp.status_code == 200:
                         raw_data = resp.json()
                         if isinstance(raw_data, dict) and 'products' in raw_data:
@@ -47,8 +48,10 @@ class PIMApp:
                             self.data = raw_data
                         else:
                             self.data = []
+                    else:
+                        ui.notify(f"Backend Errore {resp.status_code} su {url}", type='warning')
             except Exception as e:
-                ui.notify(f"Errore caricamento: {str(e)}", type='negative')
+                ui.notify(f"Errore connessione a {url}: {str(e)}", type='negative')
                 self.data = []
         
         self.loading = False
@@ -86,11 +89,10 @@ def setup_styles():
                 height: 52px !important;
                 text-transform: none !important;
             }
-            .sidebar-btn.active { 
+            .sidebar-btn.active, .sidebar-btn.active .q-btn__content, .sidebar-btn.active .q-icon { 
                 background-color: #111827 !important; 
                 color: #FFFFFF !important; 
             }
-            .sidebar-btn.active .q-icon { color: #FFFFFF !important; }
             
             .group-label { 
                 font-size: 11px; font-weight: 800; color: #94A3B8; 
@@ -198,10 +200,9 @@ async def content_area():
                 ui.label('Dashboard di monitoraggio asset e prestazioni sistema').classes('text-slate-400 text-sm font-medium')
             
             with ui.row().classes('w-full gap-6'):
-                kpi_box('PRODOTTI IN MASTER', '3.840', 'inventory_2')
-                kpi_box('REPOSITORIES PDF', '14', 'folder_open')
-                kpi_box('AI JOBS PENDING', '3', 'auto_awesome')
-                kpi_box('STORAGE USED', '82%', 'storage')
+                kpi_box('ASSET RECUPERATI', str(len(app_logic.data)), 'inventory_2')
+                kpi_box('STATO SISTEMA', 'SYNCHED' if app_logic.data else 'OFFLINE', 'cloud_done')
+                kpi_box('AI ENGINE', 'CONNECTED', 'auto_awesome')
 
         # MEDICAL-STYLE LIST (The main list shared by Master ERP, Brands, Categories)
         with ui.column().classes('medical-table w-full shadow-sm'):
