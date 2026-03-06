@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
                     token.profileId = dbUser.profileId ?? undefined;
                     token.profileName = dbUser.profile?.name;
                     const perms = dbUser.profile?.permissions;
-                    token.permissions = Array.isArray(perms) ? perms : [];
+                    token.permissions = Array.isArray(perms) ? (perms as string[]) : [];
                 }
             }
             return token;

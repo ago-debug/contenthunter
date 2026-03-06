@@ -12,7 +12,8 @@ export async function GET(
         return NextResponse.json({ message: "Non autorizzato" }, { status: 403 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr, 10);
     if (Number.isNaN(id)) {
         return NextResponse.json({ message: "ID non valido" }, { status: 400 });
     }
@@ -46,7 +47,8 @@ export async function PUT(
         return NextResponse.json({ message: "Non autorizzato" }, { status: 403 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr, 10);
     if (Number.isNaN(id)) {
         return NextResponse.json({ message: "ID non valido" }, { status: 400 });
     }
@@ -98,7 +100,8 @@ export async function DELETE(
         return NextResponse.json({ message: "Non autorizzato" }, { status: 403 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr, 10);
     if (Number.isNaN(id)) {
         return NextResponse.json({ message: "ID non valido" }, { status: 400 });
     }

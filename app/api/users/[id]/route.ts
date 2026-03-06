@@ -11,7 +11,8 @@ export async function GET(
         return NextResponse.json({ message: "Non autorizzato" }, { status: 403 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr, 10);
     if (Number.isNaN(id)) {
         return NextResponse.json({ message: "ID non valido" }, { status: 400 });
     }
@@ -53,16 +54,17 @@ export async function PATCH(
         return NextResponse.json({ message: "Non autorizzato" }, { status: 403 });
     }
 
-    const id = parseInt(params.id, 10);
+    const { id: idStr } = await params;
+    const id = parseInt(idStr, 10);
     if (Number.isNaN(id)) {
         return NextResponse.json({ message: "ID non valido" }, { status: 400 });
     }
 
     try {
         const body = await req.json();
-        const { name, profileId } = body as { name?: string; profileId?: number | null };
+        const { name, profileId } = body as { name?: string; profileId?: number | string | null };
 
-        const data: { name?: string; profileId?: number | null } = {};
+        const data: { name?: string | null; profileId?: number | null } = {};
         if (name !== undefined) data.name = name?.trim() || null;
         if (profileId !== undefined) data.profileId = profileId === null || profileId === "" ? null : Number(profileId);
 
