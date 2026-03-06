@@ -31,6 +31,7 @@ export default function ErpTable() {
     const [isGeneratingAI, setIsGeneratingAI] = useState(false);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const [isBulkWorking, setIsBulkWorking] = useState(false);
     const [pdfSearchResults, setPdfSearchResults] = useState<any[]>([]);
     const [isSearchingPdf, setIsSearchingPdf] = useState(false);
     const [allTags, setAllTags] = useState<any[]>([]);
@@ -376,6 +377,68 @@ export default function ErpTable() {
             toast.error("Errore durante l'eliminazione massiva");
         } finally {
             setIsBulkDeleting(false);
+        }
+    };
+
+    const handleBulkNormalizeTitles = async () => {
+        if (selectedIds.length === 0) return;
+        if (!confirm(`Normalizzare i titoli di ${selectedIds.length} prodotti?`)) return;
+        setIsBulkWorking(true);
+        const toastId = toast.loading("Normalizzazione titoli in corso...");
+        try {
+            await axios.post("/api/products/bulk", { ids: selectedIds, action: "normalize_titles" });
+            toast.update(toastId, {
+                render: "Titoli normalizzati correttamente",
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+            fetchProducts();
+        } catch (err) {
+            toast.update(toastId, {
+                render: "Errore durante la normalizzazione titoli",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } finally {
+            setIsBulkWorking(false);
+        }
+    };
+
+    const handleBulkAddTitlePrefix = async () => {
+        if (selectedIds.length === 0) return;
+        const prefix = window.prompt("Inserisci il testo da aggiungere davanti al titolo:");
+        if (prefix === null) return;
+        const clean = prefix.trim();
+        if (!clean) {
+            toast.info("Nessun prefisso inserito.");
+            return;
+        }
+        setIsBulkWorking(true);
+        const toastId = toast.loading("Applicazione prefisso titoli in corso...");
+        try {
+            await axios.post("/api/products/bulk", {
+                ids: selectedIds,
+                action: "add_title_prefix",
+                prefix: clean
+            });
+            toast.update(toastId, {
+                render: "Prefisso applicato ai titoli selezionati",
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+            fetchProducts();
+        } catch (err) {
+            toast.update(toastId, {
+                render: "Errore durante l'applicazione del prefisso",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } finally {
+            setIsBulkWorking(false);
         }
     };
 
@@ -1683,18 +1746,28 @@ export default function ErpTable() {
                             </div>
                             <div className="flex items-center gap-4">
                                 <button
+                                    onClick={handleBulkNormalizeTitles}
+                                    disabled={isBulkWorking}
+                                    className="flex items-center gap-2 text-emerald-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    <Wand2 className={`w-4 h-4 ${isBulkWorking ? 'animate-spin' : ''}`} />
+                                    {isBulkWorking ? 'Elaborazione...' : 'Normalizza Titoli'}
+                                </button>
+                                <button
+                                    onClick={handleBulkAddTitlePrefix}
+                                    disabled={isBulkWorking}
+                                    className="flex items-center gap-2 text-amber-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Aggiungi Testo al Titolo
+                                </button>
+                                <button
                                     onClick={handleBulkDelete}
                                     disabled={isBulkDeleting}
                                     className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Trash2 className={`w-4 h-4 ${isBulkDeleting ? 'animate-spin' : ''}`} />
                                     {isBulkDeleting ? 'Eliminazione...' : 'Elimina Massa'}
-                                </button>
-                                <button
-                                    onClick={() => toast.info("Funzionalità Sync Woo disponibile a breve.")}
-                                    className="flex items-center gap-2 text-slate-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest"
-                                >
-                                    <RefreshCw className="w-4 h-4" /> Sync Woo
                                 </button>
                                 <button
                                     onClick={() => setSelectedIds([])}
