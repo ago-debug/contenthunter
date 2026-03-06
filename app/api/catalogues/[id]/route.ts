@@ -104,25 +104,38 @@ export async function PATCH(
         const { id: idParam } = await params;
         const id = parseInt(idParam);
         const body = await req.json();
-        const { searchSources } = body;
+        const { searchSources, name, imageFolderPath, status, lastListinoName } = body;
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        // Delete existing sources and recreate them for simplicity
-        await prisma.searchSource.deleteMany({
-            where: { catalogId: id }
-        });
+        const updateData: { name?: string; imageFolderPath?: string | null; status?: string; lastListinoName?: string | null } = {};
+        if (typeof name === "string") updateData.name = name.trim();
+        if (imageFolderPath !== undefined) updateData.imageFolderPath = imageFolderPath === "" ? null : String(imageFolderPath);
+        if (typeof status === "string" && ["draft", "processing", "staging", "completed"].includes(status)) updateData.status = status;
+        if (lastListinoName !== undefined) updateData.lastListinoName = lastListinoName === "" ? null : String(lastListinoName);
 
-        if (searchSources && Array.isArray(searchSources)) {
-            await prisma.searchSource.createMany({
-                data: searchSources.map((source: any) => ({
-                    catalogId: id,
-                    url: source.url,
-                    label: source.label || ''
-                }))
+        if (Object.keys(updateData).length > 0) {
+            await prisma.catalog.update({
+                where: { id },
+                data: updateData
             });
+        }
+
+        if (searchSources !== undefined) {
+            await prisma.searchSource.deleteMany({
+                where: { catalogId: id }
+            });
+            if (Array.isArray(searchSources) && searchSources.length > 0) {
+                await prisma.searchSource.createMany({
+                    data: searchSources.map((source: any) => ({
+                        catalogId: id,
+                        url: source.url,
+                        label: source.label || ''
+                    }))
+                });
+            }
         }
 
         const updated = await prisma.catalog.findUnique({

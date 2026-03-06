@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Database, FileText, LayoutGrid, List, Search, ArrowRight, HardDrive, Cpu, Package, Layers, Trash2, Plus, X, Check } from "lucide-react";
+import { Database, FileText, LayoutGrid, List, Search, ArrowRight, HardDrive, Cpu, Package, Layers, Trash2, Plus, X, Check, Settings } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Link from "next/link";
@@ -10,11 +10,14 @@ import Link from "next/link";
 interface Catalogue {
     id: number;
     name: string;
-    imageFolderPath?: string;
+    imageFolderPath?: string | null;
+    status?: string;
+    lastListinoName?: string | null;
     createdAt: string;
     pdfs: any[];
     _count: {
-        products: number;
+        entries?: number;
+        stagingProducts?: number;
     };
 }
 
@@ -28,6 +31,9 @@ export default function CataloguesPage() {
         imageFolderPath: "",
         pdfs: [""]
     });
+    const [settingsCatalog, setSettingsCatalog] = useState<Catalogue | null>(null);
+    const [settingsForm, setSettingsForm] = useState({ name: "", imageFolderPath: "", status: "draft", lastListinoName: "" });
+    const [isSavingSettings, setIsSavingSettings] = useState(false);
 
     const handleCreateRepo = async () => {
         if (!newRepo.name.trim()) {
@@ -72,6 +78,40 @@ export default function CataloguesPage() {
             setCatalogues(catalogues.filter(c => c.id !== id));
         } catch (err) {
             console.error("Delete error", err);
+        }
+    };
+
+    const openSettings = (c: Catalogue) => {
+        setSettingsCatalog(c);
+        setSettingsForm({
+            name: c.name,
+            imageFolderPath: c.imageFolderPath ?? "",
+            status: c.status ?? "draft",
+            lastListinoName: c.lastListinoName ?? ""
+        });
+    };
+
+    const handleSaveSettings = async () => {
+        if (!settingsCatalog) return;
+        if (!settingsForm.name.trim()) {
+            toast.error("Il nome del progetto è obbligatorio");
+            return;
+        }
+        setIsSavingSettings(true);
+        try {
+            await axios.patch(`/api/catalogues/${settingsCatalog.id}`, {
+                name: settingsForm.name.trim(),
+                imageFolderPath: settingsForm.imageFolderPath.trim() || null,
+                status: settingsForm.status,
+                lastListinoName: settingsForm.lastListinoName.trim() || null
+            });
+            toast.success("Impostazioni progetto salvate");
+            setSettingsCatalog(null);
+            fetchCatalogues();
+        } catch (err: any) {
+            toast.error("Errore nel salvataggio: " + (err.response?.data?.error ?? err.message));
+        } finally {
+            setIsSavingSettings(false);
         }
     };
 
@@ -231,6 +271,111 @@ export default function CataloguesPage() {
                 )}
             </AnimatePresence>
 
+            {/* Settings Modal */}
+            <AnimatePresence>
+                {settingsCatalog && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm"
+                        onClick={() => setSettingsCatalog(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, y: 20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.9, y: 20 }}
+                            className="w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-10 space-y-8">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-slate-900 rounded-xl">
+                                            <Settings className="w-6 h-6 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Impostazioni progetto</h3>
+                                            <p className="text-sm text-slate-400 font-bold uppercase tracking-widest mt-1">{settingsCatalog.name}</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setSettingsCatalog(null)} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
+                                        <X className="w-6 h-6 text-slate-400" />
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Nome progetto</label>
+                                        <input
+                                            value={settingsForm.name}
+                                            onChange={e => setSettingsForm({ ...settingsForm, name: e.target.value })}
+                                            placeholder="Es. Listino 2024"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Path cartella immagini</label>
+                                        <div className="relative">
+                                            <HardDrive className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                            <input
+                                                value={settingsForm.imageFolderPath}
+                                                onChange={e => setSettingsForm({ ...settingsForm, imageFolderPath: e.target.value })}
+                                                placeholder="/var/www/images/project_a"
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all font-mono"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Stato</label>
+                                        <select
+                                            value={settingsForm.status}
+                                            onChange={e => setSettingsForm({ ...settingsForm, status: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                                        >
+                                            <option value="draft">Bozza</option>
+                                            <option value="processing">In elaborazione</option>
+                                            <option value="staging">Staging</option>
+                                            <option value="completed">Completato</option>
+                                        </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Ultimo listino (opzionale)</label>
+                                        <input
+                                            value={settingsForm.lastListinoName}
+                                            onChange={e => setSettingsForm({ ...settingsForm, lastListinoName: e.target.value })}
+                                            placeholder="Nome file listino"
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="pt-6 flex gap-4">
+                                    <button
+                                        onClick={() => setSettingsCatalog(null)}
+                                        className="flex-1 px-8 py-4 bg-slate-50 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-100 transition-all"
+                                    >
+                                        Annulla
+                                    </button>
+                                    <button
+                                        onClick={handleSaveSettings}
+                                        disabled={isSavingSettings}
+                                        className="flex-[2] px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-2xl flex items-center justify-center gap-3 disabled:opacity-50"
+                                    >
+                                        {isSavingSettings ? (
+                                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <Check className="w-4 h-4" />
+                                        )}
+                                        Salva impostazioni
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Grid Visualization */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <AnimatePresence>
@@ -247,12 +392,21 @@ export default function CataloguesPage() {
                                     <div className="p-4 bg-gray-50 rounded-2xl group-hover:bg-[#E6D3C1]/20 transition-colors">
                                         <FileText className="w-8 h-8 text-gray-400 group-hover:text-[#8B735B]" />
                                     </div>
-                                    <button
-                                        onClick={() => handleDelete(catalogue.id)}
-                                        className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                                    >
-                                        <Trash2 className="w-5 h-5" />
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            onClick={() => openSettings(catalogue)}
+                                            className="p-3 text-gray-300 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-all"
+                                            title="Impostazioni progetto"
+                                        >
+                                            <Settings className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(catalogue.id)}
+                                            className="p-3 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-4 mb-10 flex-1">
@@ -262,7 +416,7 @@ export default function CataloguesPage() {
                                     <div className="flex flex-wrap gap-2">
                                         <div className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
                                             <Package className="w-3.5 h-3.5" />
-                                            {catalogue._count.products} Unità SKU
+                                            {catalogue._count?.entries ?? 0} Unità SKU
                                         </div>
                                         <div className="px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
                                             <Database className="w-3.5 h-3.5" />

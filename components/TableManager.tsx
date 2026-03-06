@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Search, RefreshCw, X } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -24,6 +25,8 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
     const [showModal, setShowModal] = useState(false);
     const [editingItem, setEditingItem] = useState<any>(null);
     const [formData, setFormData] = useState<any>({});
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -71,6 +74,22 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
         } catch (err) {
             console.error(err);
             toast.error("Errore nell'eliminazione");
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedIds.length === 0) return;
+        if (!confirm(`Eliminare ${selectedIds.length} elementi selezionati?`)) return;
+        setIsBulkDeleting(true);
+        try {
+            await axios.post(`${endpoint}/bulk`, { ids: selectedIds, action: "delete" });
+            toast.success(`${selectedIds.length} elementi eliminati`);
+            setSelectedIds([]);
+            fetchData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error ?? "Errore eliminazione massiva");
+        } finally {
+            setIsBulkDeleting(false);
         }
     };
 
@@ -123,6 +142,17 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                 <table className="w-full text-left">
                     <thead>
                         <tr className="bg-slate-50 border-b border-slate-100">
+                            <th className="px-4 py-3 w-10">
+                                <input
+                                    type="checkbox"
+                                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5 cursor-pointer"
+                                    checked={filteredData.length > 0 && selectedIds.length === filteredData.length}
+                                    onChange={(e) => {
+                                        if (e.target.checked) setSelectedIds(filteredData.map((i: any) => i.id));
+                                        else setSelectedIds([]);
+                                    }}
+                                />
+                            </th>
                             {fields.map((f) => (
                                 <th key={f.key} className="px-6 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                                     {f.label}
@@ -134,20 +164,31 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                     <tbody className="divide-y divide-slate-50">
                         {loading && data.length === 0 ? (
                             <tr>
-                                <td colSpan={fields.length + 1} className="px-6 py-12 text-center text-slate-300">
+                                <td colSpan={fields.length + 2} className="px-6 py-12 text-center text-slate-300">
                                     <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4" />
                                     <p className="font-bold uppercase tracking-widest text-[10px]">Caricamento dati...</p>
                                 </td>
                             </tr>
                         ) : filteredData.length === 0 ? (
                             <tr>
-                                <td colSpan={fields.length + 1} className="px-6 py-12 text-center text-slate-300">
+                                <td colSpan={fields.length + 2} className="px-6 py-12 text-center text-slate-300">
                                     <p className="font-bold uppercase tracking-widest text-[10px]">Nessun risultato trovato</p>
                                 </td>
                             </tr>
                         ) : (
                             filteredData.map((item) => (
-                                <tr key={item.id} className="hover:bg-slate-50/50 transition-all group">
+                                <tr key={item.id} className={`hover:bg-slate-50/50 transition-all group ${selectedIds.includes(item.id) ? "bg-slate-50/80" : ""}`}>
+                                    <td className="px-4 py-3">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded border-slate-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5 cursor-pointer"
+                                            checked={selectedIds.includes(item.id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) setSelectedIds([...selectedIds, item.id]);
+                                                else setSelectedIds(selectedIds.filter((id) => id !== item.id));
+                                            }}
+                                        />
+                                    </td>
                                     {fields.map((f) => (
                                         <td key={f.key} className="px-6 py-4 text-sm font-bold text-slate-600 max-w-[200px]">
                                             {f.type === "textarea" && item[f.key]
@@ -181,6 +222,35 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                     </tbody>
                 </table>
             </div>
+
+            <AnimatePresence>
+                {selectedIds.length > 0 && (
+                    <motion.div
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: 100, opacity: 0 }}
+                        className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-xl z-[80] flex items-center gap-6 border border-white/10"
+                    >
+                        <span className="text-xs font-black uppercase tracking-widest text-slate-400">
+                            {selectedIds.length} selezionati
+                        </span>
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting}
+                            className="flex items-center gap-2 text-red-400 hover:text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                        >
+                            <Trash2 className={`w-4 h-4 ${isBulkDeleting ? "animate-spin" : ""}`} />
+                            {isBulkDeleting ? "Eliminazione..." : "Elimina selezionati"}
+                        </button>
+                        <button
+                            onClick={() => setSelectedIds([])}
+                            className="px-4 py-2 bg-white/10 rounded-xl text-[10px] font-black uppercase hover:bg-white/20"
+                        >
+                            Annulla
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {showModal && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
