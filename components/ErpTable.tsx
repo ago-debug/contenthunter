@@ -13,10 +13,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
 import { SearchableSelect } from "./SearchableSelect";
 import { MultiSearchableSelect } from "./MultiSearchableSelect";
-import { useCatalog } from "./CatalogContext";
 
 export default function ErpTable() {
-    const { catalogId } = useCatalog();
     const [products, setProducts] = useState<any[]>([]);
     const [allCategories, setAllCategories] = useState<any[]>([]);
     const [projectName, setProjectName] = useState("Nessun progetto aperto");
@@ -115,11 +113,8 @@ export default function ErpTable() {
         fetchBrands();
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         if (savedProjectName) setProjectName(savedProjectName);
-    }, []);
-
-    useEffect(() => {
         fetchProducts();
-    }, [catalogId]);
+    }, []);
 
     const testWooConnection = async () => {
         setIsConnectingWoo(true);
@@ -387,9 +382,7 @@ export default function ErpTable() {
     const fetchProducts = async () => {
         setLoading(true);
         try {
-            const res = await axios.get("/api/products", {
-                params: catalogId != null && catalogId > 0 ? { catalogId } : {}
-            });
+            const res = await axios.get("/api/products");
             if (Array.isArray(res.data)) {
                 setProducts(res.data);
             } else {
@@ -411,8 +404,7 @@ export default function ErpTable() {
         setIsSaving(true);
         try {
             const payload = {
-                ...selectedProduct,
-                catalogId: selectedProduct.catalogId ?? catalogId ?? undefined
+                ...selectedProduct
             };
             await axios.post("/api/products", payload);
             toast.success("Prodotto aggiornato con successo");
