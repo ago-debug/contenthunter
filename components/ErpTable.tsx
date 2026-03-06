@@ -68,7 +68,7 @@ export default function ErpTable() {
         const resolvedSrc = typeof src === 'string' ? src : src?.url;
         return <img src={resolvedSrc} alt={alt} className={className} onError={() => setError(true)} />;
     };
-    const [brandFilter, setBrandFilter] = useState<string>("all");
+    const [brandFilter, setBrandFilter] = useState<string | number>("all");
     const [categoryFilter, setCategoryFilter] = useState<string | number>("all");
     const [subCategoryFilter, setSubCategoryFilter] = useState<string | number>("all");
     const [subSubCategoryFilter, setSubSubCategoryFilter] = useState<string | number>("all");
@@ -487,9 +487,8 @@ export default function ErpTable() {
     const filteredProducts = products.filter((p: any) => {
         const term = searchTerm.toLowerCase();
 
-        const matchesBrand = brandFilter === "all" || p.brand === brandFilter;
-        // Check for category matches by string or ID
-        const matchesCategory = categoryFilter === "all" || p.category === categoryFilter || p.categoryId === Number(categoryFilter);
+        const matchesBrand = brandFilter === "all" || p.brandId === Number(brandFilter) || (typeof brandFilter === "string" && p.brand === brandFilter);
+        const matchesCategory = categoryFilter === "all" || p.categoryId === Number(categoryFilter);
         const matchesSubCategory = subCategoryFilter === "all" || p.subCategoryId === Number(subCategoryFilter);
         const matchesSubSubCategory = subSubCategoryFilter === "all" || p.subSubCategoryId === Number(subSubCategoryFilter);
 
@@ -578,47 +577,46 @@ export default function ErpTable() {
                                 <SearchableSelect
                                     options={[
                                         { value: 'all', label: 'Tutti i Brand' },
-                                        ...allBrands.map(b => ({ value: b.name, label: b.name })),
-                                        ...uniqueBrands.filter(ub => !allBrands.some(ab => ab.name === ub)).map(b => ({ value: b, label: b }))
+                                        ...allBrands.map((b: { id: number; name: string }) => ({ value: b.id, label: b.name }))
                                     ]}
-                                    value={brandFilter}
-                                    onChange={(val) => setBrandFilter(String(val || 'all'))}
-                                    placeholder="Filter Brand..."
+                                    value={brandFilter === 'all' ? 'all' : Number(brandFilter)}
+                                    onChange={(val) => setBrandFilter(val ?? 'all')}
+                                    placeholder="Tutti i Brand"
                                     showSearch={false}
                                 />
                             </div>
                             <div className="w-[160px]">
                                 <SearchableSelect
-                                    options={[{ value: 'all', label: 'Tutte Categorie' }, ...allCategories.filter(c => !c.parentId).map(c => ({ value: c.id, label: c.name }))]}
+                                    options={[{ value: 'all', label: 'Tutte Categorie' }, ...allCategories.filter((c: any) => !c.parentId).map((c: any) => ({ value: c.id, label: c.name }))]}
                                     value={categoryFilter === 'all' ? 'all' : Number(categoryFilter)}
                                     onChange={(val) => {
-                                        setCategoryFilter(val || 'all');
+                                        setCategoryFilter(val ?? 'all');
                                         setSubCategoryFilter('all');
                                         setSubSubCategoryFilter('all');
                                     }}
-                                    placeholder="Root Category..."
+                                    placeholder="Tutte Categorie"
                                     showSearch={false}
                                 />
                             </div>
                             <div className="w-[160px]">
                                 <SearchableSelect
-                                    options={[{ value: 'all', label: 'Sub-Category' }, ...allCategories.filter(c => c.parentId === Number(categoryFilter)).map(c => ({ value: c.id, label: c.name }))]}
+                                    options={[{ value: 'all', label: 'Sub-Category' }, ...allCategories.filter((c: any) => c.parentId === Number(categoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
                                     value={subCategoryFilter === 'all' ? 'all' : Number(subCategoryFilter)}
                                     onChange={(val) => {
-                                        setSubCategoryFilter(val || 'all');
+                                        setSubCategoryFilter(val ?? 'all');
                                         setSubSubCategoryFilter('all');
                                     }}
-                                    placeholder="Sub-Category..."
+                                    placeholder="Sub-Category"
                                     showSearch={false}
                                     disabled={categoryFilter === 'all'}
                                 />
                             </div>
                             <div className="w-[160px]">
                                 <SearchableSelect
-                                    options={[{ value: 'all', label: 'Livello 3' }, ...allCategories.filter(c => c.parentId === Number(subCategoryFilter)).map(c => ({ value: c.id, label: c.name }))]}
+                                    options={[{ value: 'all', label: 'Livello 3' }, ...allCategories.filter((c: any) => c.parentId === Number(subCategoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
                                     value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
-                                    onChange={(val) => setSubSubCategoryFilter(val || 'all')}
-                                    placeholder="Deep Category..."
+                                    onChange={(val) => setSubSubCategoryFilter(val ?? 'all')}
+                                    placeholder="Livello 3"
                                     showSearch={false}
                                     disabled={subCategoryFilter === 'all'}
                                 />
