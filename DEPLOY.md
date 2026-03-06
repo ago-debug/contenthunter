@@ -75,12 +75,46 @@ PORT=3000 npm start
 
 Poi apri `http://localhost:3000` (o l’IP del server). Se qui funziona ma su Passenger no, il problema è nella configurazione Passenger/dominio (path, env, porta).
 
-## 7. Riepilogo checklist
+## 7. Permessi (spesso causa di "could not be started")
+
+Passenger avvia l’app con l’**utente del sito** (es. utente Plesk del dominio). Quell’utente deve **leggere** tutta l’app e **scrivere** in `.next/cache` e in `public/uploads` se li usi.
+
+**Da eseguire come root** (sostituisci `UTENTE_SITO` con l’utente del dominio, es. `contenthunter` o quello indicato in Plesk per il dominio; e `CARTELLA_APP` con il path, es. `/var/www/vhosts/contenthunter.abreve.it/httpdocs`):
+
+```bash
+# Proprietario: utente con cui gira Passenger (vedi in Plesk → dominio → impostazioni)
+chown -R UTENTE_SITO:UTENTE_SITO /var/www/vhosts/contenthunter.abreve.it/httpdocs
+
+# Lettura per tutti i file, esecuzione per directory (così Node può entrare e leggere)
+find /var/www/vhosts/contenthunter.abreve.it/httpdocs -type d -exec chmod 755 {} \;
+find /var/www/vhosts/contenthunter.abreve.it/httpdocs -type f -exec chmod 644 {} \;
+
+# Cartelle dove Next/Passenger devono scrivere: permesso scrittura
+chmod -R 775 /var/www/vhosts/contenthunter.abreve.it/httpdocs/.next
+chmod -R 775 /var/www/vhosts/contenthunter.abreve.it/httpdocs/public/uploads 2>/dev/null || true
+```
+
+**Come trovare UTENTE_SITO su Plesk:** Siti web e domini → il dominio → **Impostazioni hosting** (o **User & access**). L’utente del sito è quello associato al dominio. In alternativa controlla nei log di Passenger con quale user viene avviato il processo.
+
+Se hai fatto `npm run build` come **root**, `.next` e a volte `node_modules` sono di proprietà di root: Passenger (che gira come utente sito) non può leggerli. Per questo `chown -R UTENTE_SITO:UTENTE_SITO` risolve.
+
+**Script rapido (da eseguire come root):**
+
+```bash
+cd /var/www/vhosts/contenthunter.abreve.it/httpdocs
+export APP_USER=contenthunter   # sostituisci con l'utente reale del dominio
+export APP_DIR="$PWD"
+chmod +x scripts/fix-permissions.sh
+./scripts/fix-permissions.sh
+```
+
+## 8. Riepilogo checklist
 
 - [ ] `node -v` ≥ 18.17
 - [ ] `npm ci` eseguito
 - [ ] `npx prisma generate` eseguito **prima** di `next build` o subito dopo (lo fa già `npm run build`)
 - [ ] `npm run build` completato senza errori (cartella `.next` presente)
+- [ ] **Permessi**: `chown -R UTENTE_SITO:UTENTE_SITO` sulla cartella app (dopo build)
 - [ ] `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` impostate
 - [ ] Passenger punta alla stessa cartella dove hai eseguito build e prisma generate
 - [ ] Log Passenger controllati con l’Error ID per il messaggio esatto

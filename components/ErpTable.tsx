@@ -667,7 +667,7 @@ export default function ErpTable() {
                     <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 scrollbar-hide min-h-[40px] items-center">
                         <div className="w-[120px] sm:w-[140px] shrink-0">
                             <SearchableSelect
-                                options={[{ value: 'all', label: 'Tutti i Brand' }, ...allBrands.map((b: any) => ({ value: b.name, label: b.name }))]}
+                                options={[{ value: 'all', label: 'Tutti i Brand' }, ...allBrands.map((brand: any) => ({ value: brand.name, label: brand.name }))]}
                                 value={brandFilter}
                                 onChange={(val) => setBrandFilter((val as string) || 'all')}
                                 placeholder="Brand"
@@ -1360,7 +1360,7 @@ export default function ErpTable() {
                                                     <button
                                                         onClick={() => {
                                                             const currentBulletStr = selectedProduct.translations?.[editLang]?.bulletPoints || "";
-                                                            const currentBullets = currentBulletStr.split('\n').filter((b: string) => b.trim() !== "");
+                                                            const currentBullets = currentBulletStr.split('\n').filter((line: string) => line.trim() !== "");
                                                             currentBullets.push("- Nuovo Bullet");
                                                             const tt = { ...selectedProduct.translations };
                                                             if (!tt[editLang]) tt[editLang] = {};
@@ -1373,7 +1373,7 @@ export default function ErpTable() {
                                                     </button>
                                                 </div>
                                                 <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-                                                    {(selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "").map((bullet: string, idx: number) => {
+                                                    {(selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((line: string) => line.trim() !== "").map((bullet: string, idx: number) => {
                                                         const isKeyValue = bullet.includes(':');
                                                         const [title, value] = isKeyValue ? bullet.replace(/^-\s*/, '').split(':').map(s => s.trim()) : ['', bullet.replace(/^-\s*/, '')];
 
@@ -1398,7 +1398,7 @@ export default function ErpTable() {
                                                                             value={value}
                                                                             onChange={e => {
                                                                                 const val = e.target.value;
-                                                                                const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                                const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((line: string) => line.trim() !== "");
                                                                                 arr[idx] = `- ${title}: ${val}`;
                                                                                 const tt = { ...selectedProduct.translations };
                                                                                 if (!tt[editLang]) tt[editLang] = {};
@@ -1413,7 +1413,7 @@ export default function ErpTable() {
                                                                         value={value}
                                                                         onChange={e => {
                                                                             const val = e.target.value;
-                                                                            const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                            const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((line: string) => line.trim() !== "");
                                                                             arr[idx] = val ? `- ${val}` : "";
                                                                             const tt = { ...selectedProduct.translations };
                                                                             if (!tt[editLang]) tt[editLang] = {};
@@ -1428,7 +1428,7 @@ export default function ErpTable() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => {
-                                                                        const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((b: string) => b.trim() !== "");
+                                                                        const arr = (selectedProduct.translations?.[editLang]?.bulletPoints || "").split('\n').filter((line: string) => line.trim() !== "");
                                                                         arr.splice(idx, 1);
                                                                         const tt = { ...selectedProduct.translations };
                                                                         if (!tt[editLang]) tt[editLang] = {};
@@ -1766,31 +1766,31 @@ export default function ErpTable() {
                             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
                                 {!selectedBrandForEdit ? (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {allBrands.map((b: any) => (
+                                        {allBrands.map((brand: any) => (
                                             <div
-                                                key={b.id}
+                                                key={brand.id}
                                                 className="bg-gray-50 border border-gray-100 rounded-2xl p-5 flex items-center gap-4 hover:border-slate-200 transition-all"
                                             >
                                                 <div className="w-14 h-14 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                                                    {b.logoUrl ? (
-                                                        <img src={b.logoUrl} alt={b.name} className="w-full h-full object-contain" />
+                                                    {brand.logoUrl ? (
+                                                        <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-contain" />
                                                     ) : (
                                                         <Building2 className="w-7 h-7 text-gray-300" />
                                                     )}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="font-black text-gray-900 truncate">{b.name}</p>
+                                                    <p className="font-black text-gray-900 truncate">{brand.name}</p>
                                                     <p className="text-[11px] font-bold text-gray-500 mt-0.5">
-                                                        {b.productCount ?? 0} prodotti
+                                                        {brand.productCount ?? 0} prodotti
                                                     </p>
                                                 </div>
                                                 <button
                                                     onClick={() => {
-                                                        setSelectedBrandForEdit(b);
+                                                        setSelectedBrandForEdit(brand);
                                                         setBrandEditForm({
-                                                            aiContentGuidelines: b.aiContentGuidelines || "",
-                                                            producerDomain: b.producerDomain || "",
-                                                            logoUrl: b.logoUrl || ""
+                                                            aiContentGuidelines: brand.aiContentGuidelines || "",
+                                                            producerDomain: brand.producerDomain || "",
+                                                            logoUrl: brand.logoUrl || ""
                                                         });
                                                         setBrandLogoInputUrl("");
                                                     }}
@@ -1887,7 +1887,7 @@ export default function ErpTable() {
                                                             producerDomain: brandEditForm.producerDomain || null,
                                                             logoUrl: brandEditForm.logoUrl || null
                                                         });
-                                                        setAllBrands((prev: any[]) => prev.map((b: any) => b.id === selectedBrandForEdit.id ? { ...b, ...brandEditForm } : b)));
+                                                        setAllBrands((prev: any[]) => prev.map((brand: any) => brand.id === selectedBrandForEdit.id ? { ...brand, ...brandEditForm } : brand)));
                                                         setSelectedBrandForEdit((prev: any) => prev ? { ...prev, ...brandEditForm } : null);
                                                         toast.success("Impostazioni brand salvate");
                                                     } catch (err) {
@@ -2029,8 +2029,8 @@ export default function ErpTable() {
                                             {Array.from(new Set(products
                                                 .map(p => {
                                                     const bullets = (p.translations?.[editLang]?.bulletPoints || "").split('\n');
-                                                    const line = bullets.find((b: string) => b.includes(`${selectedAttributeKey}:`));
-                                                    return line ? line.split(':')[1].trim() : null;
+                                                    const bulletLine = bullets.find((ln: string) => ln.includes(`${selectedAttributeKey}:`));
+                                                    return bulletLine ? bulletLine.split(':')[1].trim() : null;
                                                 })
                                                 .filter(Boolean)
                                             )).map((val: any, i) => (
@@ -2077,8 +2077,8 @@ export default function ErpTable() {
                                                         .filter(p => (p.translations?.[editLang]?.bulletPoints || "").includes(`${selectedAttributeKey}:`))
                                                         .map((p: any) => {
                                                             const bullets = (p.translations?.[editLang]?.bulletPoints || "").split('\n');
-                                                            const line = bullets.find((b: string) => b.includes(`${selectedAttributeKey}:`));
-                                                            const val = line ? line.split(':')[1].trim() : '-';
+                                                            const bulletLine = bullets.find((ln: string) => ln.includes(`${selectedAttributeKey}:`));
+                                                            const val = bulletLine ? bulletLine.split(':')[1].trim() : '-';
                                                             return (
                                                                 <tr
                                                                     key={p.id}
