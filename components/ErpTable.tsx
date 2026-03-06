@@ -68,7 +68,7 @@ export default function ErpTable() {
         const resolvedSrc = typeof src === 'string' ? src : src?.url;
         return <img src={resolvedSrc} alt={alt} className={className} onError={() => setError(true)} />;
     };
-    const [brandFilter, setBrandFilter] = useState<string | number>("all");
+    const [brandFilter, setBrandFilter] = useState<string>("all");
     const [categoryFilter, setCategoryFilter] = useState<string | number>("all");
     const [subCategoryFilter, setSubCategoryFilter] = useState<string | number>("all");
     const [subSubCategoryFilter, setSubSubCategoryFilter] = useState<string | number>("all");
@@ -487,7 +487,7 @@ export default function ErpTable() {
     const filteredProducts = products.filter((p: any) => {
         const term = searchTerm.toLowerCase();
 
-        const matchesBrand = brandFilter === "all" || p.brandId === Number(brandFilter) || (typeof brandFilter === "string" && p.brand === brandFilter);
+        const matchesBrand = brandFilter === "all" || p.brand === brandFilter;
         const matchesCategory = categoryFilter === "all" || p.categoryId === Number(categoryFilter);
         const matchesSubCategory = subCategoryFilter === "all" || p.subCategoryId === Number(subCategoryFilter);
         const matchesSubSubCategory = subSubCategoryFilter === "all" || p.subSubCategoryId === Number(subSubCategoryFilter);
@@ -577,10 +577,10 @@ export default function ErpTable() {
                                 <SearchableSelect
                                     options={[
                                         { value: 'all', label: 'Tutti i Brand' },
-                                        ...allBrands.map((b: { id: number; name: string }) => ({ value: b.id, label: b.name }))
+                                        ...allBrands.map((b: any) => ({ value: b.name, label: b.name }))
                                     ]}
-                                    value={brandFilter === 'all' ? 'all' : Number(brandFilter)}
-                                    onChange={(val) => setBrandFilter(val ?? 'all')}
+                                    value={brandFilter}
+                                    onChange={(val) => setBrandFilter((val as string) || 'all')}
                                     placeholder="Tutti i Brand"
                                     showSearch={false}
                                 />
