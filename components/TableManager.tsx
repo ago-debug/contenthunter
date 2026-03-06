@@ -207,7 +207,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                                 <div key={f.key} className="space-y-2">
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
                                         {f.label}
-                                        {(f as any).required !== false && f.type !== "textarea" ? " *" : ""}
+                                        {f.required !== false && f.type !== "textarea" ? " *" : ""}
                                     </label>
                                     {f.type === "textarea" ? (
                                         <textarea
@@ -220,7 +220,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                                     ) : (
                                         <input
                                             type={f.type === "number" ? "number" : "text"}
-                                            required={f.type !== "textarea" && (f as any).required !== false}
+                                            required={f.required !== false}
                                             className="w-full h-12 bg-slate-50 border border-slate-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white transition-all"
                                             value={formData[f.key] || ""}
                                             onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
