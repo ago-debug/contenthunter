@@ -582,7 +582,7 @@ export default function ErpTable() {
                                     value={brandFilter}
                                     onChange={(val) => setBrandFilter((val as string) || 'all')}
                                     placeholder="Tutti i Brand"
-                                    showSearch={false}
+                                    showSearch={true}
                                 />
                             </div>
                             <div className="w-[160px]">
@@ -595,7 +595,7 @@ export default function ErpTable() {
                                         setSubSubCategoryFilter('all');
                                     }}
                                     placeholder="Tutte Categorie"
-                                    showSearch={false}
+                                    showSearch={true}
                                 />
                             </div>
                             <div className="w-[160px]">
@@ -607,7 +607,7 @@ export default function ErpTable() {
                                         setSubSubCategoryFilter('all');
                                     }}
                                     placeholder="Sub-Category"
-                                    showSearch={false}
+                                    showSearch={true}
                                     disabled={categoryFilter === 'all'}
                                 />
                             </div>
@@ -617,7 +617,7 @@ export default function ErpTable() {
                                     value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
                                     onChange={(val) => setSubSubCategoryFilter(val ?? 'all')}
                                     placeholder="Livello 3"
-                                    showSearch={false}
+                                    showSearch={true}
                                     disabled={subCategoryFilter === 'all'}
                                 />
                             </div>
@@ -681,7 +681,8 @@ export default function ErpTable() {
                                     <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Asset</th>
                                     <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Codice SKU</th>
                                     <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Denominazione</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Categoria</th>
+                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Brand</th>
+                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Categoria principale</th>
                                     <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Prezzo</th>
                                     <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-right">Azioni</th>
                                 </tr>
@@ -689,14 +690,14 @@ export default function ErpTable() {
                             <tbody className="divide-y divide-gray-50">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={7} className="px-8 py-12 text-center">
+                                        <td colSpan={8} className="px-8 py-12 text-center">
                                             <RefreshCw className="w-6 h-6 text-slate-400 animate-spin mx-auto" />
                                             <p className="mt-3 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">Caricamento Libreria...</p>
                                         </td>
                                     </tr>
                                 ) : filteredProducts.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-8 py-12 text-center">
+                                        <td colSpan={8} className="px-8 py-12 text-center">
                                             <Box className="w-10 h-10 text-gray-200 mx-auto mb-3" />
                                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Nessun prodotto trovato</p>
                                         </td>
@@ -734,7 +735,8 @@ export default function ErpTable() {
                                             </button>
                                             <div className="text-[10px] font-medium text-gray-400 line-clamp-1 max-w-md italic">{p.description}</div>
                                         </td>
-                                        <td className="px-4 py-2.5 text-[10px] font-bold text-gray-500 uppercase tracking-wide">{p.category || "-"}</td>
+                                        <td className="px-4 py-2.5 text-[11px] font-bold text-slate-700">{p.brand || "—"}</td>
+                                        <td className="px-4 py-2.5 text-[10px] font-bold text-gray-500 uppercase tracking-wide">{p.category || "—"}</td>
                                         <td className="px-4 py-2.5 font-black text-xs text-[#111827]">€ {parseFloat(p.price || "0").toLocaleString()}</td>
                                         <td className="px-4 py-2.5 text-right">
                                             <button
