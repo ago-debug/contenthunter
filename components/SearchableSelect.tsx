@@ -15,9 +15,19 @@ interface SearchableSelectProps {
     placeholder?: string;
     className?: string;
     disabled?: boolean;
+    showSearch?: boolean;
 }
 
-export function SearchableSelect({ options, value, onChange, onAddNew, placeholder = "Seleziona...", className = "", disabled = false }: SearchableSelectProps) {
+export function SearchableSelect({
+    options,
+    value,
+    onChange,
+    onAddNew,
+    placeholder = "Seleziona...",
+    className = "",
+    disabled = false,
+    showSearch = true
+}: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const ref = useRef<HTMLDivElement>(null);
@@ -34,10 +44,12 @@ export function SearchableSelect({ options, value, onChange, onAddNew, placehold
 
     const selectedOption = options.find(o => o.value === value);
 
-    const filteredOptions = options.filter(o =>
-        o.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.subLabel?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredOptions = showSearch
+        ? options.filter(o =>
+            o.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            o.subLabel?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        : options;
 
     return (
         <div className={`relative ${isOpen ? 'z-[200]' : 'z-0'} ${className}`} ref={ref}>
@@ -53,18 +65,20 @@ export function SearchableSelect({ options, value, onChange, onAddNew, placehold
 
             {isOpen && !disabled && (
                 <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl z-[200] overflow-hidden max-h-60 flex flex-col">
-                    <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-slate-50/50">
-                        <Search className="w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            className="w-full bg-transparent border-none focus:outline-none text-sm font-bold"
-                            placeholder="Cerca..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            autoFocus
-                        />
-                    </div>
+                    {showSearch && (
+                        <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-slate-50/50">
+                            <Search className="w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                className="w-full bg-transparent border-none focus:outline-none text-sm font-bold"
+                                placeholder="Cerca..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                            />
+                        </div>
+                    )}
                     <div className="overflow-y-auto custom-scrollbar flex-1">
                         <div
                             className="px-4 py-2 hover:bg-slate-50 cursor-pointer text-sm text-slate-400 italic font-bold"

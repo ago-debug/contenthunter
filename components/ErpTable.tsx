@@ -584,6 +584,7 @@ export default function ErpTable() {
                                     value={brandFilter}
                                     onChange={(val) => setBrandFilter(String(val || 'all'))}
                                     placeholder="Filter Brand..."
+                                    showSearch={false}
                                 />
                             </div>
                             <div className="w-[160px]">
@@ -596,6 +597,7 @@ export default function ErpTable() {
                                         setSubSubCategoryFilter('all');
                                     }}
                                     placeholder="Root Category..."
+                                    showSearch={false}
                                 />
                             </div>
                             <div className="w-[160px]">
@@ -607,6 +609,7 @@ export default function ErpTable() {
                                         setSubSubCategoryFilter('all');
                                     }}
                                     placeholder="Sub-Category..."
+                                    showSearch={false}
                                     disabled={categoryFilter === 'all'}
                                 />
                             </div>
@@ -616,6 +619,7 @@ export default function ErpTable() {
                                     value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
                                     onChange={(val) => setSubSubCategoryFilter(val || 'all')}
                                     placeholder="Deep Category..."
+                                    showSearch={false}
                                     disabled={subCategoryFilter === 'all'}
                                 />
                             </div>
