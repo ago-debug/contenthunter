@@ -243,7 +243,8 @@ model Brand {
   id                  Int       @id @default(autoincrement())
   name                String    @unique
   logoUrl             String?
-  aiContentGuidelines String?   @db.Text
+  aiContentGuidelines String?   @db.Text  // Tono per generazione descrizioni AI
+  producerDomain      String?   // Dominio produttore per cercare immagini e altri dati
   products            Product[]
   createdAt           DateTime  @default(now())
 }

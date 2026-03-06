@@ -58,7 +58,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     return (
         <aside
             className={`
-                w-60 bg-white border-r border-slate-200 h-screen flex flex-col px-4 py-8 overflow-y-auto custom-scrollbar shadow-sm
+                w-[85vw] max-w-[300px] lg:w-60 bg-white border-r border-slate-200 h-screen flex flex-col px-4 py-8 overflow-y-auto custom-scrollbar shadow-xl
                 fixed lg:sticky top-0 left-0 z-50 transform transition-transform duration-300 ease-out
                 ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
             `}

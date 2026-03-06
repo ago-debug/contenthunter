@@ -7,7 +7,8 @@ import {
     Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List,
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, RefreshCw, Languages, ShoppingCart, Box,
-    LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers
+    LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
+    Building2, ImagePlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
@@ -84,6 +85,12 @@ export default function ErpTable() {
     const [wooFields, setWooFields] = useState<string[]>([]);
     const [isConnectingWoo, setIsConnectingWoo] = useState(false);
     const [isPublishingWoo, setIsPublishingWoo] = useState(false);
+    const [showBrandsPanel, setShowBrandsPanel] = useState(false);
+    const [selectedBrandForEdit, setSelectedBrandForEdit] = useState<any | null>(null);
+    const [brandEditForm, setBrandEditForm] = useState({ aiContentGuidelines: "", producerDomain: "", logoUrl: "" });
+    const [brandLogoInputUrl, setBrandLogoInputUrl] = useState("");
+    const [isSavingBrand, setIsSavingBrand] = useState(false);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
     const fetchCategories = async () => {
         try {
@@ -596,127 +603,117 @@ export default function ErpTable() {
     );
 
     return (
-        <div className="flex flex-col h-[calc(100vh-80px)] bg-[#F4F5F7] overflow-hidden">
-            {/* Fixed Main Header Block */}
-            <div className="flex-none p-5 pb-0 relative z-[60] bg-[#F4F5F7]/95 backdrop-blur-md shadow-sm space-y-4">
-                <div className="flex flex-col xl:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-[#111827] rounded-lg shadow-lg rotate-3 group-hover:rotate-0 transition-transform">
-                            <Package className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none mb-1">PIM Master Library</h1>
-                            <div className="flex items-center gap-3">
-                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border ${projectName === 'Nessun progetto aperto' ? 'bg-red-50 border-red-100 text-red-500 animate-pulse' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
-                                    PROGETTO: {projectName}
-                                </span>
-                                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
-                                    <div className="w-1 h-1 bg-gray-300 rounded-full"></div> Master Records
-                                </span>
+        <div className="flex flex-col h-[calc(100vh-56px)] lg:h-[calc(100vh-80px)] bg-[#F4F5F7] overflow-hidden min-h-0">
+            {/* Fixed Main Header Block - responsive */}
+            <div className="flex-none p-3 sm:p-5 pb-0 relative z-[60] bg-[#F4F5F7]/95 backdrop-blur-md shadow-sm space-y-3 sm:space-y-4">
+                <div className="flex flex-col gap-3 sm:gap-4">
+                    {/* Riga titolo + progetto */}
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="p-1.5 sm:p-2 bg-[#111827] rounded-lg shadow-lg shrink-0">
+                                <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                             </div>
+                            <div className="min-w-0">
+                                <h1 className="text-base sm:text-xl font-black text-gray-900 tracking-tight leading-none mb-0.5 sm:mb-1 truncate">PIM Master Library</h1>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-[8px] sm:text-[9px] font-black px-1.5 py-0.5 rounded-full border truncate max-w-[140px] sm:max-w-none ${projectName === 'Nessun progetto aperto' ? 'bg-red-50 border-red-100 text-red-500 animate-pulse' : 'bg-orange-50 border-orange-100 text-orange-600'}`}>
+                                        PROGETTO: {projectName}
+                                    </span>
+                                    <span className="text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline-flex items-center gap-1">
+                                        <span className="w-1 h-1 bg-gray-300 rounded-full" /> Master Records
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <div className="text-center px-2 py-1 bg-white/80 rounded-lg border border-gray-100">
+                                <p className="text-[7px] sm:text-[8px] font-black text-gray-400 uppercase leading-none">DB</p>
+                                <p className="text-xs sm:text-sm font-black text-[#111827] leading-tight">{products.length}</p>
+                            </div>
+                            <div className="flex bg-[#F9FAFB] p-0.5 rounded-lg border border-gray-100">
+                                <button
+                                    onClick={() => setViewMode('table')}
+                                    className={`p-1.5 rounded-md ${viewMode === 'table' ? 'bg-white shadow text-[#111827]' : 'text-gray-400'}`}
+                                    aria-label="Tabella"
+                                >
+                                    <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('grid')}
+                                    className={`p-1.5 rounded-md ${viewMode === 'grid' ? 'bg-white shadow text-[#111827]' : 'text-gray-400'}`}
+                                    aria-label="Griglia"
+                                >
+                                    <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </button>
+                            </div>
+                            <button onClick={() => setShowBrandsPanel(true)} className="p-2 sm:p-2.5 bg-white border border-slate-200 rounded-xl shrink-0" aria-label="Brand"><Building2 className="w-4 h-4" /></button>
+                            <button onClick={() => setShowWooConfig(true)} className="p-2 sm:p-2.5 bg-[#111827] text-white rounded-xl shrink-0" aria-label="Setup"><Settings className="w-4 h-4" /></button>
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3 bg-white/70 backdrop-blur-xl p-1.5 rounded-2xl shadow-xl shadow-slate-200/20 border border-white">
-                        <div className="flex items-center gap-4 px-3 border-r border-gray-100/50">
-                            <div className="text-center">
-                                <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Database</p>
-                                <p className="text-sm font-black text-[#111827] leading-tight">{products.length}</p>
-                            </div>
-                        </div>
 
-                        <div className="relative group w-full sm:min-w-[300px] sm:w-auto flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-slate-900 transition-colors" />
-                            <input
-                                type="text"
-                                placeholder="Cerca SKU, Titolo, Brand..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-white/80 border border-transparent rounded-xl pl-10 pr-3 py-2.5 text-xs font-bold text-gray-900 focus:bg-white focus:border-slate-200 transition-all outline-none"
+                    {/* Ricerca full width su mobile */}
+                    <div className="relative w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Cerca SKU, Titolo, Brand..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-white border border-gray-200 rounded-xl pl-9 sm:pl-10 pr-3 py-2.5 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                        />
+                    </div>
+
+                    {/* Filtri: scroll orizzontale su mobile */}
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 scrollbar-hide min-h-[40px] items-center">
+                        <div className="w-[120px] sm:w-[140px] shrink-0">
+                            <SearchableSelect
+                                options={[{ value: 'all', label: 'Tutti i Brand' }, ...allBrands.map((b: any) => ({ value: b.name, label: b.name }))]}
+                                value={brandFilter}
+                                onChange={(val) => setBrandFilter((val as string) || 'all')}
+                                placeholder="Brand"
+                                showSearch={true}
                             />
                         </div>
-
-                        <div className="flex items-center gap-2 border-l border-gray-100 pl-2 overflow-x-auto max-w-full pb-1">
-                            <div className="w-[140px] shrink-0">
-                                <SearchableSelect
-                                    options={[
-                                        { value: 'all', label: 'Tutti i Brand' },
-                                        ...allBrands.map((b: any) => ({ value: b.name, label: b.name }))
-                                    ]}
-                                    value={brandFilter}
-                                    onChange={(val) => setBrandFilter((val as string) || 'all')}
-                                    placeholder="Tutti i Brand"
-                                    showSearch={true}
-                                />
-                            </div>
-                            <div className="w-[160px]">
-                                <SearchableSelect
-                                    options={[{ value: 'all', label: 'Tutte Categorie' }, ...allCategories.filter((c: any) => !c.parentId).map((c: any) => ({ value: c.id, label: c.name }))]}
-                                    value={categoryFilter === 'all' ? 'all' : Number(categoryFilter)}
-                                    onChange={(val) => {
-                                        setCategoryFilter(val ?? 'all');
-                                        setSubCategoryFilter('all');
-                                        setSubSubCategoryFilter('all');
-                                    }}
-                                    placeholder="Tutte Categorie"
-                                    showSearch={true}
-                                />
-                            </div>
-                            <div className="w-[160px]">
-                                <SearchableSelect
-                                    options={[{ value: 'all', label: 'Sub-Category' }, ...allCategories.filter((c: any) => c.parentId === Number(categoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
-                                    value={subCategoryFilter === 'all' ? 'all' : Number(subCategoryFilter)}
-                                    onChange={(val) => {
-                                        setSubCategoryFilter(val ?? 'all');
-                                        setSubSubCategoryFilter('all');
-                                    }}
-                                    placeholder="Sub-Category"
-                                    showSearch={true}
-                                    disabled={categoryFilter === 'all'}
-                                />
-                            </div>
-                            <div className="w-[160px]">
-                                <SearchableSelect
-                                    options={[{ value: 'all', label: 'Livello 3' }, ...allCategories.filter((c: any) => c.parentId === Number(subCategoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
-                                    value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
-                                    onChange={(val) => setSubSubCategoryFilter(val ?? 'all')}
-                                    placeholder="Livello 3"
-                                    showSearch={true}
-                                    disabled={subCategoryFilter === 'all'}
-                                />
-                            </div>
+                        <div className="w-[130px] sm:w-[160px] shrink-0">
+                            <SearchableSelect
+                                options={[{ value: 'all', label: 'Categorie' }, ...allCategories.filter((c: any) => !c.parentId).map((c: any) => ({ value: c.id, label: c.name }))]}
+                                value={categoryFilter === 'all' ? 'all' : Number(categoryFilter)}
+                                onChange={(val) => {
+                                    setCategoryFilter(val ?? 'all');
+                                    setSubCategoryFilter('all');
+                                    setSubSubCategoryFilter('all');
+                                }}
+                                placeholder="Categoria"
+                                showSearch={true}
+                            />
                         </div>
-
-                        <div className="flex shrink-0 bg-[#F9FAFB] p-1 rounded-xl border border-gray-100/50">
-                            <button
-                                onClick={() => setViewMode('table')}
-                                className={`p-1.5 rounded-lg transition-all ${viewMode === 'table' ? 'bg-white shadow-sm text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <List className="w-4 h-4" />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('grid')}
-                                className={`p-1.5 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-[#111827]' : 'text-gray-400 hover:text-gray-600'}`}
-                            >
-                                <LayoutGrid className="w-4 h-4" />
-                            </button>
+                        <div className="w-[120px] sm:w-[160px] shrink-0">
+                            <SearchableSelect
+                                options={[{ value: 'all', label: 'Sub' }, ...allCategories.filter((c: any) => c.parentId === Number(categoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
+                                value={subCategoryFilter === 'all' ? 'all' : Number(subCategoryFilter)}
+                                onChange={(val) => { setSubCategoryFilter(val ?? 'all'); setSubSubCategoryFilter('all'); }}
+                                placeholder="Sub"
+                                showSearch={true}
+                                disabled={categoryFilter === 'all'}
+                            />
                         </div>
-
-                        <button
-                            onClick={() => setShowWooConfig(true)}
-                            className="p-2.5 bg-[#111827] text-white rounded-xl hover:bg-black transition-all shadow-lg shadow-slate-900/10 flex items-center gap-2"
-                        >
-                            <Settings className="w-4 h-4" />
-                            <span className="hidden xl:inline text-[9px] font-black uppercase tracking-widest">Setup Integrazioni</span>
-                        </button>
+                        <div className="w-[110px] sm:w-[160px] shrink-0">
+                            <SearchableSelect
+                                options={[{ value: 'all', label: 'Lvl 3' }, ...allCategories.filter((c: any) => c.parentId === Number(subCategoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
+                                value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
+                                onChange={(val) => setSubSubCategoryFilter(val ?? 'all')}
+                                placeholder="Liv.3"
+                                showSearch={true}
+                                disabled={subCategoryFilter === 'all'}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Final part of the fixed block - Status Bar - Fused bottom */}
-                <div className="px-5 py-2.5 whitespace-nowrap bg-white/40 backdrop-blur-xl border border-gray-200/60 rounded-t-2xl flex justify-between items-center shadow-sm -mb-[1px]">
-                    <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"></div>
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">PIM Inventory Engine / Realtime Sync</span>
-                    </div>
+                {/* Status bar - compatto su mobile */}
+                <div className="px-3 sm:px-5 py-2 sm:py-2.5 bg-white/40 backdrop-blur-xl border border-gray-200/60 rounded-t-2xl flex items-center shadow-sm -mb-[1px]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse shrink-0" />
+                    <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-slate-500 truncate ml-2">PIM Inventory Engine</span>
                 </div>
             </div>
 
@@ -730,7 +727,7 @@ export default function ErpTable() {
                                 className="bg-[#F9FAFB] border-b border-gray-200 text-slate-400 sticky top-0 z-[55] shadow-sm transform-gpu"
                             >
                                 <tr>
-                                    <th className="px-4 py-3 w-8">
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 w-8">
                                         <input
                                             type="checkbox"
                                             className="rounded border-gray-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5 cursor-pointer"
@@ -741,13 +738,13 @@ export default function ErpTable() {
                                             }}
                                         />
                                     </th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Asset</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Codice SKU</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Denominazione</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Brand</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Categoria principale</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest">Prezzo</th>
-                                    <th className="px-4 py-3 text-[9px] font-black uppercase tracking-widest text-right">Azioni</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">Asset</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">SKU</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">Denominazione</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest hidden md:table-cell">Brand</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest hidden lg:table-cell">Categoria</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest">Prezzo</th>
+                                    <th className="px-2 sm:px-4 py-2 sm:py-3 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-right">Azioni</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -767,7 +764,7 @@ export default function ErpTable() {
                                     </tr>
                                 ) : filteredProducts.map((p: any) => (
                                     <tr key={p.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.includes(p.id) ? 'bg-slate-50/80' : ''}`}>
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5">
                                             <input
                                                 type="checkbox"
                                                 className="rounded border-gray-300 text-slate-900 focus:ring-slate-900 w-3.5 h-3.5"
@@ -778,33 +775,33 @@ export default function ErpTable() {
                                                 }}
                                             />
                                         </td>
-                                        <td className="px-4 py-2.5">
-                                            <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5">
+                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                                                 <CorporateImage src={p.images && p.images[0]?.url} alt={p.sku} className="w-full h-full object-contain" />
                                             </div>
                                         </td>
-                                        <td className="px-4 py-2.5">
-                                            <span className="font-mono text-[11px] font-black text-slate-700 bg-gray-100/80 px-2 py-1 rounded border border-gray-200/50">{p.sku}</span>
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5">
+                                            <span className="font-mono text-[10px] sm:text-[11px] font-black text-slate-700 bg-gray-100/80 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded border border-gray-200/50">{p.sku}</span>
                                             {p.ean && (
-                                                <div className="mt-1 text-[8px] font-bold text-gray-300 tracking-wider">EAN: {p.ean}</div>
+                                                <div className="mt-0.5 sm:mt-1 text-[7px] sm:text-[8px] font-bold text-gray-300 tracking-wider">EAN: {p.ean}</div>
                                             )}
                                         </td>
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5 min-w-[140px]">
                                             <button
                                                 onClick={() => setSelectedProduct(p)}
-                                                className="font-bold text-[13px] text-gray-900 hover:text-slate-600 transition-colors text-left block leading-tight mb-1"
+                                                className="font-bold text-[11px] sm:text-[13px] text-gray-900 hover:text-slate-600 transition-colors text-left block leading-tight mb-0.5 sm:mb-1 line-clamp-2 sm:line-clamp-none"
                                             >
                                                 {p.title || "Prodotto Senza Titolo"}
                                             </button>
-                                            <div className="text-[10px] font-medium text-gray-400 line-clamp-1 max-w-md italic">{p.description}</div>
+                                            <div className="text-[9px] sm:text-[10px] font-medium text-gray-400 line-clamp-1 max-w-[180px] sm:max-w-md italic">{p.description}</div>
                                         </td>
-                                        <td className="px-4 py-2.5 text-[11px] font-bold text-slate-700">{p.brand || "—"}</td>
-                                        <td className="px-4 py-2.5 text-[10px] font-bold text-gray-500 uppercase tracking-wide">{p.category || "—"}</td>
-                                        <td className="px-4 py-2.5 font-black text-xs text-[#111827]">€ {parseFloat(p.price || "0").toLocaleString()}</td>
-                                        <td className="px-4 py-2.5 text-right">
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-[11px] font-bold text-slate-700 hidden md:table-cell">{p.brand || "—"}</td>
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">{p.category || "—"}</td>
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5 font-black text-[10px] sm:text-xs text-[#111827] whitespace-nowrap">€ {parseFloat(p.price || "0").toLocaleString()}</td>
+                                        <td className="px-2 sm:px-4 py-2 sm:py-2.5 text-right">
                                             <button
                                                 onClick={() => setSelectedProduct(p)}
-                                                className="p-2 text-gray-400 hover:text-slate-900 hover:bg-gray-100 rounded-lg transition-all"
+                                                className="p-1.5 sm:p-2 text-gray-400 hover:text-slate-900 hover:bg-gray-100 rounded-lg transition-all touch-manipulation"
                                             >
                                                 <Edit className="w-3.5 h-3.5" />
                                             </button>
@@ -1729,7 +1726,196 @@ export default function ErpTable() {
                         </div>
                     )
                 }
-            </AnimatePresence >
+            </AnimatePresence>
+
+            {/* Brands Panel Modal */}
+            <AnimatePresence>
+                {showBrandsPanel && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => { setShowBrandsPanel(false); setSelectedBrandForEdit(null); }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                            onClick={e => e.stopPropagation()}
+                            className="relative bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
+                        >
+                            <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center shrink-0">
+                                <div>
+                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">
+                                        {selectedBrandForEdit ? `Impostazioni: ${selectedBrandForEdit.name}` : "Gestione Brand"}
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                        {selectedBrandForEdit ? "Tono AI, logo e dominio produttore" : "Logo, numero prodotti e impostazioni per brand"}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => { setShowBrandsPanel(false); setSelectedBrandForEdit(null); }}
+                                    className="p-3 bg-white border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all shadow-sm"
+                                >
+                                    <X className="w-5 h-5 text-gray-400" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                                {!selectedBrandForEdit ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {allBrands.map((b: any) => (
+                                            <div
+                                                key={b.id}
+                                                className="bg-gray-50 border border-gray-100 rounded-2xl p-5 flex items-center gap-4 hover:border-slate-200 transition-all"
+                                            >
+                                                <div className="w-14 h-14 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                    {b.logoUrl ? (
+                                                        <img src={b.logoUrl} alt={b.name} className="w-full h-full object-contain" />
+                                                    ) : (
+                                                        <Building2 className="w-7 h-7 text-gray-300" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-black text-gray-900 truncate">{b.name}</p>
+                                                    <p className="text-[11px] font-bold text-gray-500 mt-0.5">
+                                                        {b.productCount ?? 0} prodotti
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedBrandForEdit(b);
+                                                        setBrandEditForm({
+                                                            aiContentGuidelines: b.aiContentGuidelines || "",
+                                                            producerDomain: b.producerDomain || "",
+                                                            logoUrl: b.logoUrl || ""
+                                                        });
+                                                        setBrandLogoInputUrl("");
+                                                    }}
+                                                    className="p-2.5 bg-[#111827] text-white rounded-xl hover:bg-black transition-all shrink-0"
+                                                >
+                                                    <Settings className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        {allBrands.length === 0 && (
+                                            <p className="col-span-2 text-center text-gray-400 text-sm py-8">Nessun brand. Aggiungi brand dalla tabella Brands.</p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Logo brand</label>
+                                            <div className="flex flex-col sm:flex-row gap-4 items-start">
+                                                <div className="w-24 h-24 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
+                                                    {brandEditForm.logoUrl ? (
+                                                        <img src={brandEditForm.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                                                    ) : (
+                                                        <ImagePlus className="w-10 h-10 text-gray-300" />
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 w-full space-y-2">
+                                                    <input
+                                                        type="url"
+                                                        value={brandLogoInputUrl}
+                                                        onChange={e => setBrandLogoInputUrl(e.target.value)}
+                                                        placeholder="https://esempio.com/logo.png"
+                                                        className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        disabled={!brandLogoInputUrl.trim() || isUploadingLogo}
+                                                        onClick={async () => {
+                                                            if (!brandLogoInputUrl.trim() || !selectedBrandForEdit) return;
+                                                            setIsUploadingLogo(true);
+                                                            try {
+                                                                const res = await axios.post("/api/brands/upload-logo", {
+                                                                    imageUrl: brandLogoInputUrl.trim(),
+                                                                    brandId: selectedBrandForEdit.id
+                                                                });
+                                                                const localUrl = res.data.localUrl;
+                                                                setBrandEditForm(prev => ({ ...prev, logoUrl: localUrl }));
+                                                                setBrandLogoInputUrl("");
+                                                                await axios.put(`/api/brands/${selectedBrandForEdit.id}`, { logoUrl: localUrl });
+                                                                setSelectedBrandForEdit((prev: any) => prev ? { ...prev, logoUrl: localUrl } : null);
+                                                                setAllBrands((prev: any[]) => prev.map((b: any) => b.id === selectedBrandForEdit.id ? { ...b, logoUrl: localUrl } : b)));
+                                                                toast.success("Logo caricato");
+                                                            } catch (err) {
+                                                                toast.error("Errore caricamento logo");
+                                                            }
+                                                            setIsUploadingLogo(false);
+                                                        }}
+                                                        className="text-xs font-bold text-white bg-slate-700 hover:bg-slate-900 px-4 py-2 rounded-xl transition-all disabled:opacity-50 flex items-center gap-2"
+                                                    >
+                                                        {isUploadingLogo ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                                        Carica logo da URL
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Tono per generazione descrizioni AI</label>
+                                            <textarea
+                                                value={brandEditForm.aiContentGuidelines}
+                                                onChange={e => setBrandEditForm(prev => ({ ...prev, aiContentGuidelines: e.target.value }))}
+                                                placeholder="Es: stile tecnico e professionale, linguaggio B2B, tono sobrio..."
+                                                rows={4}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 resize-y"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Dominio produttore (per immagini e dati)</label>
+                                            <input
+                                                type="url"
+                                                value={brandEditForm.producerDomain}
+                                                onChange={e => setBrandEditForm(prev => ({ ...prev, producerDomain: e.target.value }))}
+                                                placeholder="https://www.marchio.it"
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                            />
+                                            <p className="text-[10px] text-gray-500 mt-1.5">Usato per cercare immagini e altri dati relativi al brand.</p>
+                                        </div>
+                                        <div className="flex gap-3 pt-2">
+                                            <button
+                                                onClick={async () => {
+                                                    if (!selectedBrandForEdit) return;
+                                                    setIsSavingBrand(true);
+                                                    try {
+                                                        await axios.put(`/api/brands/${selectedBrandForEdit.id}`, {
+                                                            aiContentGuidelines: brandEditForm.aiContentGuidelines || null,
+                                                            producerDomain: brandEditForm.producerDomain || null,
+                                                            logoUrl: brandEditForm.logoUrl || null
+                                                        });
+                                                        setAllBrands((prev: any[]) => prev.map((b: any) => b.id === selectedBrandForEdit.id ? { ...b, ...brandEditForm } : b)));
+                                                        setSelectedBrandForEdit((prev: any) => prev ? { ...prev, ...brandEditForm } : null);
+                                                        toast.success("Impostazioni brand salvate");
+                                                    } catch (err) {
+                                                        toast.error("Errore salvataggio");
+                                                    }
+                                                    setIsSavingBrand(false);
+                                                }}
+                                                disabled={isSavingBrand}
+                                                className="flex-1 py-4 bg-[#111827] text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                            >
+                                                {isSavingBrand ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                                Salva impostazioni
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedBrandForEdit(null)}
+                                                className="py-4 px-6 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                                            >
+                                                Indietro
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Bulk Action Bar */}
             <AnimatePresence>
                 {
