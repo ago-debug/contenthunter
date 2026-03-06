@@ -13,12 +13,16 @@ export async function GET() {
                 },
                 pdfs: true
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: "desc" }
         });
         return NextResponse.json(catalogues);
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Database error";
         console.error("Fetch catalogues error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json(
+            { error: message },
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
     }
 }
 
@@ -44,8 +48,12 @@ export async function POST(req: Request) {
             }
         });
         return NextResponse.json(catalog);
-    } catch (err: any) {
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Create catalog error";
         console.error("Create catalog error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json(
+            { error: message },
+            { status: 500, headers: { "Content-Type": "application/json" } }
+        );
     }
 }

@@ -1840,7 +1840,7 @@ export default function ErpTable() {
                                                                 setBrandLogoInputUrl("");
                                                                 await axios.put(`/api/brands/${selectedBrandForEdit.id}`, { logoUrl: localUrl });
                                                                 setSelectedBrandForEdit((prev: any) => prev ? { ...prev, logoUrl: localUrl } : null);
-                                                                setAllBrands((prev: any[]) => prev.map((b: any) => b.id === selectedBrandForEdit.id ? { ...b, logoUrl: localUrl } : b)));
+                                                                setAllBrands((prev: any[]) => prev.map((brand: any) => brand.id === selectedBrandForEdit.id ? { ...brand, logoUrl: localUrl } : brand)));
                                                                 toast.success("Logo caricato");
                                                             } catch (err) {
                                                                 toast.error("Errore caricamento logo");
