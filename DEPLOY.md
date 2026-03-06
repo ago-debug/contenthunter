@@ -104,7 +104,7 @@ Se hai fatto `npm run build` come **root**, `.next` e a volte `node_modules` son
 cd /var/www/vhosts/contenthunter.abreve.it/httpdocs
 export APP_USER=contenthunter   # sostituisci con l'utente reale del dominio
 export APP_DIR="$PWD"
-chmod +x scripts/fix-permissions.sh
+chmod +x scripts/fix-permissions.sh   # necessario la prima volta (Permission denied senza)
 ./scripts/fix-permissions.sh
 ```
 

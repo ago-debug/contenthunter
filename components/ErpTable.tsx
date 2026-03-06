@@ -92,6 +92,10 @@ export default function ErpTable() {
     const [isSavingBrand, setIsSavingBrand] = useState(false);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
+    const updateBrandInList = (brandId: number, patch: Record<string, any>) => {
+        setAllBrands(prev => prev.map(brand => brand.id === brandId ? { ...brand, ...patch } : brand));
+    };
+
     const fetchCategories = async () => {
         try {
             const res = await axios.get('/api/categories?all=true');
@@ -1840,10 +1844,7 @@ export default function ErpTable() {
                                                                 setBrandLogoInputUrl("");
                                                                 await axios.put(`/api/brands/${selectedBrandForEdit.id}`, { logoUrl: localUrl });
                                                                 setSelectedBrandForEdit((prev: any) => prev ? { ...prev, logoUrl: localUrl } : null);
-                                                                setAllBrands((prev: any[]) => prev.map((brand: any) => {
-                                                                    if (brand.id === selectedBrandForEdit.id) return { ...brand, logoUrl: localUrl };
-                                                                    return brand;
-                                                                })));
+                                                                updateBrandInList(selectedBrandForEdit.id, { logoUrl: localUrl });
                                                                 toast.success("Logo caricato");
                                                             } catch (err) {
                                                                 toast.error("Errore caricamento logo");
@@ -1890,10 +1891,7 @@ export default function ErpTable() {
                                                             producerDomain: brandEditForm.producerDomain || null,
                                                             logoUrl: brandEditForm.logoUrl || null
                                                         });
-                                                        setAllBrands((prev: any[]) => prev.map((brand: any) => {
-                                                        if (brand.id === selectedBrandForEdit.id) return { ...brand, ...brandEditForm };
-                                                        return brand;
-                                                    })));
+                                                        updateBrandInList(selectedBrandForEdit.id, brandEditForm);
                                                         setSelectedBrandForEdit((prev: any) => prev ? { ...prev, ...brandEditForm } : null);
                                                         toast.success("Impostazioni brand salvate");
                                                     } catch (err) {
