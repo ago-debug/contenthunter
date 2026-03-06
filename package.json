@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "db-push": "prisma db push",
-    "db-generate": "prisma generate"
+    "db-generate": "prisma generate",
+    "db-seed": "node prisma/seed.js"
   },
   "keywords": [],
   "author": "",

@@ -200,11 +200,23 @@ model PdfPage {
   @@index([catalogId])
 }
 
+model Profile {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  permissions Json     @default("[]") // array di stringhe es. ["products:read", "users:write"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   name      String?
   email     String   @unique
   password  String
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

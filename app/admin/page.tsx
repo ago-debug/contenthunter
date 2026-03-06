@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShieldCheck, Database, Trash2, RefreshCw, Layers, HardDrive, BarChart, Server } from "lucide-react";
+import Link from "next/link";
+import { ShieldCheck, Database, Trash2, RefreshCw, Layers, HardDrive, BarChart, Server, Users, UserCog } from "lucide-react";
 import { toast } from "react-toastify";
 import axios from "axios";
 
@@ -44,6 +45,36 @@ export default function AdminPage() {
                     <p className="text-slate-500 font-bold">Monitora l'infrastruttura, gestisci le tabelle del database e pulisci i dati di sessione.</p>
                 </div>
             </header>
+
+            <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100">
+                <h2 className="text-xl font-black text-slate-900 mb-6">Gestione utenti e permessi</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Link
+                        href="/admin/users"
+                        className="flex items-center gap-4 p-6 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all group"
+                    >
+                        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+                            <Users className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-900">Utenti</p>
+                            <p className="text-xs text-slate-500">Elenco utenti e assegnazione profilo</p>
+                        </div>
+                    </Link>
+                    <Link
+                        href="/admin/profiles"
+                        className="flex items-center gap-4 p-6 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all group"
+                    >
+                        <div className="w-14 h-14 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center group-hover:bg-violet-100 transition-colors">
+                            <UserCog className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-900">Profili</p>
+                            <p className="text-xs text-slate-500">Crea e modifica profili con permessi</p>
+                        </div>
+                    </Link>
+                </div>
+            </section>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {stats.map((s, idx) => (

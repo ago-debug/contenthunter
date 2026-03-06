@@ -30,10 +30,10 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
     return (
         <div className="flex min-h-screen">
-            {/* Backdrop mobile: copre tutto il contenuto quando il menu è aperto */}
+            {/* Backdrop mobile: z-index alto così sta sopra header e contenuti (sticky/modali) */}
             <div
                 aria-hidden="true"
-                className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 lg:hidden ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+                className={`fixed inset-0 bg-black/50 z-[9998] transition-opacity duration-300 lg:hidden ${sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
                 onClick={() => setSidebarOpen(false)}
             />
 
