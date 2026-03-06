@@ -1840,7 +1840,7 @@ export default function ErpTable() {
                                                                 setBrandLogoInputUrl("");
                                                                 await axios.put(`/api/brands/${selectedBrandForEdit.id}`, { logoUrl: localUrl });
                                                                 setSelectedBrandForEdit((prev: any) => prev ? { ...prev, logoUrl: localUrl } : null);
-                                                                setAllBrands((prev: any[]) => prev.map((brand: any) => brand.id === selectedBrandForEdit.id ? { ...brand, logoUrl: localUrl } : brand)));
+                                                                setAllBrands((prev: any[]) => prev.map((brand: any) => (brand.id === selectedBrandForEdit.id ? { ...brand, logoUrl: localUrl } : brand))));
                                                                 toast.success("Logo caricato");
                                                             } catch (err) {
                                                                 toast.error("Errore caricamento logo");
@@ -1887,7 +1887,7 @@ export default function ErpTable() {
                                                             producerDomain: brandEditForm.producerDomain || null,
                                                             logoUrl: brandEditForm.logoUrl || null
                                                         });
-                                                        setAllBrands((prev: any[]) => prev.map((brand: any) => brand.id === selectedBrandForEdit.id ? { ...brand, ...brandEditForm } : brand)));
+                                                        setAllBrands((prev: any[]) => prev.map((brand: any) => (brand.id === selectedBrandForEdit.id ? { ...brand, ...brandEditForm } : brand))));
                                                         setSelectedBrandForEdit((prev: any) => prev ? { ...prev, ...brandEditForm } : null);
                                                         toast.success("Impostazioni brand salvate");
                                                     } catch (err) {
