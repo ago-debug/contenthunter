@@ -3,12 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-    LayoutDashboard,
     Database,
     FileDown,
-    Calendar,
-    BarChart3,
-    History,
     Settings,
     ShieldCheck,
     Box,
@@ -16,10 +12,13 @@ import {
     Cpu,
     Layers,
     List,
-    Tag as TagIcon
+    Tag as TagIcon,
+    X
 } from "lucide-react";
 
-export default function Sidebar() {
+type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
+
+export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     const pathname = usePathname();
 
     const menuGroups = [
@@ -57,17 +56,31 @@ export default function Sidebar() {
     ];
 
     return (
-        <aside className="w-60 bg-white border-r border-slate-200 sticky top-0 h-screen flex flex-col px-4 py-8 overflow-y-auto custom-scrollbar shadow-sm">
-            <div className="flex items-center gap-3 mb-10 px-2">
+        <aside
+            className={`
+                w-60 bg-white border-r border-slate-200 h-screen flex flex-col px-4 py-8 overflow-y-auto custom-scrollbar shadow-sm
+                fixed lg:sticky top-0 left-0 z-50 transform transition-transform duration-300 ease-out
+                ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+            `}
+        >
+            <div className="flex items-center justify-between gap-3 mb-10 px-2">
                 <div className="w-10 h-10 rounded-xl bg-slate-900 flex items-center justify-center font-black text-white shadow-lg overflow-hidden shrink-0">
                     <span className="text-sm">CH</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                     <h1 className="text-lg font-black tracking-tight text-slate-900 leading-none">
                         Content<span className="text-slate-900">Hunter</span>
                     </h1>
                     <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-1">Enterprise PIM</p>
                 </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="lg:hidden p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors touch-manipulation -mr-1"
+                    aria-label="Chiudi menu"
+                >
+                    <X className="w-5 h-5" />
+                </button>
             </div>
 
             <nav className="flex-1 space-y-4">
@@ -84,7 +97,8 @@ export default function Sidebar() {
                                     <Link
                                         key={iIdx}
                                         href={item.href}
-                                        className={`flex items-center gap-3 px-3 py-1 rounded-xl font-bold text-xs transition-all group ${isActive
+                                        onClick={() => onClose?.()}
+                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-bold text-xs transition-all group touch-manipulation ${isActive
                                             ? 'bg-slate-100 text-slate-900 border border-slate-200'
                                             : 'text-slate-400 hover:bg-slate-50/50 hover:text-slate-600'
                                             }`}

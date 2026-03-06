@@ -2,21 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 
+// Tutti i campi presenti nella scheda prodotto (Master ERP)
 const EXPORT_FIELDS: { key: string; label: string }[] = [
     { key: "sku", label: "SKU" },
     { key: "ean", label: "EAN" },
     { key: "parentSku", label: "Parent SKU" },
-    { key: "title", label: "Titolo" },
-    { key: "docDescription", label: "Descrizione documento" },
-    { key: "category", label: "Categoria" },
-    { key: "price", label: "Prezzo" },
+    { key: "title", label: "Titolo prodotto" },
     { key: "brand", label: "Brand" },
-    { key: "dimensions", label: "Dimensioni" },
-    { key: "weight", label: "Peso" },
-    { key: "material", label: "Materiale" },
+    { key: "tags", label: "Tag" },
+    { key: "categoryName", label: "Categoria (livello 1)" },
+    { key: "subCategoryName", label: "Sub-categoria (livello 2)" },
+    { key: "subSubCategoryName", label: "Livello 3" },
+    { key: "price", label: "Prezzo listino (€)" },
+    { key: "weight", label: "Peso (kg)" },
+    { key: "status", label: "Status ERP" },
+    { key: "stock", label: "Quantità stock" },
+    { key: "images", label: "Immagini (link)" },
+    { key: "seoAiText", label: "Copywriting breve / SEO" },
+    { key: "description", label: "Descrizione lunga" },
+    { key: "docDescription", label: "Sorgente dati tecnici" },
     { key: "bulletPoints", label: "Punti elenco" },
-    { key: "description", label: "Descrizione" },
-    { key: "images", label: "Immagini" },
+    { key: "material", label: "Materiale" },
+    { key: "dimensions", label: "Dimensioni / Calibro" },
+    { key: "extraFields", label: "Altri attributi" },
 ];
 
 function buildWhere(filters: {
@@ -52,36 +60,51 @@ export async function GET() {
                 prices: { where: { listName: "default" } },
                 extraFields: true,
                 images: { select: { imageUrl: true } },
+                tags: { include: { tag: true } },
+                categoryRef: true,
+                subCategoryRef: true,
+                subSubCategoryRef: true,
             },
         });
 
         const data = products.map((p: any) => {
             const itText = p.texts?.[0] || {};
             const defPrice = p.prices?.[0] || {};
-            let dimensions = "",
-                weight = "",
-                material = "";
-            p.extraFields.forEach((ex: any) => {
+            const extra: Record<string, string> = {};
+            let dimensions = "", weight = "", material = "", status = "", stock = "";
+            (p.extraFields || []).forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
-                if (ex.key === "weight") weight = ex.value;
-                if (ex.key === "material") material = ex.value;
+                else if (ex.key === "weight") weight = ex.value;
+                else if (ex.key === "material") material = ex.value;
+                else if (ex.key === "status") status = ex.value;
+                else if (ex.key === "stock") stock = ex.value;
+                else extra[ex.key] = ex.value;
             });
-            const imageLinks = p.images.map((img: any) => img.imageUrl).filter(Boolean);
+            const extraFieldsStr = Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join("\n");
+            const imageLinks = (p.images || []).map((img: any) => img.imageUrl).filter(Boolean);
+            const tagNames = (p.tags || []).map((pt: any) => pt.tag?.name).filter(Boolean).join(", ");
             return {
                 SKU: p.sku,
                 EAN: p.ean || "",
                 "Parent SKU": p.parentSku || "",
-                Titolo: itText.title || "",
-                "Descrizione documento": itText.docDescription || "",
-                Categoria: p.category || "",
-                Prezzo: defPrice.price !== undefined ? String(defPrice.price) : "",
+                "Titolo prodotto": itText.title || "",
                 Brand: p.brand || "",
-                Dimensioni: dimensions,
-                Peso: weight,
-                Materiale: material,
+                Tag: tagNames,
+                "Categoria (livello 1)": p.categoryRef?.name || p.category || "",
+                "Sub-categoria (livello 2)": p.subCategoryRef?.name || "",
+                "Livello 3": p.subSubCategoryRef?.name || "",
+                "Prezzo listino (€)": defPrice.price !== undefined ? String(defPrice.price) : "",
+                "Peso (kg)": weight,
+                "Status ERP": status,
+                "Quantità stock": stock,
+                "Immagini (link)": imageLinks.join("\n"),
+                "Copywriting breve / SEO": itText.seoAiText || "",
+                "Descrizione lunga": itText.description || "",
+                "Sorgente dati tecnici": itText.docDescription || "",
                 "Punti elenco": itText.bulletPoints || "",
-                Descrizione: itText.description || "",
-                Immagini: imageLinks.join("\n"),
+                Materiale: material,
+                "Dimensioni / Calibro": dimensions,
+                "Altri attributi": extraFieldsStr,
             };
         });
 
@@ -128,6 +151,10 @@ export async function POST(req: NextRequest) {
                 prices: { where: { listName: "default" } },
                 extraFields: true,
                 images: { select: { imageUrl: true } },
+                tags: { include: { tag: true } },
+                categoryRef: true,
+                subCategoryRef: true,
+                subSubCategoryRef: true,
             },
             orderBy: { createdAt: "desc" },
         });
@@ -136,15 +163,32 @@ export async function POST(req: NextRequest) {
         const data = products.map((p: any) => {
             const itText = p.texts?.[0] || {};
             const defPrice = p.prices?.[0] || {};
+            const extra: Record<string, string> = {};
             let dimensions = "",
                 weight = "",
-                material = "";
-            p.extraFields.forEach((ex: any) => {
+                material = "",
+                status = "",
+                stock = "";
+            (p.extraFields || []).forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
-                if (ex.key === "weight") weight = ex.value;
-                if (ex.key === "material") material = ex.value;
+                else if (ex.key === "weight") weight = ex.value;
+                else if (ex.key === "material") material = ex.value;
+                else if (ex.key === "status") status = ex.value;
+                else if (ex.key === "stock") stock = ex.value;
+                else extra[ex.key] = ex.value;
             });
+            const extraFieldsStr = Object.entries(extra)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join("\n");
             const imageLinks = (p.images || []).map((img: any) => img.imageUrl).filter(Boolean);
+            const tagNames = (p.tags || [])
+                .map((pt: any) => pt.tag?.name)
+                .filter(Boolean)
+                .join(", ");
+            const categoryName = p.categoryRef?.name || p.category || "";
+            const subCategoryName = p.subCategoryRef?.name || "";
+            const subSubCategoryName = p.subSubCategoryRef?.name || "";
+
             const row: Record<string, string> = {};
             colOrder.forEach(({ key, label }) => {
                 switch (key) {
@@ -163,14 +207,23 @@ export async function POST(req: NextRequest) {
                     case "docDescription":
                         row[label] = itText.docDescription || "";
                         break;
-                    case "category":
-                        row[label] = p.category || "";
+                    case "categoryName":
+                        row[label] = categoryName;
+                        break;
+                    case "subCategoryName":
+                        row[label] = subCategoryName;
+                        break;
+                    case "subSubCategoryName":
+                        row[label] = subSubCategoryName;
                         break;
                     case "price":
                         row[label] = defPrice.price !== undefined ? String(defPrice.price) : "";
                         break;
                     case "brand":
                         row[label] = p.brand || "";
+                        break;
+                    case "tags":
+                        row[label] = tagNames;
                         break;
                     case "dimensions":
                         row[label] = dimensions;
@@ -181,14 +234,26 @@ export async function POST(req: NextRequest) {
                     case "material":
                         row[label] = material;
                         break;
+                    case "status":
+                        row[label] = status;
+                        break;
+                    case "stock":
+                        row[label] = stock;
+                        break;
                     case "bulletPoints":
                         row[label] = itText.bulletPoints || "";
                         break;
                     case "description":
                         row[label] = itText.description || "";
                         break;
+                    case "seoAiText":
+                        row[label] = itText.seoAiText || "";
+                        break;
                     case "images":
                         row[label] = imageLinks.join("\n");
+                        break;
+                    case "extraFields":
+                        row[label] = extraFieldsStr;
                         break;
                     default:
                         row[label] = "";
