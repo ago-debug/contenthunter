@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
     Database,
     FileDown,
@@ -13,6 +14,7 @@ import {
     Layers,
     List,
     Tag as TagIcon,
+    Building2,
     X
 } from "lucide-react";
 
@@ -20,6 +22,14 @@ type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
 
 export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const { data: session } = useSession();
+    const isGlobalAdmin = !!(session?.user as any)?.isGlobalAdmin;
+
+    const systemItems = [
+        { href: "/settings", label: "Settings", icon: Settings },
+        { href: "/admin", label: "Control Center", icon: ShieldCheck },
+        ...(isGlobalAdmin ? [{ href: "/admin/companies", label: "Gestione aziende", icon: Building2 }] : []),
+    ];
 
     const menuGroups = [
         {
@@ -48,10 +58,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         },
         {
             label: "System & AI",
-            items: [
-                { href: "/settings", label: "Settings", icon: Settings },
-                { href: "/admin", label: "Control Center", icon: ShieldCheck },
-            ]
+            items: systemItems,
         }
     ];
 

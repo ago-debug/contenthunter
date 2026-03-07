@@ -10,7 +10,8 @@
     "lint": "next lint",
     "db-push": "prisma db push",
     "db-generate": "prisma generate",
-    "db-seed": "node prisma/seed.js"
+    "db-seed": "node prisma/seed.js",
+    "reset-password": "node scripts/reset-password.js"
   },
   "keywords": [],
   "author": "",
