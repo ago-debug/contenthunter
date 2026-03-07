@@ -62,8 +62,8 @@ export async function POST(req: Request) {
             email?: string;
             password?: string;
             name?: string;
-            companyId?: number | null;
-            profileId?: number | null;
+            companyId?: number | string | null;
+            profileId?: number | string | null;
         };
 
         if (!email?.trim()) {
@@ -80,7 +80,8 @@ export async function POST(req: Request) {
 
         let effectiveCompanyId: number | null = null;
         if (session.user.isGlobalAdmin) {
-            effectiveCompanyId = companyId === undefined || companyId === "" ? null : Number(companyId);
+            const raw = companyId;
+            effectiveCompanyId = raw == null || raw === "" ? null : Number(raw);
         } else {
             effectiveCompanyId = session.user.companyId ?? null;
         }
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
                 password: hashedPassword,
                 name: name?.trim() || null,
                 companyId: effectiveCompanyId,
-                profileId: profileId === undefined || profileId === "" ? null : Number(profileId),
+                profileId: profileId == null || profileId === "" ? null : Number(profileId),
             },
             select: {
                 id: true,
