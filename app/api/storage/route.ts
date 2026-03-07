@@ -28,6 +28,14 @@ export async function GET(req: NextRequest) {
         }
 
         const data = await readFile(fullPath);
+        const magic = data.subarray(0, 4).toString("ascii");
+        if (magic !== "%PDF") {
+            console.error("Storage API: file is not a PDF (magic:", magic, ")", filePathParam);
+            return new NextResponse("Il file non è un PDF valido.", {
+                status: 422,
+                headers: { "Content-Type": "text/plain; charset=utf-8" }
+            });
+        }
 
         return new NextResponse(data, {
             headers: {

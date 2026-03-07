@@ -186,7 +186,11 @@ export default function ImportLab() {
             if (!res.ok) {
                 const text = await res.text();
                 console.warn("[PDF-LOAD] Server responded with", res.status, text?.slice(0, 100));
-                toast.error("PDF non trovato sul server (404). Carica il file da Gestione Cataloghi o verifica il path.");
+                if (res.status === 422) {
+                    toast.error("Il file sul server non è un PDF valido. Ricarica il PDF da Gestione Cataloghi.");
+                } else {
+                    toast.error("PDF non trovato sul server (404). Carica il file da Gestione Cataloghi o verifica il path.");
+                }
                 return;
             }
             const contentType = res.headers.get("content-type") || "";
