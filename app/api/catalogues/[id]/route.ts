@@ -23,6 +23,7 @@ export async function GET(
         const catalogue = await prisma.catalog.findFirst({
             where: { id, companyId },
             include: {
+                brandRef: true,
                 entries: {
                     include: {
                         product: {
@@ -115,17 +116,18 @@ export async function PATCH(
         const { id: idParam } = await params;
         const id = parseInt(idParam);
         const body = await req.json();
-        const { searchSources, name, imageFolderPath, status, lastListinoName, pdfs } = body;
+        const { searchSources, name, imageFolderPath, status, lastListinoName, pdfs, brandId } = body;
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        const updateData: { name?: string; imageFolderPath?: string | null; status?: string; lastListinoName?: string | null } = {};
+        const updateData: { name?: string; imageFolderPath?: string | null; status?: string; lastListinoName?: string | null; brandId?: number | null } = {};
         if (typeof name === "string") updateData.name = name.trim();
         if (imageFolderPath !== undefined) updateData.imageFolderPath = imageFolderPath === "" ? null : String(imageFolderPath);
         if (typeof status === "string" && ["draft", "processing", "staging", "completed"].includes(status)) updateData.status = status;
         if (lastListinoName !== undefined) updateData.lastListinoName = lastListinoName === "" ? null : String(lastListinoName);
+        if (brandId !== undefined) updateData.brandId = brandId === null || brandId === "" ? null : parseInt(String(brandId));
 
         if (Object.keys(updateData).length > 0) {
             await prisma.catalog.updateMany({
@@ -165,7 +167,7 @@ export async function PATCH(
 
         const updated = await prisma.catalog.findFirst({
             where: { id, companyId },
-            include: { searchSources: true, pdfs: true }
+            include: { searchSources: true, pdfs: true, brandRef: true }
         });
 
         return NextResponse.json(updated);

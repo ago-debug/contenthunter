@@ -13,6 +13,8 @@ interface Catalogue {
     imageFolderPath?: string | null;
     status?: string;
     lastListinoName?: string | null;
+    brandId?: number | null;
+    brandRef?: { id: number; name: string } | null;
     createdAt: string;
     pdfs: any[];
     _count: {
@@ -29,11 +31,16 @@ export default function CataloguesPage() {
     const [newRepo, setNewRepo] = useState({
         name: "",
         imageFolderPath: "",
-        pdfs: [""]
+        pdfs: [""],
+        brandId: "" as string | number
     });
     const [settingsCatalog, setSettingsCatalog] = useState<Catalogue | null>(null);
-    const [settingsForm, setSettingsForm] = useState({ name: "", imageFolderPath: "", status: "draft", lastListinoName: "" });
+    const [settingsForm, setSettingsForm] = useState({ name: "", imageFolderPath: "", status: "draft", lastListinoName: "", brandId: "" as string | number });
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
+    const [anteprimeCatalog, setAnteprimeCatalog] = useState<Catalogue | null>(null);
+    const [anteprimePages, setAnteprimePages] = useState<any[]>([]);
+    const [anteprimeZoomUrl, setAnteprimeZoomUrl] = useState<string | null>(null);
 
     const handleCreateRepo = async () => {
         if (!newRepo.name.trim()) {
@@ -45,11 +52,12 @@ export default function CataloguesPage() {
             const resp = await axios.post("/api/catalogues", {
                 name: newRepo.name,
                 imageFolderPath: newRepo.imageFolderPath,
-                pdfs: newRepo.pdfs.filter(p => p.trim() !== "")
+                pdfs: newRepo.pdfs.filter(p => p.trim() !== ""),
+                brandId: newRepo.brandId ? Number(newRepo.brandId) : null
             });
             toast.success("Repository creato con successo!");
             setIsCreateModalOpen(false);
-            setNewRepo({ name: "", imageFolderPath: "", pdfs: [""] });
+            setNewRepo({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" });
             fetchCatalogues();
         } catch (err: any) {
             toast.error("Errore durante la creazione: " + err.message);
@@ -67,9 +75,29 @@ export default function CataloguesPage() {
         }
     };
 
+    const fetchBrands = async () => {
+        try {
+            const r = await axios.get("/api/brands");
+            setBrands(Array.isArray(r.data) ? r.data : []);
+        } catch { setBrands([]); }
+    };
+
     useEffect(() => {
         fetchCatalogues();
+        fetchBrands();
     }, []);
+
+    const openAnteprime = async (c: Catalogue) => {
+        setAnteprimeCatalog(c);
+        setAnteprimePages([]);
+        setAnteprimeZoomUrl(null);
+        try {
+            const r = await axios.get(`/api/catalogues/${c.id}/pages`);
+            setAnteprimePages(Array.isArray(r.data) ? r.data : []);
+        } catch {
+            toast.error("Impossibile caricare le pagine. Smonta prima il PDF nel workspace.");
+        }
+    };
 
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure you want to purge this asset?")) return;
@@ -87,7 +115,8 @@ export default function CataloguesPage() {
             name: c.name,
             imageFolderPath: c.imageFolderPath ?? "",
             status: c.status ?? "draft",
-            lastListinoName: c.lastListinoName ?? ""
+            lastListinoName: c.lastListinoName ?? "",
+            brandId: c.brandId ?? ""
         });
     };
 
@@ -103,7 +132,8 @@ export default function CataloguesPage() {
                 name: settingsForm.name.trim(),
                 imageFolderPath: settingsForm.imageFolderPath.trim() || null,
                 status: settingsForm.status,
-                lastListinoName: settingsForm.lastListinoName.trim() || null
+                lastListinoName: settingsForm.lastListinoName.trim() || null,
+                brandId: settingsForm.brandId ? Number(settingsForm.brandId) : null
             });
             toast.success("Impostazioni progetto salvate");
             setSettingsCatalog(null);
@@ -205,6 +235,17 @@ export default function CataloguesPage() {
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-14 pr-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all font-mono"
                                             />
                                         </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Brand (per cartella immagini: nomeBrand/images)</label>
+                                        <select
+                                            value={newRepo.brandId}
+                                            onChange={e => setNewRepo({ ...newRepo, brandId: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                                        >
+                                            <option value="">Nessuno</option>
+                                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        </select>
                                     </div>
 
                                     <div className="space-y-4">
@@ -348,6 +389,17 @@ export default function CataloguesPage() {
                                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Brand (cartella export: nomeBrand/images)</label>
+                                        <select
+                                            value={settingsForm.brandId}
+                                            onChange={e => setSettingsForm({ ...settingsForm, brandId: e.target.value })}
+                                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
+                                        >
+                                            <option value="">Nessuno</option>
+                                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className="pt-6 flex gap-4">
@@ -425,18 +477,28 @@ export default function CataloguesPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-auto pt-6 border-t border-gray-50 flex items-center justify-between">
+                                <div className="mt-auto pt-6 border-t border-gray-50 flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Aggiunto il</span>
                                         <span className="text-xs font-bold text-gray-500">{new Date(catalogue.createdAt).toLocaleDateString()}</span>
                                     </div>
-                                    <Link
-                                        href={`/import?id=${catalogue.id}`}
-                                        className="px-6 py-2.5 bg-gray-50 text-gray-400 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#E6D3C1] hover:text-black transition-all flex items-center gap-2"
-                                    >
-                                        Apri Workspace
-                                        <ArrowRight className="w-4 h-4" />
-                                    </Link>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => openAnteprime(catalogue)}
+                                            className="px-4 py-2.5 bg-slate-100 text-slate-600 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-200 transition-all flex items-center gap-2"
+                                        >
+                                            <LayoutGrid className="w-4 h-4" />
+                                            Anteprime PDF
+                                        </button>
+                                        <Link
+                                            href={`/import?id=${catalogue.id}`}
+                                            className="px-6 py-2.5 bg-gray-50 text-gray-400 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-[#E6D3C1] hover:text-black transition-all flex items-center gap-2"
+                                        >
+                                            Apri Workspace
+                                            <ArrowRight className="w-4 h-4" />
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
                         </motion.div>
@@ -452,6 +514,81 @@ export default function CataloguesPage() {
                     </div>
                 )}
             </div>
+
+            {/* Modal Anteprime PDF: griglia + zoom */}
+            <AnimatePresence>
+                {anteprimeCatalog && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/70 backdrop-blur-sm"
+                        onClick={() => { setAnteprimeCatalog(null); setAnteprimeZoomUrl(null); }}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95 }}
+                            animate={{ scale: 1 }}
+                            exit={{ scale: 0.95 }}
+                            className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                                <h3 className="text-xl font-black text-slate-900">Anteprime PDF – {anteprimeCatalog.name}</h3>
+                                <button onClick={() => { setAnteprimeCatalog(null); setAnteprimeZoomUrl(null); }} className="p-2 hover:bg-slate-100 rounded-full">
+                                    <X className="w-5 h-5 text-slate-500" />
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6">
+                                {anteprimePages.length === 0 ? (
+                                    <p className="text-slate-500 text-center py-12">Nessuna pagina. Carica e smonta il PDF nel Workspace, poi sincronizza.</p>
+                                ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                                        {anteprimePages.map((page: any, idx: number) => {
+                                            const src = page.imageUrl?.startsWith("data:") || page.imageUrl?.startsWith("/") ? page.imageUrl : `/api/proxy-image?url=${encodeURIComponent(page.imageUrl)}`;
+                                            return (
+                                                <button
+                                                    key={page.id || idx}
+                                                    type="button"
+                                                    className="aspect-[3/4] rounded-2xl overflow-hidden border-2 border-slate-100 hover:border-slate-300 bg-slate-50 flex items-center justify-center"
+                                                    onClick={() => setAnteprimeZoomUrl(src)}
+                                                >
+                                                    <img src={src} alt={`Pagina ${page.pageNumber}`} className="w-full h-full object-contain" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Lightbox zoom singola immagine */}
+            <AnimatePresence>
+                {anteprimeZoomUrl && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 p-4"
+                        onClick={() => setAnteprimeZoomUrl(null)}
+                    >
+                        <img
+                            src={anteprimeZoomUrl}
+                            alt="Zoom"
+                            className="max-w-full max-h-full object-contain"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                            className="absolute top-4 right-4 p-2 bg-white/20 rounded-full hover:bg-white/30 text-white"
+                            onClick={() => setAnteprimeZoomUrl(null)}
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="flex justify-center items-center gap-12 pt-8 text-[10px] font-bold text-gray-300 uppercase tracking-widest">
                 <div className="flex items-center gap-2">

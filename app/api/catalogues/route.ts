@@ -19,7 +19,8 @@ export async function GET(req: Request) {
                     }
                 },
                 pdfs: true,
-                searchSources: true
+                searchSources: true,
+                brandRef: true
             },
             orderBy: { createdAt: "desc" }
         });
@@ -42,7 +43,7 @@ export async function POST(req: Request) {
     const { companyId } = ctx;
     try {
         const body = await req.json();
-        const { name, imageFolderPath, pdfs } = body;
+        const { name, imageFolderPath, pdfs, brandId } = body;
 
         const catalog = await prisma.catalog.create({
             data: {
@@ -50,6 +51,7 @@ export async function POST(req: Request) {
                 name: name || "Nuovo Progetto",
                 imageFolderPath: imageFolderPath || null,
                 status: "draft",
+                brandId: brandId != null && brandId !== "" ? parseInt(String(brandId)) : null,
                 pdfs: {
                     create: (pdfs || []).map((path: string) => ({
                         fileName: path.split('/').pop() || "catalogo.pdf",

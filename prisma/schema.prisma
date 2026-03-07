@@ -31,6 +31,10 @@ model Catalog {
   name          String
   createdAt     DateTime       @default(now())
   
+  // Catalogo associato a un brand (per cartella immagini: nomeBrand/images)
+  brandId       Int?
+  brandRef      Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  
   // Repository Settings
   imageFolderPath String?      @db.Text
   status          String       @default("draft") // draft, processing, staging, completed
@@ -47,6 +51,7 @@ model Catalog {
   lastListinoName String?      @db.Text
 
   @@index([companyId])
+  @@index([brandId])
   @@index([templateId], map: "Catalog_templateId_fkey")
 }
 
@@ -297,6 +302,7 @@ model Brand {
   aiContentGuidelines String?   @db.Text  // Tono per generazione descrizioni AI
   producerDomain      String?   // Dominio produttore per cercare immagini e altri dati
   products            Product[]
+  catalogs            Catalog[] // Cataloghi PDF associati al brand
   createdAt           DateTime  @default(now())
 
   @@unique([companyId, name])

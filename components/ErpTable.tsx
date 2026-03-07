@@ -46,6 +46,14 @@ export default function ErpTable() {
     const [attrLoading, setAttrLoading] = useState(false);
     const [aiRespectExisting, setAiRespectExisting] = useState(true);
     const [aiUseExistingAsModel, setAiUseExistingAsModel] = useState(true);
+    const [showCatalogCropModal, setShowCatalogCropModal] = useState(false);
+    const [catalogCropCatalogId, setCatalogCropCatalogId] = useState<number | null>(null);
+    const [catalogCropMatches, setCatalogCropMatches] = useState<any[]>([]);
+    const [catalogCropStep, setCatalogCropStep] = useState<'catalog' | 'page' | 'crop'>('catalog');
+    const [catalogCropPage, setCatalogCropPage] = useState<any | null>(null);
+    const [catalogCropImageUrl, setCatalogCropImageUrl] = useState<string | null>(null);
+    const [catalogCropBox, setCatalogCropBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+    const catalogCropImgRef = useRef<HTMLImageElement | null>(null);
 
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -100,11 +108,12 @@ export default function ErpTable() {
         imageFolderPath: "",
         status: "draft",
         lastListinoName: "",
-        pdfs: [] as string[]
+        pdfs: [] as string[],
+        brandId: "" as number | string
     });
     const [isSavingCatalogue, setIsSavingCatalogue] = useState(false);
     const [isCreatingCatalogue, setIsCreatingCatalogue] = useState(false);
-    const [newCatalogueForm, setNewCatalogueForm] = useState({ name: "", imageFolderPath: "", pdfs: [""] });
+    const [newCatalogueForm, setNewCatalogueForm] = useState({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" as string | number });
     const [showNewCatalogueForm, setShowNewCatalogueForm] = useState(false);
 
     const updateBrandInList = (brandId: number, patch: Record<string, any>) => {
@@ -1226,10 +1235,20 @@ export default function ErpTable() {
 
                                 {activeTab === 'images' && (
                                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
                                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 mb-6 flex items-center gap-2">
                                                 <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Digital Asset Management
                                             </h4>
+                                            <div className="mb-4 flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setShowCatalogCropModal(true); setCatalogCropStep('catalog'); setCatalogCropCatalogId(null); setCatalogCropMatches([]); setCatalogCropPage(null); setCatalogCropImageUrl(null); setCatalogCropBox(null); }}
+                                                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 flex items-center gap-2"
+                                                >
+                                                    <Scissors className="w-4 h-4" />
+                                                    Seleziona da catalogo (crop)
+                                                </button>
+                                            </div>
                                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 {selectedProduct.images && selectedProduct.images.length > 0 ? (
                                                     selectedProduct.images.map((img: any, i: number) => (
@@ -2093,6 +2112,13 @@ export default function ErpTable() {
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">PDF (path)</label>
                                                 <button type="button" onClick={() => setNewCatalogueForm(prev => ({ ...prev, pdfs: [...prev.pdfs, ""] }))} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900">+ Aggiungi PDF</button>
                                             </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">Brand</label>
+                                                <select value={newCatalogueForm.brandId} onChange={e => setNewCatalogueForm(prev => ({ ...prev, brandId: e.target.value }))} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm">
+                                                    <option value="">Nessuno</option>
+                                                    {(allBrands || []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                                </select>
+                                            </div>
                                             <div className="space-y-2 max-h-32 overflow-y-auto">
                                                 {newCatalogueForm.pdfs.map((path, idx) => (
                                                     <div key={idx} className="flex gap-2">
@@ -2117,10 +2143,11 @@ export default function ErpTable() {
                                                         await axios.post("/api/catalogues", {
                                                             name: newCatalogueForm.name.trim(),
                                                             imageFolderPath: newCatalogueForm.imageFolderPath.trim() || undefined,
-                                                            pdfs: newCatalogueForm.pdfs.filter(p => p.trim() !== "")
+                                                            pdfs: newCatalogueForm.pdfs.filter(p => p.trim() !== ""),
+                                                            brandId: newCatalogueForm.brandId ? Number(newCatalogueForm.brandId) : null
                                                         });
                                                         toast.success("Catalogo creato");
-                                                        setNewCatalogueForm({ name: "", imageFolderPath: "", pdfs: [""] });
+                                                        setNewCatalogueForm({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" });
                                                         setShowNewCatalogueForm(false);
                                                         fetchCatalogues();
                                                     } catch (err: any) {
@@ -2180,6 +2207,17 @@ export default function ErpTable() {
                                             />
                                         </div>
                                         <div>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Brand (cartella export: nomeBrand/images)</label>
+                                            <select
+                                                value={catalogueEditForm.brandId}
+                                                onChange={e => setCatalogueEditForm(prev => ({ ...prev, brandId: e.target.value }))}
+                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
+                                            >
+                                                <option value="">Nessuno</option>
+                                                {(allBrands || []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
                                             <div className="flex items-center justify-between mb-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">PDF (path) – aggiungi o rimuovi</label>
                                                 <button type="button" onClick={() => setCatalogueEditForm(prev => ({ ...prev, pdfs: [...prev.pdfs, ""] }))} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900">+ Aggiungi PDF</button>
@@ -2211,7 +2249,8 @@ export default function ErpTable() {
                                                             imageFolderPath: catalogueEditForm.imageFolderPath.trim() || null,
                                                             status: catalogueEditForm.status,
                                                             lastListinoName: catalogueEditForm.lastListinoName.trim() || null,
-                                                            pdfs: catalogueEditForm.pdfs.filter(p => p.trim() !== "")
+                                                            pdfs: catalogueEditForm.pdfs.filter(p => p.trim() !== ""),
+                                                            brandId: catalogueEditForm.brandId ? Number(catalogueEditForm.brandId) : null
                                                         });
                                                         toast.success("Catalogo aggiornato");
                                                         setSelectedCatalogueForEdit(null);
@@ -2260,7 +2299,8 @@ export default function ErpTable() {
                                                                 imageFolderPath: cat.imageFolderPath || "",
                                                                 status: cat.status || "draft",
                                                                 lastListinoName: cat.lastListinoName || "",
-                                                                pdfs: (cat.pdfs || []).map((p: any) => p.filePath || p.fileName || "")
+                                                                pdfs: (cat.pdfs || []).map((p: any) => p.filePath || p.fileName || ""),
+                                                                brandId: cat.brandId ?? ""
                                                             });
                                                         }}
                                                         className="p-2.5 bg-[#111827] text-white rounded-xl hover:bg-black transition-all shrink-0"
@@ -2278,6 +2318,163 @@ export default function ErpTable() {
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal Seleziona da catalogo (crop) */}
+            <AnimatePresence>
+                {showCatalogCropModal && selectedProduct && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowCatalogCropModal(false)}>
+                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                            <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+                                <h3 className="text-lg font-black text-slate-900">Seleziona da catalogo – {selectedProduct.sku}</h3>
+                                <button onClick={() => setShowCatalogCropModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-6">
+                                {catalogCropStep === 'catalog' && (
+                                    <div className="space-y-4">
+                                        <label className="text-[10px] font-black uppercase text-slate-600 block">Scegli catalogo</label>
+                                        <select
+                                            value={catalogCropCatalogId ?? ""}
+                                            onChange={e => { const v = e.target.value; setCatalogCropCatalogId(v ? parseInt(v) : null); }}
+                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
+                                        >
+                                            <option value="">-- Seleziona --</option>
+                                            {(catalogues || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                        <button
+                                            disabled={!catalogCropCatalogId}
+                                            onClick={async () => {
+                                                if (!catalogCropCatalogId) return;
+                                                try {
+                                                    const r = await axios.get(`/api/catalogues/${catalogCropCatalogId}/page-matches`);
+                                                    const list = Array.isArray(r.data) ? r.data : [];
+                                                    const forProduct = list.filter((p: any) => (p.matchedProducts || []).some((m: any) => m.productId === selectedProduct.id));
+                                                    setCatalogCropMatches(forProduct);
+                                                    setCatalogCropStep('page');
+                                                } catch { toast.error("Errore caricamento pagine"); }
+                                            }}
+                                            className="px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase disabled:opacity-50"
+                                        >
+                                            Carica pagine associate
+                                        </button>
+                                    </div>
+                                )}
+                                {catalogCropStep === 'page' && (
+                                    <div className="space-y-4">
+                                        <button onClick={() => { setCatalogCropStep('catalog'); setCatalogCropMatches([]); }} className="text-[10px] font-black uppercase text-slate-500 hover:text-slate-700">← Cambia catalogo</button>
+                                        <p className="text-[10px] font-black uppercase text-slate-600">Pagine con SKU/EAN di questo prodotto ({catalogCropMatches.length})</p>
+                                        {catalogCropMatches.length === 0 ? (
+                                            <p className="text-gray-500 py-6">Nessuna pagina trovata. Assicurati che il prodotto sia nel catalogo e che le pagine siano state sincronizzate.</p>
+                                        ) : (
+                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                                                {catalogCropMatches.map((page: any, idx: number) => {
+                                                    const src = page.imageUrl?.startsWith("data:") || page.imageUrl?.startsWith("/") ? page.imageUrl : page.imageUrl;
+                                                    return (
+                                                        <button
+                                                            key={page.pageId || idx}
+                                                            type="button"
+                                                            className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-gray-200 hover:border-slate-900 bg-gray-50"
+                                                            onClick={() => { setCatalogCropPage(page); setCatalogCropImageUrl(page.imageUrl); setCatalogCropStep('crop'); setCatalogCropBox(null); }}
+                                                        >
+                                                            <img src={src} alt={`Pagina ${page.pageNumber}`} className="w-full h-full object-contain" />
+                                                            <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded">Pg {page.pageNumber}</span>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {catalogCropStep === 'crop' && catalogCropImageUrl && (
+                                    <div className="space-y-4">
+                                        <button onClick={() => { setCatalogCropStep('page'); setCatalogCropPage(null); setCatalogCropImageUrl(null); }} className="text-[10px] font-black uppercase text-slate-500 hover:text-slate-700">← Scegli altra pagina</button>
+                                        <p className="text-[10px] font-black uppercase text-slate-600">Seleziona l’area da usare come immagine prodotto (trascina sul riquadro). Oppure usa l’immagine intera.</p>
+                                        <div
+                                            className="relative inline-block max-w-full bg-gray-100 rounded-xl overflow-hidden cursor-crosshair"
+                                            style={{ maxHeight: "60vh" }}
+                                            onMouseDown={(e) => {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const x = (e.clientX - rect.left) / rect.width;
+                                                const y = (e.clientY - rect.top) / rect.height;
+                                                setCatalogCropBox({ x, y, width: 0, height: 0 });
+                                            }}
+                                            onMouseMove={(e) => {
+                                                if (!catalogCropBox || e.buttons !== 1) return;
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const x = (e.clientX - rect.left) / rect.width;
+                                                const y = (e.clientY - rect.top) / rect.height;
+                                                const x0 = catalogCropBox.x;
+                                                const y0 = catalogCropBox.y;
+                                                setCatalogCropBox({ x: Math.min(x0, x), y: Math.min(y0, y), width: Math.abs(x - x0), height: Math.abs(y - y0) });
+                                            }}
+                                            onMouseUp={() => {}}
+                                            onMouseLeave={() => {}}
+                                        >
+                                            <img
+                                                ref={el => { catalogCropImgRef.current = el ?? null; }}
+                                                src={catalogCropImageUrl}
+                                                alt="Crop"
+                                                className="max-w-full max-h-[60vh] object-contain block select-none pointer-events-none"
+                                                draggable={false}
+                                                onLoad={() => setCatalogCropBox(null)}
+                                            />
+                                            {catalogCropBox && catalogCropBox.width > 0 && catalogCropBox.height > 0 && (
+                                                <div
+                                                    className="absolute border-2 border-slate-900 bg-slate-900/20 pointer-events-none"
+                                                    style={{
+                                                        left: `${catalogCropBox.x * 100}%`,
+                                                        top: `${catalogCropBox.y * 100}%`,
+                                                        width: `${catalogCropBox.width * 100}%`,
+                                                        height: `${catalogCropBox.height * 100}%`
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                        <div className="flex gap-3">
+                                            <button onClick={() => setCatalogCropBox(null)} className="px-4 py-2 bg-gray-100 rounded-xl font-bold text-xs">Reimposta selezione</button>
+                                            <button
+                                                onClick={async () => {
+                                                    const img = catalogCropImgRef.current;
+                                                    if (!img || !selectedProduct?.id) return;
+                                                    let dataUrl: string;
+                                                    if (catalogCropBox && catalogCropBox.width > 0.02 && catalogCropBox.height > 0.02) {
+                                                        const c = document.createElement("canvas");
+                                                        c.width = img.naturalWidth * catalogCropBox.width;
+                                                        c.height = img.naturalHeight * catalogCropBox.height;
+                                                        const ctx = c.getContext("2d");
+                                                        if (!ctx) return;
+                                                        ctx.drawImage(img, img.naturalWidth * catalogCropBox.x, img.naturalHeight * catalogCropBox.y, img.naturalWidth * catalogCropBox.width, img.naturalHeight * catalogCropBox.height, 0, 0, c.width, c.height);
+                                                        dataUrl = c.toDataURL("image/jpeg", 0.92);
+                                                    } else {
+                                                        const c = document.createElement("canvas");
+                                                        c.width = img.naturalWidth;
+                                                        c.height = img.naturalHeight;
+                                                        const ctx = c.getContext("2d");
+                                                        if (!ctx) return;
+                                                        ctx.drawImage(img, 0, 0);
+                                                        dataUrl = c.toDataURL("image/jpeg", 0.92);
+                                                    }
+                                                    try {
+                                                        const r = await axios.post(`/api/products/${selectedProduct.id}/image-from-crop`, { dataUrl, brandName: selectedProduct.brand || "" });
+                                                        const newImages = [...(selectedProduct.images || []), { id: r.data.id, url: r.data.imageUrl }];
+                                                        setSelectedProduct({ ...selectedProduct, images: newImages });
+                                                        toast.success("Immagine salvata in " + (selectedProduct.brand ? `${selectedProduct.brand}/images` : "products"));
+                                                        setShowCatalogCropModal(false);
+                                                    } catch (err: any) {
+                                                        toast.error(err?.response?.data?.error || "Errore salvataggio");
+                                                    }
+                                                }}
+                                                className="px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase"
+                                            >
+                                                Associa immagine (salva in cartella brand)
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
 
