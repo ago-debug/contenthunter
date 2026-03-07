@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Database, FileText, LayoutGrid, List, Search, ArrowRight, HardDrive, Cpu, Package, Layers, Trash2, Plus, X, Check, Settings } from "lucide-react";
+import { Database, FileText, LayoutGrid, List, Search, ArrowRight, HardDrive, Cpu, Package, Layers, Trash2, Plus, X, Check, Settings, Upload, RefreshCw } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Link from "next/link";
@@ -28,6 +28,8 @@ export default function CataloguesPage() {
     const [searchTerm, setSearchTerm] = useState("");
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [isUploadingNewPdf, setIsUploadingNewPdf] = useState(false);
+    const newRepoPdfInputRef = useRef<HTMLInputElement>(null);
     const [newRepo, setNewRepo] = useState({
         name: "",
         imageFolderPath: "",
@@ -35,8 +37,10 @@ export default function CataloguesPage() {
         brandId: "" as string | number
     });
     const [settingsCatalog, setSettingsCatalog] = useState<Catalogue | null>(null);
-    const [settingsForm, setSettingsForm] = useState({ name: "", imageFolderPath: "", status: "draft", lastListinoName: "", brandId: "" as string | number });
+    const [settingsForm, setSettingsForm] = useState({ name: "", imageFolderPath: "", status: "draft", lastListinoName: "", brandId: "" as string | number, pdfs: [] as string[] });
     const [isSavingSettings, setIsSavingSettings] = useState(false);
+    const [isUploadingPdf, setIsUploadingPdf] = useState(false);
+    const settingsPdfInputRef = useRef<HTMLInputElement>(null);
     const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
     const [anteprimeCatalog, setAnteprimeCatalog] = useState<Catalogue | null>(null);
     const [anteprimePages, setAnteprimePages] = useState<any[]>([]);
@@ -87,6 +91,29 @@ export default function CataloguesPage() {
         fetchBrands();
     }, []);
 
+    const handleNewRepoPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = "";
+        setIsUploadingNewPdf(true);
+        const toastId = toast.loading(`Caricamento ${file.name}...`);
+        try {
+            const blob = new Blob([file], { type: "application/pdf" });
+            const res = await axios.post(`/api/upload?name=${encodeURIComponent(file.name)}`, blob, {
+                headers: { "Content-Type": "application/pdf" },
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            });
+            const path = res.data?.filePath;
+            if (path) setNewRepo(prev => ({ ...prev, pdfs: [...prev.pdfs.filter(Boolean), path] }));
+            toast.update(toastId, { render: "PDF caricato. Aggiunto all'elenco.", type: "success", isLoading: false, autoClose: 2000 });
+        } catch (err: any) {
+            toast.update(toastId, { render: err?.response?.data?.error || "Errore upload", type: "error", isLoading: false, autoClose: 3000 });
+        } finally {
+            setIsUploadingNewPdf(false);
+        }
+    };
+
     const openAnteprime = async (c: Catalogue) => {
         setAnteprimeCatalog(c);
         setAnteprimePages([]);
@@ -116,8 +143,32 @@ export default function CataloguesPage() {
             imageFolderPath: c.imageFolderPath ?? "",
             status: c.status ?? "draft",
             lastListinoName: c.lastListinoName ?? "",
-            brandId: c.brandId ?? ""
+            brandId: c.brandId ?? "",
+            pdfs: (c.pdfs || []).map((p: any) => p.filePath || p.fileName || "")
         });
+    };
+
+    const handleSettingsPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !settingsCatalog) return;
+        e.target.value = "";
+        setIsUploadingPdf(true);
+        const toastId = toast.loading(`Caricamento ${file.name}...`);
+        try {
+            const blob = new Blob([file], { type: "application/pdf" });
+            const res = await axios.post(`/api/repositories/${settingsCatalog.id}/pdfs`, blob, {
+                headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(file.name) },
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity
+            });
+            const path = res.data?.filePath;
+            if (path) setSettingsForm(prev => ({ ...prev, pdfs: [...prev.pdfs, path] }));
+            toast.update(toastId, { render: "PDF caricato.", type: "success", isLoading: false, autoClose: 2000 });
+        } catch (err: any) {
+            toast.update(toastId, { render: err?.response?.data?.error || "Errore upload", type: "error", isLoading: false, autoClose: 3000 });
+        } finally {
+            setIsUploadingPdf(false);
+        }
     };
 
     const handleSaveSettings = async () => {
@@ -133,7 +184,8 @@ export default function CataloguesPage() {
                 imageFolderPath: settingsForm.imageFolderPath.trim() || null,
                 status: settingsForm.status,
                 lastListinoName: settingsForm.lastListinoName.trim() || null,
-                brandId: settingsForm.brandId ? Number(settingsForm.brandId) : null
+                brandId: settingsForm.brandId ? Number(settingsForm.brandId) : null,
+                pdfs: settingsForm.pdfs.filter(Boolean)
             });
             toast.success("Impostazioni progetto salvate");
             setSettingsCatalog(null);
@@ -249,14 +301,33 @@ export default function CataloguesPage() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Cataloghi PDF Sorgente</label>
-                                            <button
-                                                onClick={() => setNewRepo({ ...newRepo, pdfs: [...newRepo.pdfs, ""] })}
-                                                className="text-[9px] font-black uppercase tracking-widest text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-all"
-                                            >
-                                                + Aggiungi PDF
-                                            </button>
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Cataloghi PDF</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    ref={newRepoPdfInputRef}
+                                                    type="file"
+                                                    accept=".pdf,application/pdf"
+                                                    className="hidden"
+                                                    onChange={handleNewRepoPdfUpload}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => newRepoPdfInputRef.current?.click()}
+                                                    disabled={isUploadingNewPdf}
+                                                    className="text-[9px] font-black uppercase tracking-widest text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                                                >
+                                                    {isUploadingNewPdf ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                                                    Carica dal PC
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setNewRepo({ ...newRepo, pdfs: [...newRepo.pdfs, ""] })}
+                                                    className="text-[9px] font-black uppercase tracking-widest text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition-all"
+                                                >
+                                                    + Path
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="space-y-3 max-h-[150px] overflow-y-auto px-1 custom-scrollbar">
                                             {newRepo.pdfs.map((pdf, idx) => (
@@ -399,6 +470,45 @@ export default function CataloguesPage() {
                                             <option value="">Nessuno</option>
                                             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">PDF catalogo</label>
+                                        <input
+                                            ref={settingsPdfInputRef}
+                                            type="file"
+                                            accept=".pdf,application/pdf"
+                                            className="hidden"
+                                            onChange={handleSettingsPdfUpload}
+                                        />
+                                        <div className="flex flex-wrap gap-2 items-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => settingsPdfInputRef.current?.click()}
+                                                disabled={isUploadingPdf}
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-widest disabled:opacity-50"
+                                            >
+                                                {isUploadingPdf ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                                Carica PDF dal PC
+                                            </button>
+                                        </div>
+                                        <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                            {settingsForm.pdfs.map((path, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">
+                                                    <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                                                    <span className="flex-1 truncate text-xs font-mono text-slate-600">{path.split("/").pop() || path}</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSettingsForm(prev => ({ ...prev, pdfs: prev.pdfs.filter((_, i) => i !== idx) }))}
+                                                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {settingsForm.pdfs.length === 0 && (
+                                                <p className="text-slate-400 text-xs py-1">Nessun PDF. Clicca &quot;Carica PDF dal PC&quot; per aggiungerne.</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

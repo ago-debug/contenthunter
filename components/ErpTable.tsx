@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
-    Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List,
+    Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List, RefreshCw,
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, RefreshCw, Languages, ShoppingCart, Box,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
@@ -113,6 +113,8 @@ export default function ErpTable() {
     });
     const [isSavingCatalogue, setIsSavingCatalogue] = useState(false);
     const [isCreatingCatalogue, setIsCreatingCatalogue] = useState(false);
+    const [isUploadingCatalogPdf, setIsUploadingCatalogPdf] = useState(false);
+    const catalogPdfInputRef = useRef<HTMLInputElement>(null);
     const [newCatalogueForm, setNewCatalogueForm] = useState({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" as string | number });
     const [showNewCatalogueForm, setShowNewCatalogueForm] = useState(false);
 
@@ -2219,8 +2221,42 @@ export default function ErpTable() {
                                         </div>
                                         <div>
                                             <div className="flex items-center justify-between mb-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">PDF (path) – aggiungi o rimuovi</label>
-                                                <button type="button" onClick={() => setCatalogueEditForm(prev => ({ ...prev, pdfs: [...prev.pdfs, ""] }))} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900">+ Aggiungi PDF</button>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">PDF – carica dal PC o path</label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        ref={catalogPdfInputRef}
+                                                        type="file"
+                                                        accept=".pdf,application/pdf"
+                                                        className="hidden"
+                                                        onChange={async (e) => {
+                                                            const file = e.target.files?.[0];
+                                                            if (!file || !selectedCatalogueForEdit) return;
+                                                            e.target.value = "";
+                                                            setIsUploadingCatalogPdf(true);
+                                                            const toastId = toast.loading(`Caricamento ${file.name}...`);
+                                                            try {
+                                                                const blob = new Blob([file], { type: "application/pdf" });
+                                                                const res = await axios.post(`/api/repositories/${selectedCatalogueForEdit.id}/pdfs`, blob, {
+                                                                    headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(file.name) },
+                                                                    maxContentLength: Infinity,
+                                                                    maxBodyLength: Infinity
+                                                                });
+                                                                const path = res.data?.filePath;
+                                                                if (path) setCatalogueEditForm(prev => ({ ...prev, pdfs: [...prev.pdfs, path] }));
+                                                                toast.update(toastId, { render: "PDF caricato.", type: "success", isLoading: false, autoClose: 2000 });
+                                                            } catch (err: any) {
+                                                                toast.update(toastId, { render: err?.response?.data?.error || "Errore upload", type: "error", isLoading: false, autoClose: 3000 });
+                                                            } finally {
+                                                                setIsUploadingCatalogPdf(false);
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button type="button" onClick={() => catalogPdfInputRef.current?.click()} disabled={isUploadingCatalogPdf} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900 flex items-center gap-1 disabled:opacity-50">
+                                                        {isUploadingCatalogPdf ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+                                                        Carica dal PC
+                                                    </button>
+                                                    <button type="button" onClick={() => setCatalogueEditForm(prev => ({ ...prev, pdfs: [...prev.pdfs, ""] }))} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900">+ Path</button>
+                                                </div>
                                             </div>
                                             <div className="space-y-2 max-h-32 overflow-y-auto">
                                                 {catalogueEditForm.pdfs.map((path, idx) => (
