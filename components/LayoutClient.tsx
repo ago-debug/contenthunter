@@ -16,15 +16,25 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const companyContext = useCompanyContext();
     const [companies, setCompanies] = useState<CompanyOption[]>([]);
+    const [companiesLoaded, setCompaniesLoaded] = useState(false);
     const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
 
     const isGlobalAdmin = !!(session?.user as any)?.isGlobalAdmin;
 
     useEffect(() => {
         if (isGlobalAdmin) {
-            axios.get<CompanyOption[]>("/api/companies").then(({ data }) => setCompanies(Array.isArray(data) ? data : [])).catch(() => setCompanies([]));
+            axios.get<CompanyOption[]>("/api/companies").then(({ data }) => setCompanies(Array.isArray(data) ? data : [])).catch(() => setCompanies([])).finally(() => setCompaniesLoaded(true));
+        } else {
+            setCompaniesLoaded(true);
         }
     }, [isGlobalAdmin]);
+
+    // Admin globale senza azienda selezionata: seleziona la prima disponibile così le API ricevono x-company-id
+    useEffect(() => {
+        if (isGlobalAdmin && companyContext && companies.length > 0 && companyContext.selectedCompanyId == null) {
+            companyContext.setSelectedCompanyId(companies[0].id);
+        }
+    }, [isGlobalAdmin, companyContext, companies]);
 
     const isAuthPage = pathname === "/login" || pathname === "/register";
 
@@ -41,6 +51,20 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
     if (isAuthPage) {
         return <main className="min-h-screen bg-[#F4F5F7]">{children}</main>;
+    }
+
+    // Admin globale: aspetta di avere aziende caricate e (una selezionata oppure lista vuota) prima di mostrare il contenuto.
+    const hasCompanyOrEmpty = companiesLoaded && (companyContext?.selectedCompanyId != null || companies.length === 0);
+    const waitingForCompany = isGlobalAdmin && !hasCompanyOrEmpty;
+    if (waitingForCompany) {
+        return (
+            <div className="min-h-screen bg-[#F4F5F7] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-orange-100 border-t-orange-600 rounded-full animate-spin" />
+                    <p className="text-sm font-black text-gray-400 uppercase tracking-widest">Caricamento azienda...</p>
+                </div>
+            </div>
+        );
     }
 
     return (
