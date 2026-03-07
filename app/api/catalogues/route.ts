@@ -18,7 +18,8 @@ export async function GET(req: Request) {
                         stagingProducts: true
                     }
                 },
-                pdfs: true
+                pdfs: true,
+                searchSources: true
             },
             orderBy: { createdAt: "desc" }
         });

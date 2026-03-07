@@ -131,6 +131,72 @@ async function scrapeImagesFromSource(sourceUrl: string, sku: string): Promise<S
     return Array.from(unique.values()).slice(0, 15);
 }
 
+/**
+ * Scrape images from a single page URL (any domain). Used for DuckDuckGo global search results.
+ */
+async function scrapeImagesFromPage(pageUrl: string, query: string): Promise<ScrapedImage[]> {
+    try {
+        const response = await axios.get(pageUrl, {
+            headers: { ...BROWSER_HEADERS, Referer: 'https://www.duckduckgo.com/' },
+            timeout: 10000,
+            maxRedirects: 5
+        });
+        let origin: string;
+        try {
+            origin = new URL(pageUrl).origin;
+        } catch {
+            return [];
+        }
+        const $ = cheerio.load(response.data);
+        return extractProductImages($, origin, query);
+    } catch (err: any) {
+        console.warn(`Scrape page failed ${pageUrl}:`, err.message);
+        return [];
+    }
+}
+
+/**
+ * DuckDuckGo global HTML search (no site:). Finds result links then scrapes each page for product images.
+ * Works without SerpAPI or catalog sources.
+ */
+async function duckDuckGoGlobalSearch(query: string): Promise<ScrapedImage[]> {
+    const found: ScrapedImage[] = [];
+    try {
+        const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+        const ddgResp = await axios.get(ddgUrl, { headers: BROWSER_HEADERS, timeout: 10000 });
+        const $ddg = cheerio.load(ddgResp.data);
+
+        const candidateLinks: string[] = [];
+        $ddg('a.result__url, a.result__a, a[class*="result"]').each((_, el) => {
+            const href = $ddg(el).attr('href');
+            if (!href) return;
+            let actualLink = href;
+            const uddg = href.match(/uddg=([^&]+)/);
+            if (uddg) actualLink = decodeURIComponent(uddg[1]);
+            else if (href.startsWith('//')) actualLink = 'https:' + href;
+            if (!actualLink.startsWith('http')) return;
+            try {
+                const u = new URL(actualLink);
+                if (u.hostname.includes('duckduckgo.com')) return;
+                if (!candidateLinks.includes(actualLink)) candidateLinks.push(actualLink);
+            } catch { }
+        });
+
+        for (const link of candidateLinks.slice(0, 4)) {
+            const images = await scrapeImagesFromPage(link, query);
+            if (images.length > 0) found.push(...images);
+            if (found.length >= 15) break;
+        }
+
+        const unique = new Map<string, ScrapedImage>();
+        found.forEach(img => { if (!unique.has(img.url)) unique.set(img.url, img); });
+        return Array.from(unique.values()).slice(0, 15);
+    } catch (e: any) {
+        console.warn("DuckDuckGo global search failed:", e?.message);
+        return [];
+    }
+}
+
 function extractProductImages($: cheerio.CheerioAPI, origin: string, sku: string): ScrapedImage[] {
     const images: ScrapedImage[] = [];
     const seen = new Set<string>();
@@ -349,7 +415,7 @@ export async function GET(request: Request) {
             : [];
 
         if (sourceList.length > 0) {
-            // STRATEGY 1: Real web scraping of specified sources
+            // STRATEGY 1: Real web scraping of specified sources (catalog search URLs)
             const scrapePromises = sourceList.map(src => scrapeImagesFromSource(src, query));
             const results = await Promise.allSettled(scrapePromises);
 
@@ -358,6 +424,10 @@ export async function GET(request: Request) {
                     allImages.push(...result.value);
                 }
             }
+        } else {
+            // STRATEGY 1B: No catalog sources — use DuckDuckGo global search and scrape result pages
+            const ddgImages = await duckDuckGoGlobalSearch(query);
+            allImages.push(...ddgImages);
         }
 
         if (serpApiKey && useShopping) {
@@ -442,13 +512,16 @@ export async function GET(request: Request) {
             }
         }
 
-        // Final filtering to ensure we don't return generic logos or favicons
+        // Final filtering: exclude logos, favicons, tracking pixels, Google UI assets
         const filteredImages = allImages.filter(img => {
             const url = img.url.toLowerCase();
-            // Filter out common favicons or tiny icons that often appear as "G" or logos
-            if (url.includes('favicon') || url.includes('/logo') || url.includes('googlelogo')) return false;
-            // Also filter extremely small images that might be icons
-            if (url.startsWith('data:image/svg+xml')) return false;
+            const skip = [
+                'favicon', '/logo', 'googlelogo', 'google.com/images', 'gstatic', '/icon',
+                '1x1', 'pixel', 'tracking', 'beacon', 'badge', 'avatar', 'spacer',
+                'data:image/svg', 'data:image/gif;base64', 'placeholder'
+            ];
+            if (skip.some(s => url.includes(s))) return false;
+            if (url.startsWith('data:') && !url.includes('jpeg') && !url.includes('png') && !url.includes('webp')) return false;
             return true;
         });
 
@@ -465,18 +538,24 @@ export async function GET(request: Request) {
 
             $('img').each((i, el) => {
                 const src = $(el).attr('src') || $(el).attr('data-src');
-                if (src && src.startsWith('http') && !src.includes('googlelogo') && i < 15) {
-                    fallbackResults.push({
-                        id: `fallback-${i}`,
-                        url: src,
-                        title: query,
-                        source: 'Google (Fallback)'
-                    });
-                }
+                if (!src || !src.startsWith('http') || i >= 15) return;
+                const url = src.toLowerCase();
+                if (url.includes('googlelogo') || url.includes('favicon') || url.includes('gstatic') || url.includes('/logo') || url.includes('/icon')) return;
+                fallbackResults.push({
+                    id: `fallback-${i}`,
+                    url: src,
+                    title: query,
+                    source: 'Google (Fallback)'
+                });
             });
 
-            if (fallbackResults.length > 0) {
-                return NextResponse.json({ images: fallbackResults });
+            const filteredFallback = fallbackResults.filter(img => {
+                const url = img.url.toLowerCase();
+                if (['favicon', '/logo', 'google', 'gstatic', '1x1', 'pixel'].some(s => url.includes(s))) return false;
+                return true;
+            });
+            if (filteredFallback.length > 0) {
+                return NextResponse.json({ images: filteredFallback });
             }
         } catch (e) { }
 

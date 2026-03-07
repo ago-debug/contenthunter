@@ -650,9 +650,16 @@ export default function ErpTable() {
         setIsSearchingWeb(true);
         setWebImages([]);
         try {
-            const res = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&shopping=true`);
+            // Use catalog search sources when product belongs to a catalogue (improves Deep Asset Search)
+            const catalogId = selectedProduct?.catalogId;
+            const catalog = catalogId ? catalogues.find((c: any) => c.id === catalogId) : null;
+            const sourceUrls = (catalog?.searchSources || [])
+                .map((s: any) => (typeof s === 'string' ? s : s?.url).trim())
+                .filter(Boolean);
+            const sourcesParam = sourceUrls.length > 0 ? `&sources=${encodeURIComponent(sourceUrls.join(','))}` : '';
+            const res = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&shopping=true${sourcesParam}`);
             setWebImages(res.data.images || []);
-            if (res.data.images?.length === 0) toast.warning("Nessuna immagine trovata su Web/Shopping");
+            if (res.data.images?.length === 0) toast.warning("Nessuna immagine trovata. Prova con SKU diverso o aggiungi SERPAPI_KEY / sorgenti catalogo.");
         } catch (err) {
             toast.error("Errore ricerca immagini sul web");
         }
