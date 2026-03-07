@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import {
     Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List, RefreshCw,
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
-    FolderOpen, ChevronLeft, ChevronRight, RefreshCw, Languages, ShoppingCart, Box,
+    FolderOpen, ChevronLeft, ChevronRight, Languages, ShoppingCart, Box,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
     Building2, ImagePlus
 } from 'lucide-react';
