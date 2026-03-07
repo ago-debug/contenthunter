@@ -143,8 +143,8 @@ export default function ImportLab() {
         setLoading(true);
         try {
             const [repoRes, productsRes] = await Promise.all([
-                axios.get(`/api/catalogues/${id}`),
-                axios.get(`/api/repositories/${id}/staging`)
+                axios.get("/api/catalogues/" + id),
+                axios.get("/api/repositories/" + id + "/staging")
             ]);
             setRepository(repoRes.data);
             setProducts(productsRes.data);
@@ -245,7 +245,7 @@ export default function ImportLab() {
         setIsBulkUpdating(true);
         const toastId = toast.loading("Applicazione modifica massiva in corso...");
         try {
-            const res = await axios.post(`/api/repositories/${catalogIdParam}/staging/bulk`, {
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/staging/bulk", {
                 field: bulkField,
                 value: bulkValue,
                 onlyEmpty: bulkOnlyEmpty,
@@ -285,7 +285,7 @@ export default function ImportLab() {
         setImagePickerSelection([]);
 
         try {
-            const res = await axios.get(`/api/repositories/${catalogIdParam}/images`, {
+            const res = await axios.get("/api/repositories/" + catalogIdParam + "/images", {
                 params: { sku: selectedProduct.sku }
             });
             const imgs = Array.isArray(res.data?.images) ? res.data.images : [];
@@ -318,7 +318,7 @@ export default function ImportLab() {
                 if (!item) continue;
                 const payload = { imageUrl: item.url };
                 try {
-                    const res = await axios.post(`/api/repositories/${catalogIdParam}/staging/${productId}/images`, payload);
+                    const res = await axios.post("/api/repositories/" + catalogIdParam + "/staging/" + productId + "/images", payload);
                     const imgRec = res.data?.image;
                     if (imgRec) {
                         addedImages.push(imgRec);
@@ -439,7 +439,7 @@ export default function ImportLab() {
         const toastId = toast.loading("Ricerca immagini da cartella (Recursive Scan)...");
 
         try {
-            const res = await axios.post(`/api/repositories/${catalogIdParam}/associate-images`);
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/associate-images");
 
             if (res.data.success) {
                 toast.update(toastId, {
@@ -508,7 +508,7 @@ export default function ImportLab() {
 
                         for (const product of skusInPage) {
                             try {
-                                await axios.post(`/api/repositories/${catalogIdParam}/staging-image`, {
+                                await axios.post("/api/repositories/" + catalogIdParam + "/staging-image", {
                                     stagingProductId: product.id,
                                     imageUrl: imageDataUrl
                                 });
@@ -612,7 +612,7 @@ export default function ImportLab() {
         if (!window.confirm("Sei sicuro di voler eliminare questo PDF?")) return;
 
         try {
-            await axios.delete(`/api/repositories/${catalogIdParam}/pdfs/${pdfId}`);
+            await axios.delete("/api/repositories/" + catalogIdParam + "/pdfs/" + pdfId);
             toast.success("PDF eliminato con successo");
             fetchRepository(parseInt(catalogIdParam!));
         } catch (err: any) {
@@ -623,7 +623,7 @@ export default function ImportLab() {
         if (!window.confirm("Sei sicuro di voler svuotare il listino? Tutti i dati non salvati andranno persi.")) return;
 
         try {
-            await axios.delete(`/api/repositories/${catalogIdParam}/staging`);
+            await axios.delete("/api/repositories/" + catalogIdParam + "/staging");
             toast.success("Listino rimosso con successo");
             fetchRepository(parseInt(catalogIdParam!));
         } catch (err: any) {
@@ -634,7 +634,7 @@ export default function ImportLab() {
     const handleClearStagingForRepo = async (repoId: number) => {
         if (!window.confirm("Sei sicuro di voler svuotare il listino di questo repository?")) return;
         try {
-            await axios.delete(`/api/repositories/${repoId}/staging`);
+            await axios.delete("/api/repositories/" + repoId + "/staging");
             toast.success("Listino rimosso");
             fetchAllRepositories();
         } catch (err) {
@@ -672,7 +672,7 @@ export default function ImportLab() {
                 };
             }).filter(p => p.sku);
 
-            await axios.post(`/api/repositories/${catalogIdParam}/staging`, {
+            await axios.post("/api/repositories/" + catalogIdParam + "/staging", {
                 products: productsToImport,
                 lastListinoName: currentImportFile
             });
@@ -693,13 +693,13 @@ export default function ImportLab() {
         if (!file || !catalogIdParam) return;
 
         setIsUploadingPdf(true);
-        const toastId = toast.loading(`Caricamento PDF: ${file.name}...`);
+        const toastId = toast.loading("Caricamento PDF: " + file.name + "...");
 
         try {
             // Using a Blob wrapper to ensure browser treats it as atomic binary content
             const blob = new Blob([file], { type: 'application/pdf' });
 
-            await axios.post(`/api/repositories/${catalogIdParam}/pdfs`, blob, {
+            await axios.post("/api/repositories/" + catalogIdParam + "/pdfs", blob, {
                 headers: {
                     "Content-Type": "application/pdf",
                     "X-File-Name": encodeURIComponent(file.name)
@@ -784,7 +784,7 @@ export default function ImportLab() {
         const toastId = toast.loading("ContentHunter AI sta analizzando il layout del PDF... Attendere.");
 
         try {
-            const res = await axios.post(`/api/repositories/${catalogIdParam}/pdfs/${currentPdfId}/extract`);
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/pdfs/" + currentPdfId + "/extract");
             toast.update(toastId, {
                 render: `Dismantling completato! ✨ ${res.data.count} prodotti identificati e mappati.`,
                 type: "success",
@@ -812,7 +812,7 @@ export default function ImportLab() {
 
         const toastId = toast.loading("Salvataggio ritaglio immagine...");
         try {
-            await axios.post(`/api/repositories/${catalogIdParam}/staging/${selectedProduct.id}/image-crop`, {
+            await axios.post("/api/repositories/" + catalogIdParam + "/staging/" + selectedProduct.id + "/image-crop", {
                 dataUrl,
                 page,
                 bbox,
@@ -1420,7 +1420,7 @@ export default function ImportLab() {
                                                             onClick={() => {
                                                                 const imgUrl = img.imageUrl;
                                                                 if (catalogIdParam && selectedProduct.id && imgUrl) {
-                                                                    axios.delete(`/api/repositories/${catalogIdParam}/staging/${selectedProduct.id}/images`, {
+                                                                    axios.delete("/api/repositories/" + catalogIdParam + "/staging/" + selectedProduct.id + "/images", {
                                                                         data: { imageUrl: imgUrl }
                                                                     }).catch(e => console.error("Image detach error:", e));
                                                                 }
