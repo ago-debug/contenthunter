@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
 
 export async function POST(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const name = req.nextUrl.searchParams.get("name");
         if (!name) {
@@ -20,7 +26,6 @@ export async function POST(req: NextRequest) {
         const fileName = `${Date.now()}-${name.replace(/\s+/g, "_")}`;
         const uploadDir = path.join(process.cwd(), "public/uploads");
 
-        // Ensure upload directory exists
         await mkdir(uploadDir, { recursive: true });
 
         const filePath = path.join(uploadDir, fileName);
@@ -30,6 +35,7 @@ export async function POST(req: NextRequest) {
         if (req.nextUrl.searchParams.get("save") === "true") {
             const catalog = await prisma.catalog.create({
                 data: {
+                    companyId,
                     name: name,
                     status: "draft",
                     pdfs: {

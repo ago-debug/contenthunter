@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { toast } from "react-toastify";
 import axios from "axios";
@@ -10,6 +11,8 @@ type UserRow = {
   id: number;
   name: string | null;
   email: string;
+  companyId: number | null;
+  companyName: string | null;
   profileId: number | null;
   profileName: string | null;
   createdAt: string;
@@ -17,15 +20,20 @@ type UserRow = {
 };
 
 type ProfileOption = { id: number; name: string };
+type CompanyOption = { id: number; name: string; slug: string };
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [editProfileId, setEditProfileId] = useState<number | null>(null);
+  const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [saving, setSaving] = useState(false);
+  const { data: session } = useSession();
+  const isGlobalAdmin = !!(session?.user as any)?.isGlobalAdmin;
 
   const fetchUsers = async () => {
     try {
@@ -45,14 +53,24 @@ export default function AdminUsersPage() {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const { data } = await axios.get<CompanyOption[]>("/api/companies");
+      setCompanies(Array.isArray(data) ? data : []);
+    } catch (_) {
+      setCompanies([]);
+    }
+  };
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchUsers(), fetchProfiles()]).finally(() => setLoading(false));
-  }, []);
+    Promise.all([fetchUsers(), fetchProfiles(), isGlobalAdmin ? fetchCompanies() : Promise.resolve()]).finally(() => setLoading(false));
+  }, [isGlobalAdmin]);
 
   const openEdit = (u: UserRow) => {
     setEditingUser(u);
     setEditProfileId(u.profileId);
+    setEditCompanyId(u.companyId);
     setEditName(u.name || "");
   };
 
@@ -60,10 +78,12 @@ export default function AdminUsersPage() {
     if (!editingUser) return;
     setSaving(true);
     try {
-      await axios.patch(`/api/users/${editingUser.id}`, {
+      const payload: { name?: string | null; profileId?: number | null; companyId?: number | null } = {
         name: editName.trim() || null,
         profileId: editProfileId,
-      });
+      };
+      if (isGlobalAdmin) payload.companyId = editCompanyId;
+      await axios.patch(`/api/users/${editingUser.id}`, payload);
       toast.success("Utente aggiornato");
       setEditingUser(null);
       fetchUsers();
@@ -107,7 +127,7 @@ export default function AdminUsersPage() {
                   <p className="font-black text-slate-900">{u.name || u.email}</p>
                   <p className="text-sm text-slate-500">{u.email}</p>
                   <p className="text-xs text-slate-400 mt-1">
-                    Profilo: {u.profileName ?? "—"}
+                    Azienda: {u.companyName ?? "—"} · Profilo: {u.profileName ?? "—"}
                   </p>
                 </div>
                 <button
@@ -143,6 +163,25 @@ export default function AdminUsersPage() {
                   placeholder="Nome visualizzato"
                 />
               </div>
+              {isGlobalAdmin && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                    Azienda
+                  </label>
+                  <select
+                    value={editCompanyId ?? ""}
+                    onChange={(e) => setEditCompanyId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-slate-200 focus:border-slate-400"
+                  >
+                    <option value="">— Admin globale (nessuna azienda) —</option>
+                    {companies.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Profilo

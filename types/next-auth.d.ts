@@ -6,6 +6,9 @@ declare module "next-auth" {
         user: {
             id?: string;
             userId?: number;
+            companyId?: number | null;
+            companyName?: string | null;
+            isGlobalAdmin?: boolean;
             profileId?: number;
             profileName?: string;
             permissions?: string[];
@@ -19,6 +22,9 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
     interface JWT {
         userId?: number;
+        companyId?: number | null;
+        companyName?: string | null;
+        isGlobalAdmin?: boolean;
         profileId?: number;
         profileName?: string;
         permissions?: string[];

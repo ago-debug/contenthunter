@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { ensureCatalogAccess } from "@/lib/auth-api";
 
 export const maxDuration = 60; // Increase to 60 seconds for large file processing
 
@@ -10,9 +11,16 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        console.log("PDF Upload request received...");
         const { id } = await params;
         const catalogId = parseInt(id);
+        if (Number.isNaN(catalogId)) {
+            return NextResponse.json({ error: "Invalid catalog ID" }, { status: 400 });
+        }
+        const access = await ensureCatalogAccess(req, catalogId);
+        if (!access) {
+            return NextResponse.json({ error: "Non autorizzato o catalogo non trovato" }, { status: 403 });
+        }
+        console.log("PDF Upload request received...");
         let name = "upload.pdf";
         if (req.headers.get("X-File-Name")) {
             name = decodeURIComponent(req.headers.get("X-File-Name")!);

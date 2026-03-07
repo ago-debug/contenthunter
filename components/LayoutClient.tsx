@@ -1,15 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import { Search, Settings, LogOut, User as UserIcon, Menu } from "lucide-react";
+import { useCompanyContext } from "@/contexts/CompanyContext";
+import { Search, Settings, LogOut, User as UserIcon, Menu, Building2, ChevronDown } from "lucide-react";
+import axios from "axios";
+
+type CompanyOption = { id: number; name: string; slug: string };
 
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
     const { data: session, status } = useSession();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const companyContext = useCompanyContext();
+    const [companies, setCompanies] = useState<CompanyOption[]>([]);
+    const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+
+    const isGlobalAdmin = !!(session?.user as any)?.isGlobalAdmin;
+
+    useEffect(() => {
+        if (isGlobalAdmin) {
+            axios.get<CompanyOption[]>("/api/companies").then(({ data }) => setCompanies(Array.isArray(data) ? data : [])).catch(() => setCompanies([]));
+        }
+    }, [isGlobalAdmin]);
 
     const isAuthPage = pathname === "/login" || pathname === "/register";
 
@@ -59,6 +74,53 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                         />
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+                        {isGlobalAdmin && companyContext && (
+                            <div className="relative hidden sm:block">
+                                <button
+                                    type="button"
+                                    onClick={() => setCompanyDropdownOpen((v) => !v)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 text-xs font-bold hover:bg-slate-100"
+                                >
+                                    <Building2 className="w-4 h-4" />
+                                    <span className="max-w-[120px] truncate">
+                                        {companyContext.selectedCompanyId
+                                            ? companies.find((c) => c.id === companyContext.selectedCompanyId)?.name ?? "Azienda"
+                                            : "Seleziona azienda"}
+                                    </span>
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                </button>
+                                {companyDropdownOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-40" onClick={() => setCompanyDropdownOpen(false)} />
+                                        <div className="absolute right-0 top-full mt-1 py-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 min-w-[180px] max-h-64 overflow-y-auto">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    companyContext.setSelectedCompanyId(null);
+                                                    setCompanyDropdownOpen(false);
+                                                }}
+                                                className={`w-full text-left px-4 py-2 text-xs font-bold ${!companyContext.selectedCompanyId ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"}`}
+                                            >
+                                                Nessuna (tutte)
+                                            </button>
+                                            {companies.map((c) => (
+                                                <button
+                                                    key={c.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        companyContext.setSelectedCompanyId(c.id);
+                                                        setCompanyDropdownOpen(false);
+                                                    }}
+                                                    className={`w-full text-left px-4 py-2 text-xs font-bold truncate ${companyContext.selectedCompanyId === c.id ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"}`}
+                                                >
+                                                    {c.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
                         {session && (
                             <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
                                 <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center">

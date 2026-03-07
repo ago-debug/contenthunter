@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
 
-export async function GET() {
+export async function GET(req: Request) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const catalogues = await prisma.catalog.findMany({
+            where: { companyId },
             include: {
                 _count: {
                     select: {
@@ -27,12 +34,18 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const body = await req.json();
         const { name, imageFolderPath, pdfs } = body;
 
         const catalog = await prisma.catalog.create({
             data: {
+                companyId,
                 name: name || "Nuovo Progetto",
                 imageFolderPath: imageFolderPath || null,
                 status: "draft",

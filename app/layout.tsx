@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import { AuthProvider } from "@/components/Providers";
+import { CompanyProvider } from "@/contexts/CompanyContext";
 import { CatalogProvider } from "@/components/CatalogContext";
 import LayoutClient from "@/components/LayoutClient";
 
@@ -28,11 +29,13 @@ export default function RootLayout({
         <html lang="en">
             <body className={`${inter.className} bg-[#F4F5F7]`}>
                 <AuthProvider>
-                    <CatalogProvider>
-                        <LayoutClient>
-                            {children}
-                        </LayoutClient>
-                    </CatalogProvider>
+                    <CompanyProvider>
+                        <CatalogProvider>
+                            <LayoutClient>
+                                {children}
+                            </LayoutClient>
+                        </CatalogProvider>
+                    </CompanyProvider>
                 </AuthProvider>
 
                 <ToastContainer

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
 import * as XLSX from "xlsx";
 
 // Tutti i campi presenti nella scheda prodotto (Master ERP)
@@ -52,9 +53,14 @@ function buildWhere(filters: {
     return Object.keys(where).length === 0 ? undefined : where;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
     try {
         const products = await prisma.product.findMany({
+            where: { companyId: ctx.companyId },
             include: {
                 texts: { where: { language: "it" } },
                 prices: { where: { listName: "default" } },
@@ -126,6 +132,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
     try {
         const body = await req.json().catch(() => ({}));
         const {
@@ -142,7 +152,8 @@ export async function POST(req: NextRequest) {
             };
         };
 
-        const where = buildWhere(filters);
+        const filterWhere = buildWhere(filters);
+        const where = { companyId: ctx.companyId, ...filterWhere };
 
         const products = await prisma.product.findMany({
             where,

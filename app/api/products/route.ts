@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "../../../lib/prisma";
+import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
 
 export async function POST(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
+
     try {
         const body = await req.json();
         const {
@@ -16,17 +23,16 @@ export async function POST(req: NextRequest) {
         const cleanSku = sku.toString().trim();
         const cleanEan = ean ? ean.toString().trim() : null;
 
-        // 1. Find existing product by EAN or SKU
+        // 1. Find existing product by EAN or SKU (scoped by company)
         let existingProduct = null;
         if (cleanEan) {
-            existingProduct = await prisma.product.findUnique({
-                where: { ean: cleanEan }
+            existingProduct = await prisma.product.findFirst({
+                where: { companyId, ean: cleanEan }
             });
         }
-
         if (!existingProduct) {
-            existingProduct = await prisma.product.findUnique({
-                where: { sku: cleanSku }
+            existingProduct = await prisma.product.findFirst({
+                where: { companyId, sku: cleanSku }
             });
         }
 
@@ -36,9 +42,9 @@ export async function POST(req: NextRequest) {
             if (brand && !resolvedBrandId) {
                 const cleanBrandName = brand.toString().trim();
                 if (cleanBrandName) {
-                    let dbBrand = await prisma.brand.findUnique({ where: { name: cleanBrandName } });
+                    let dbBrand = await prisma.brand.findFirst({ where: { companyId, name: cleanBrandName } });
                     if (!dbBrand) {
-                        dbBrand = await prisma.brand.create({ data: { name: cleanBrandName } });
+                        dbBrand = await prisma.brand.create({ data: { companyId, name: cleanBrandName } });
                     }
                     resolvedBrandId = dbBrand.id;
                 }
@@ -57,16 +63,16 @@ export async function POST(req: NextRequest) {
                 if (cleanCatString) {
                     const parts = cleanCatString.split('>').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
                     if (parts.length > 0) {
-                        let cat1 = await prisma.category.findFirst({ where: { name: parts[0], parentId: null } });
-                        if (!cat1) cat1 = await prisma.category.create({ data: { name: parts[0], parentId: null } });
+                        let cat1 = await prisma.category.findFirst({ where: { companyId, name: parts[0], parentId: null } });
+                        if (!cat1) cat1 = await prisma.category.create({ data: { companyId, name: parts[0], parentId: null } });
                         resolvedCatId = cat1.id;
                         if (parts.length > 1) {
-                            let cat2 = await prisma.category.findFirst({ where: { name: parts[1], parentId: cat1.id } });
-                            if (!cat2) cat2 = await prisma.category.create({ data: { name: parts[1], parentId: cat1.id } });
+                            let cat2 = await prisma.category.findFirst({ where: { companyId, name: parts[1], parentId: cat1.id } });
+                            if (!cat2) cat2 = await prisma.category.create({ data: { companyId, name: parts[1], parentId: cat1.id } });
                             resolvedSubCatId = cat2.id;
                             if (parts.length > 2) {
-                                let cat3 = await prisma.category.findFirst({ where: { name: parts[2], parentId: cat2.id } });
-                                if (!cat3) cat3 = await prisma.category.create({ data: { name: parts[2], parentId: cat2.id } });
+                                let cat3 = await prisma.category.findFirst({ where: { companyId, name: parts[2], parentId: cat2.id } });
+                                if (!cat3) cat3 = await prisma.category.create({ data: { companyId, name: parts[2], parentId: cat2.id } });
                                 resolvedSubSubCatId = cat3.id;
                             }
                         }
@@ -97,6 +103,7 @@ export async function POST(req: NextRequest) {
         } else {
             product = await prisma.product.create({
                 data: {
+                    companyId,
                     sku: cleanSku,
                     brand: brand || null,
                     brandId: resolvedBrandId || null,
@@ -304,14 +311,18 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const { searchParams } = new URL(req.url);
         const catalogId = searchParams.get("catalogId");
         const sku = searchParams.get("sku");
         const ean = searchParams.get("ean");
 
-        // Base Product Query mapped back to flat structure for the existing Frontend
-        let where: any = {};
+        const where: any = { companyId };
         if (catalogId) {
             where.catalogs = { some: { catalogId: parseInt(catalogId) } };
         }
@@ -323,7 +334,7 @@ export async function GET(req: NextRequest) {
         }
 
         const products = await prisma.product.findMany({
-            where: Object.keys(where).length > 0 ? where : undefined,
+            where,
             include: {
                 texts: true,
                 prices: { where: { listName: "default" } },
@@ -413,6 +424,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const { searchParams } = new URL(req.url);
         const sku = searchParams.get("sku");
@@ -422,7 +438,7 @@ export async function DELETE(req: NextRequest) {
         }
 
         await prisma.product.delete({
-            where: { sku: sku }
+            where: { companyId_sku: { companyId, sku } }
         });
 
         return NextResponse.json({ success: true });

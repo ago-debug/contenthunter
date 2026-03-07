@@ -7,8 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  catalogs  Catalog[]
+  products  Product[]
+  categories Category[]
+  brands    Brand[]
+  tags      Tag[]
+  bulletPoints BulletPoint[]
+  templates Template[]
+}
+
 model Catalog {
   id            Int            @id @default(autoincrement())
+  companyId     Int
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name          String
   createdAt     DateTime       @default(now())
   
@@ -27,6 +46,7 @@ model Catalog {
 
   lastListinoName String?      @db.Text
 
+  @@index([companyId])
   @@index([templateId], map: "Catalog_templateId_fkey")
 }
 
@@ -69,10 +89,14 @@ model SearchSource {
 
 model Template {
   id        Int       @id @default(autoincrement())
+  companyId Int
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
   createdAt DateTime  @default(now())
   catalogs  Catalog[]
   rules     Rule[]
+
+  @@index([companyId])
 }
 
 model Rule {
@@ -92,9 +116,11 @@ model Rule {
 
 model Product {
   id             Int            @id @default(autoincrement())
-  sku            String         @unique
+  companyId      Int
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sku            String
   parentSku      String?
-  ean            String?        @unique
+  ean            String?
   
   brand            String?
   brandId          Int?
@@ -121,7 +147,8 @@ model Product {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  @@index([sku])
+  @@unique([companyId, sku])
+  @@index([companyId])
   @@index([brandId])
 }
 
@@ -215,6 +242,8 @@ model User {
   name      String?
   email     String   @unique
   password  String
+  companyId Int?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
   profileId Int?
   profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
   createdAt DateTime @default(now())
@@ -223,6 +252,8 @@ model User {
 
 model Category {
   id        Int        @id @default(autoincrement())
+  companyId Int
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
   parentId  Int?
   parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
@@ -232,14 +263,20 @@ model Category {
   productsSub    Product[] @relation("ProductSubCategory")
   productsSubSub Product[] @relation("ProductSubSubCategory")
 
-  @@unique([name, parentId])
+  @@unique([companyId, name, parentId])
+  @@index([companyId])
 }
 
 model Tag {
   id        Int          @id @default(autoincrement())
-  name      String       @unique
+  companyId Int
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
   
   products  ProductTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model ProductTag {
@@ -253,21 +290,29 @@ model ProductTag {
 
 model Brand {
   id                  Int       @id @default(autoincrement())
-  name                String    @unique
+  companyId           Int
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String
   logoUrl             String?
   aiContentGuidelines String?   @db.Text  // Tono per generazione descrizioni AI
   producerDomain      String?   // Dominio produttore per cercare immagini e altri dati
   products            Product[]
   createdAt           DateTime  @default(now())
+
+  @@unique([companyId, name])
+  @@index([companyId])
 }
 
 model BulletPoint {
   id        Int      @id @default(autoincrement())
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   content   String   @db.Text
   productId Int?
   product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   
+  @@index([companyId])
   @@index([productId])
 }
 

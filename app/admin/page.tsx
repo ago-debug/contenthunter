@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { ShieldCheck, Database, Trash2, RefreshCw, Layers, HardDrive, BarChart, Server, Users, UserCog } from "lucide-react";
+import { ShieldCheck, Database, Trash2, RefreshCw, Layers, HardDrive, BarChart, Server, Users, UserCog, Building2 } from "lucide-react";
 import { toast } from "react-toastify";
 import axios from "axios";
 
@@ -48,7 +48,19 @@ export default function AdminPage() {
 
             <section className="bg-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-100">
                 <h2 className="text-xl font-black text-slate-900 mb-6">Gestione utenti e permessi</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Link
+                        href="/admin/companies"
+                        className="flex items-center gap-4 p-6 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all group"
+                    >
+                        <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
+                            <Building2 className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <p className="font-black text-slate-900">Aziende</p>
+                            <p className="text-xs text-slate-500">Multi-azienda (solo admin globale)</p>
+                        </div>
+                    </Link>
                     <Link
                         href="/admin/users"
                         className="flex items-center gap-4 p-6 rounded-2xl border border-slate-100 hover:border-slate-200 hover:bg-slate-50 transition-all group"

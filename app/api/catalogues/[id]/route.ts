@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
 
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     let idParam = "unknown";
     try {
         const resolvedParams = await params;
@@ -14,8 +20,8 @@ export async function GET(
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        const catalogue = await prisma.catalog.findUnique({
-            where: { id },
+        const catalogue = await prisma.catalog.findFirst({
+            where: { id, companyId },
             include: {
                 entries: {
                     include: {
@@ -100,6 +106,11 @@ export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const { id: idParam } = await params;
         const id = parseInt(idParam);
@@ -117,8 +128,8 @@ export async function PATCH(
         if (lastListinoName !== undefined) updateData.lastListinoName = lastListinoName === "" ? null : String(lastListinoName);
 
         if (Object.keys(updateData).length > 0) {
-            await prisma.catalog.update({
-                where: { id },
+            await prisma.catalog.updateMany({
+                where: { id, companyId },
                 data: updateData
             });
         }
@@ -138,8 +149,8 @@ export async function PATCH(
             }
         }
 
-        const updated = await prisma.catalog.findUnique({
-            where: { id },
+        const updated = await prisma.catalog.findFirst({
+            where: { id, companyId },
             include: { searchSources: true }
         });
 
@@ -154,6 +165,11 @@ export async function DELETE(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const { companyId } = ctx;
     try {
         const { id: idParam } = await params;
         const id = parseInt(idParam);
@@ -161,10 +177,12 @@ export async function DELETE(
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
-        await prisma.catalog.delete({
-            where: { id }
+        const deleted = await prisma.catalog.deleteMany({
+            where: { id, companyId }
         });
-
+        if (deleted.count === 0) {
+            return NextResponse.json({ error: "Catalogue not found" }, { status: 404 });
+        }
         return NextResponse.json({ success: true });
     } catch (err: any) {
         console.error("Delete catalogue error:", err);

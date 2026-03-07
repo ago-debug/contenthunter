@@ -18,6 +18,7 @@ export const authOptions: NextAuthOptions = {
 
                 const user = await prisma.user.findUnique({
                     where: { email: credentials.email },
+                    include: { company: true },
                 });
 
                 if (!user || !(await bcrypt.compare(credentials.password, user.password))) {
@@ -43,10 +44,13 @@ export const authOptions: NextAuthOptions = {
             if (authUser?.id) {
                 const dbUser = await prisma.user.findUnique({
                     where: { id: parseInt(authUser.id, 10) },
-                    include: { profile: true },
+                    include: { profile: true, company: true },
                 });
                 if (dbUser) {
                     token.userId = dbUser.id;
+                    token.companyId = dbUser.companyId ?? undefined;
+                    token.companyName = dbUser.company?.name;
+                    token.isGlobalAdmin = dbUser.companyId == null;
                     token.profileId = dbUser.profileId ?? undefined;
                     token.profileName = dbUser.profile?.name;
                     const perms = dbUser.profile?.permissions;
@@ -59,6 +63,9 @@ export const authOptions: NextAuthOptions = {
             if (token && session.user) {
                 session.user.id = token.sub ?? undefined;
                 session.user.userId = token.userId;
+                session.user.companyId = token.companyId ?? null;
+                session.user.companyName = token.companyName ?? null;
+                session.user.isGlobalAdmin = token.isGlobalAdmin ?? false;
                 session.user.profileId = token.profileId;
                 session.user.profileName = token.profileName;
                 session.user.permissions = token.permissions ?? [];

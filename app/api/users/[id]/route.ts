@@ -23,6 +23,8 @@ export async function GET(
             id: true,
             name: true,
             email: true,
+            companyId: true,
+            company: { select: { id: true, name: true } },
             profileId: true,
             profile: { select: { id: true, name: true } },
             createdAt: true,
@@ -38,6 +40,8 @@ export async function GET(
         id: user.id,
         name: user.name,
         email: user.email,
+        companyId: user.companyId,
+        companyName: user.company?.name ?? null,
         profileId: user.profileId,
         profileName: user.profile?.name ?? null,
         createdAt: user.createdAt,
@@ -62,11 +66,18 @@ export async function PATCH(
 
     try {
         const body = await req.json();
-        const { name, profileId } = body as { name?: string; profileId?: number | string | null };
+        const { name, profileId, companyId: bodyCompanyId } = body as {
+            name?: string;
+            profileId?: number | string | null;
+            companyId?: number | string | null;
+        };
 
-        const data: { name?: string | null; profileId?: number | null } = {};
+        const data: { name?: string | null; profileId?: number | null; companyId?: number | null } = {};
         if (name !== undefined) data.name = name?.trim() || null;
         if (profileId !== undefined) data.profileId = profileId === null || profileId === "" ? null : Number(profileId);
+        if (session.user.isGlobalAdmin && bodyCompanyId !== undefined) {
+            data.companyId = bodyCompanyId === null || bodyCompanyId === "" ? null : Number(bodyCompanyId);
+        }
 
         const user = await prisma.user.update({
             where: { id },
@@ -75,6 +86,8 @@ export async function PATCH(
                 id: true,
                 name: true,
                 email: true,
+                companyId: true,
+                company: { select: { id: true, name: true } },
                 profileId: true,
                 profile: { select: { id: true, name: true } },
                 updatedAt: true,
@@ -85,6 +98,8 @@ export async function PATCH(
             id: user.id,
             name: user.name,
             email: user.email,
+            companyId: user.companyId,
+            companyName: user.company?.name ?? null,
             profileId: user.profileId,
             profileName: user.profile?.name ?? null,
             updatedAt: user.updatedAt,
