@@ -145,6 +145,7 @@ export default function ImportLab() {
     };
 
     const fetchRepository = async (id: number) => {
+        if (id == null || isNaN(id)) return;
         setLoading(true);
         try {
             const [repoRes, productsRes] = await Promise.all([
@@ -194,6 +195,10 @@ export default function ImportLab() {
                 return;
             }
             const arrayBuffer = await res.arrayBuffer();
+            if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+                toast.error("Il server ha restituito un file vuoto. Verifica che il PDF esista in public/uploads.");
+                return;
+            }
             const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
             const pdf = await loadingTask.promise;
 
@@ -207,8 +212,11 @@ export default function ImportLab() {
         } catch (err: any) {
             console.error("PDF Load Error:", err);
             const msg = (err?.message || err?.toString?.() || "").toLowerCase();
+            const name = (err?.name || "").toString();
             if (msg.includes("fetch") || msg.includes("failed") || msg.includes("network"))
                 toast.error("Errore di rete. Verifica che il server sia raggiungibile.");
+            else if (name === "InvalidPDFException" || msg.includes("invalid pdf") || msg.includes("invalid pdf structure"))
+                toast.error("File non valido o danneggiato. Ricarica il PDF da Gestione Cataloghi o verifica che esista sul server.");
             else
                 toast.error("Errore nel caricamento del PDF. Verifica che il file sia valido.");
         }
@@ -648,6 +656,10 @@ export default function ImportLab() {
     };
 
     const handleConfirmImport = async () => {
+        if (!catalogIdParam) {
+            toast.warning("Nessun catalogo selezionato. Apri un catalogo dalla dashboard.");
+            return;
+        }
         if (!mapping.sku) {
             toast.warning("Devi mappare almeno il campo SKU!");
             return;
@@ -818,7 +830,10 @@ export default function ImportLab() {
             setPdfSummary(res.data);
             toast.success("Riassunto generato.");
         } catch (err: any) {
-            toast.error(err?.response?.data?.error || "Errore riassunto.");
+            const data = err?.response?.data;
+            const msg = data?.error || "Errore riassunto.";
+            const hint = data?.hint;
+            toast.error(hint ? msg + " " + hint : msg);
         } finally {
             setPdfSummaryLoading(false);
         }
