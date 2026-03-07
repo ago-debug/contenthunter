@@ -214,7 +214,7 @@ export default function ImportLab() {
 
         const toastId = toast.loading("Salvataggio modifiche...");
         try {
-            await axios.put(`/api/repositories/${catalogIdParam}/staging/${selectedProduct.id}`, selectedProduct);
+            await axios.put("/api/repositories/" + catalogIdParam + "/staging/" + selectedProduct.id, selectedProduct);
             toast.update(toastId, { render: "Prodotto aggiornato!", type: "success", isLoading: false, autoClose: 2000 });
             fetchRepository(parseInt(catalogIdParam));
             setIsProductModalOpen(false);
