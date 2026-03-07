@@ -80,7 +80,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-w-0">
-                <header className="h-14 lg:h-20 bg-white border-b border-[#E5E7EB] px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sticky top-0 z-30">
+                <header className="h-14 lg:h-20 bg-white border-b border-[#E5E7EB] px-4 sm:px-6 lg:px-12 flex items-center justify-between gap-3 sticky top-0 z-50">
                     <button
                         type="button"
                         onClick={() => setSidebarOpen(true)}
@@ -115,8 +115,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                                 </button>
                                 {companyDropdownOpen && (
                                     <>
-                                        <div className="fixed inset-0 z-40" onClick={() => setCompanyDropdownOpen(false)} />
-                                        <div className="absolute right-0 top-full mt-1 py-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 min-w-[180px] max-h-64 overflow-y-auto">
+                                        <div className="fixed inset-0 z-[60]" aria-hidden onClick={() => setCompanyDropdownOpen(false)} />
+                                        <div className="absolute right-0 top-full mt-1 py-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[70] min-w-[180px] max-h-64 overflow-y-auto">
                                             <button
                                                 type="button"
                                                 onClick={() => {
