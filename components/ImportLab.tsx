@@ -238,7 +238,7 @@ export default function ImportLab() {
         }
 
         const label = bulkField === "brand" ? "Brand" : "Categoria";
-        if (!confirm(`Applicare il valore "${bulkValue.trim()}" al campo ${label} su ${products.length} prodotti${bulkOnlyEmpty ? " solo dove vuoto" : ""}?`)) {
+        if (!confirm("Applicare il valore \"" + bulkValue.trim() + "\" al campo " + label + " su " + products.length + " prodotti" + (bulkOnlyEmpty ? " solo dove vuoto" : "") + "?")) {
             return;
         }
 
@@ -367,7 +367,7 @@ export default function ImportLab() {
             return;
         }
 
-        if (!confirm(`Confermi il push di ${products.length} prodotti verso il Master ERP?`)) return;
+        if (!confirm("Confermi il push di " + products.length + " prodotti verso il Master ERP?")) return;
 
         const toastId = toast.loading("Invio prodotti al Master ERP in corso...");
         let successCount = 0;
