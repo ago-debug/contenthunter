@@ -483,7 +483,7 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const cleanPath = pdf.filePath.startsWith('/') ? pdf.filePath : `/${pdf.filePath}`;
+                const cleanPath = pdf.filePath.startsWith('/') ? pdf.filePath : "/" + pdf.filePath;
                 const finalUrl = cleanPath;
 
                 const loadingTask = pdfjsLib.getDocument({
@@ -739,7 +739,7 @@ export default function ImportLab() {
 
             for (const pdf of repository.pdfs) {
                 const safePdfPath = (pdf.filePath.startsWith('/') ? pdf.filePath.substring(1) : pdf.filePath).split('/').map((s: string) => encodeURIComponent(s)).join('/');
-                const loadingTask = pdfjsLib.getDocument(`/${safePdfPath}`);
+                const loadingTask = pdfjsLib.getDocument("/" + safePdfPath);
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
