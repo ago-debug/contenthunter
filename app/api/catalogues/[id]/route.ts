@@ -115,7 +115,7 @@ export async function PATCH(
         const { id: idParam } = await params;
         const id = parseInt(idParam);
         const body = await req.json();
-        const { searchSources, name, imageFolderPath, status, lastListinoName } = body;
+        const { searchSources, name, imageFolderPath, status, lastListinoName, pdfs } = body;
 
         if (isNaN(id)) {
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
@@ -132,6 +132,20 @@ export async function PATCH(
                 where: { id, companyId },
                 data: updateData
             });
+        }
+
+        if (pdfs !== undefined && Array.isArray(pdfs)) {
+            await prisma.catalogPdf.deleteMany({ where: { catalogId: id } });
+            const paths = pdfs.filter((p: unknown) => typeof p === "string" && p.trim() !== "");
+            if (paths.length > 0) {
+                await prisma.catalogPdf.createMany({
+                    data: paths.map((path: string) => ({
+                        catalogId: id,
+                        fileName: path.split("/").pop() || "catalogo.pdf",
+                        filePath: path.trim()
+                    }))
+                });
+            }
         }
 
         if (searchSources !== undefined) {
@@ -151,7 +165,7 @@ export async function PATCH(
 
         const updated = await prisma.catalog.findFirst({
             where: { id, companyId },
-            include: { searchSources: true }
+            include: { searchSources: true, pdfs: true }
         });
 
         return NextResponse.json(updated);
