@@ -39,8 +39,10 @@ export default function RootLayout({
                 </AuthProvider>
 
                 <ToastContainer
-                    position="bottom-right"
+                    position="top-right"
                     theme="light"
+                    limit={3}
+                    style={{ zIndex: 9999 }}
                     toastStyle={{
                         background: '#ffffff',
                         border: '1px solid #E5E7EB',

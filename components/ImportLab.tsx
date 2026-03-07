@@ -186,9 +186,14 @@ export default function ImportLab() {
             }
             setPdfPages(pages);
             console.log(`[PDF-LOAD] Success: ${pdf.numPages} pages.`);
-        } catch (err) {
+        } catch (err: any) {
             console.error("PDF Load Error:", err);
-            toast.error("Errore nel caricamento del PDF. Verifica il file.");
+            const msg = err?.message || err?.toString?.() || "";
+            toast.error(
+                msg.includes("fetch") || msg.includes("Failed")
+                    ? "Errore nel caricamento del PDF. Verifica che il file esista e il path sia corretto."
+                    : "Errore nel caricamento del PDF. Verifica il file."
+            );
         }
     };
 
