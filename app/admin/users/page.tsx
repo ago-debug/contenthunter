@@ -31,6 +31,8 @@ export default function AdminUsersPage() {
   const [editProfileId, setEditProfileId] = useState<number | null>(null);
   const [editCompanyId, setEditCompanyId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [newEmail, setNewEmail] = useState("");
@@ -79,16 +81,37 @@ export default function AdminUsersPage() {
     setEditProfileId(u.profileId);
     setEditCompanyId(u.companyId);
     setEditName(u.name || "");
+    setEditEmail(u.email);
+    setEditPassword("");
   };
 
   const saveUser = async () => {
     if (!editingUser) return;
+    if (!editEmail.trim()) {
+      toast.error("L'email è obbligatoria");
+      return;
+    }
     setSaving(true);
     try {
-      const payload: { name?: string | null; profileId?: number | null; companyId?: number | null } = {
+      const payload: {
+        name?: string | null;
+        email?: string;
+        password?: string;
+        profileId?: number | null;
+        companyId?: number | null;
+      } = {
         name: editName.trim() || null,
+        email: editEmail.trim(),
         profileId: editProfileId,
       };
+      if (editPassword.length > 0) {
+        if (editPassword.length < 6) {
+          toast.error("La password deve avere almeno 6 caratteri");
+          setSaving(false);
+          return;
+        }
+        payload.password = editPassword;
+      }
       if (isGlobalAdmin) payload.companyId = editCompanyId;
       await axios.patch(`/api/users/${editingUser.id}`, payload);
       toast.success("Utente aggiornato");
@@ -295,12 +318,36 @@ export default function AdminUsersPage() {
 
       {editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-slate-100">
               <h2 className="text-xl font-black text-slate-900">Modifica utente</h2>
-              <p className="text-sm text-slate-500 mt-1">{editingUser.email}</p>
+              <p className="text-sm text-slate-500 mt-1">ID: {editingUser.id}</p>
             </div>
             <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-slate-200 focus:border-slate-400"
+                  placeholder="email@esempio.it"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
+                  Nuova password
+                </label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-slate-200 focus:border-slate-400"
+                  placeholder="Lascia vuoto per non modificare (min. 6 caratteri)"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
                   Nome (facoltativo)
@@ -316,20 +363,23 @@ export default function AdminUsersPage() {
               {isGlobalAdmin && (
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">
-                    Azienda
+                    Azienda / Admin globale
                   </label>
                   <select
                     value={editCompanyId ?? ""}
                     onChange={(e) => setEditCompanyId(e.target.value ? Number(e.target.value) : null)}
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-slate-200 focus:border-slate-400"
                   >
-                    <option value="">— Admin globale (nessuna azienda) —</option>
+                    <option value="">— Admin globale (accesso a tutte le aziende) —</option>
                     {companies.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Seleziona &quot;Admin globale&quot; per dare all&apos;utente accesso a tutte le aziende.
+                  </p>
                 </div>
               )}
               <div>

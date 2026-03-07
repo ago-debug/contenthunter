@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 import { requirePermission } from "@/lib/auth-api";
 
 export async function GET(
@@ -66,17 +67,46 @@ export async function PATCH(
 
     try {
         const body = await req.json();
-        const { name, profileId, companyId: bodyCompanyId } = body as {
+        const { name, email: bodyEmail, password: bodyPassword, profileId, companyId: bodyCompanyId } = body as {
             name?: string;
+            email?: string;
+            password?: string;
             profileId?: number | string | null;
             companyId?: number | string | null;
         };
 
-        const data: { name?: string | null; profileId?: number | null; companyId?: number | null } = {};
+        const data: {
+            name?: string | null;
+            email?: string;
+            password?: string;
+            profileId?: number | null;
+            companyId?: number | null;
+        } = {};
         if (name !== undefined) data.name = name?.trim() || null;
         if (profileId !== undefined) data.profileId = profileId === null || profileId === "" ? null : Number(profileId);
         if (session.user.isGlobalAdmin && bodyCompanyId !== undefined) {
             data.companyId = bodyCompanyId === null || bodyCompanyId === "" ? null : Number(bodyCompanyId);
+        }
+
+        if (bodyEmail !== undefined) {
+            const email = bodyEmail?.trim();
+            if (!email) {
+                return NextResponse.json({ message: "Email obbligatoria" }, { status: 400 });
+            }
+            const existing = await prisma.user.findFirst({
+                where: { email, NOT: { id } },
+            });
+            if (existing) {
+                return NextResponse.json({ message: "Un altro utente ha già questa email" }, { status: 400 });
+            }
+            data.email = email;
+        }
+
+        if (bodyPassword !== undefined && String(bodyPassword).length > 0) {
+            if (String(bodyPassword).length < 6) {
+                return NextResponse.json({ message: "La password deve avere almeno 6 caratteri" }, { status: 400 });
+            }
+            data.password = await bcrypt.hash(String(bodyPassword), 10);
         }
 
         const user = await prisma.user.update({
