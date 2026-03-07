@@ -111,11 +111,16 @@ export async function POST(
         ]);
 
         const resultText = aiResponse.response.text() || "{}";
-        const parsedResult = JSON.parse(resultText);
-
+        let parsedResult: any;
+        try {
+            parsedResult = JSON.parse(resultText);
+        } catch (parseErr: any) {
+            console.error("AI response not valid JSON:", resultText?.slice(0, 500));
+            throw new Error("Risposta AI non valida (JSON). Riprova o verifica GEMINI_API_KEY.");
+        }
         if (!parsedResult.products || !Array.isArray(parsedResult.products)) {
-            console.error("Malformed AI response:", resultText);
-            throw new Error("Invalid response format from AI.");
+            console.error("Malformed AI response:", resultText?.slice(0, 500));
+            throw new Error("Formato risposta AI non valido (mancano 'products').");
         }
 
         const extractedProducts = parsedResult.products;
@@ -222,9 +227,12 @@ export async function POST(
 
     } catch (err: any) {
         console.error("PDF DISMANTLER CRITICAL ERROR:", err);
+        const message = err?.message || "Errore sconosciuto";
+        const isConfig = message.includes("GEMINI_API_KEY") || message.includes("configured");
         return NextResponse.json({
-            error: err.message,
-            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+            error: message,
+            hint: isConfig ? "Imposta GEMINI_API_KEY in .env" : "Verifica che il PDF sia valido e che il file esista sul server.",
+            stack: process.env.NODE_ENV === 'development' ? err?.stack : undefined
         }, { status: 500 });
     }
 }

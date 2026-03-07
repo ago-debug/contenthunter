@@ -36,7 +36,10 @@ export async function GET(req: NextRequest) {
             }
         });
     } catch (e: any) {
-        console.error("Storage API error:", e);
-        return new NextResponse(`Not Found: ${e.message}`, { status: 404 });
+        console.error("Storage API error:", e?.message, filePathParam);
+        return new NextResponse("File non trovato. Verifica che il path sia corretto e che il file esista in public/.", {
+            status: 404,
+            headers: { "Content-Type": "text/plain; charset=utf-8" }
+        });
     }
 }

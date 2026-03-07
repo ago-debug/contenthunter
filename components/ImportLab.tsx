@@ -176,7 +176,7 @@ export default function ImportLab() {
 
         try {
             console.log(`[PDF-LOAD] Requesting from storage: ${proxyUrl}`);
-            const loadingTask = pdfjsLib.getDocument(proxyUrl);
+            const loadingTask = pdfjsLib.getDocument({ url: proxyUrl, httpHeaders: { Accept: "application/pdf" } });
             const pdf = await loadingTask.promise;
 
             setPdfInstance(pdf);
@@ -188,12 +188,11 @@ export default function ImportLab() {
             console.log(`[PDF-LOAD] Success: ${pdf.numPages} pages.`);
         } catch (err: any) {
             console.error("PDF Load Error:", err);
-            const msg = err?.message || err?.toString?.() || "";
-            toast.error(
-                msg.includes("fetch") || msg.includes("Failed")
-                    ? "Errore nel caricamento del PDF. Verifica che il file esista e il path sia corretto."
-                    : "Errore nel caricamento del PDF. Verifica il file."
-            );
+            const msg = (err?.message || err?.toString?.() || "").toLowerCase();
+            if (msg.includes("fetch") || msg.includes("failed") || msg.includes("404") || msg.includes("not found"))
+                toast.error("PDF non trovato sul server. Verifica che il file sia stato caricato (es. da Gestione Cataloghi).");
+            else
+                toast.error("Errore nel caricamento del PDF. Verifica che il file sia valido.");
         }
     };
 
@@ -782,7 +781,10 @@ export default function ImportLab() {
             fetchRepository(parseInt(catalogIdParam));
         } catch (err: any) {
             console.error("Dismantler error:", err);
-            toast.update(toastId, { render: "Errore durante lo smontaggio AI.", type: "error", isLoading: false, autoClose: 5000 });
+            const apiError = err?.response?.data?.error || err?.message || "Errore sconosciuto";
+            const hint = err?.response?.data?.hint;
+            const message = hint ? `${apiError}. ${hint}` : apiError;
+            toast.update(toastId, { render: message, type: "error", isLoading: false, autoClose: 6000 });
         } finally {
             setIsExtractingAi(false);
         }
