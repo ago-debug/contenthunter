@@ -257,7 +257,7 @@ export default function ImportLab() {
             });
 
             toast.update(toastId, {
-                render: `Aggiornati ${res.data.updatedCount || 0} prodotti in staging.`,
+                render: "Aggiornati " + (res.data.updatedCount || 0) + " prodotti in staging.",
                 type: "success",
                 isLoading: false,
                 autoClose: 3000
@@ -344,7 +344,7 @@ export default function ImportLab() {
             }
 
             toast.update(toastId, {
-                render: `Associate ${addedImages.length} immagini al prodotto.`,
+                render: "Associate " + addedImages.length + " immagini al prodotto.",
                 type: "success",
                 isLoading: false,
                 autoClose: 3000
@@ -418,7 +418,7 @@ export default function ImportLab() {
             }
 
             toast.update(toastId, {
-                render: `Push completato: ${successCount} prodotti sincronizzati, ${errorCount} errori.`,
+                render: "Push completato: " + successCount + " prodotti sincronizzati, " + errorCount + " errori.",
                 type: errorCount > 0 ? "warning" : "success",
                 isLoading: false,
                 autoClose: 4000
@@ -448,7 +448,7 @@ export default function ImportLab() {
 
             if (res.data.success) {
                 toast.update(toastId, {
-                    render: `Associazione completata: ${res.data.count} immagini associate con successo dalla cartella.`,
+                    render: "Associazione completata: " + res.data.count + " immagini associate con successo dalla cartella.",
                     type: "success",
                     isLoading: false,
                     autoClose: 3000
@@ -528,7 +528,7 @@ export default function ImportLab() {
 
             fetchRepository(parseInt(catalogIdParam!));
             toast.update(toastId, {
-                render: `Associazione PDF completata: ${associationsCount} immagini associate.`,
+                render: "Associazione PDF completata: " + associationsCount + " immagini associate.",
                 type: "success",
                 isLoading: false,
                 autoClose: 3000
@@ -764,7 +764,7 @@ export default function ImportLab() {
 
             setProducts(updatedProducts);
             toast.update(toastId, {
-                render: `Ricerca completata: ${matchesCount} riferimenti trovati nei PDF.`,
+                render: "Ricerca completata: " + matchesCount + " riferimenti trovati nei PDF.",
                 type: "success",
                 isLoading: false,
                 autoClose: 3000
@@ -801,7 +801,7 @@ export default function ImportLab() {
             console.error("Dismantler error:", err);
             const apiError = err?.response?.data?.error || err?.message || "Errore sconosciuto";
             const hint = err?.response?.data?.hint;
-            const message = hint ? `${apiError}. ${hint}` : apiError;
+            const message = hint ? (apiError + ". " + hint) : apiError;
             toast.update(toastId, { render: message, type: "error", isLoading: false, autoClose: 6000 });
         } finally {
             setIsExtractingAi(false);
