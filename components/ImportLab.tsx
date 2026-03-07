@@ -176,7 +176,20 @@ export default function ImportLab() {
 
         try {
             console.log(`[PDF-LOAD] Requesting from storage: ${proxyUrl}`);
-            const loadingTask = pdfjsLib.getDocument({ url: proxyUrl, httpHeaders: { Accept: "application/pdf" } });
+            const res = await fetch(proxyUrl);
+            if (!res.ok) {
+                const text = await res.text();
+                console.warn("[PDF-LOAD] Server responded with", res.status, text?.slice(0, 100));
+                toast.error("PDF non trovato sul server (404). Carica il file da Gestione Cataloghi o verifica il path.");
+                return;
+            }
+            const contentType = res.headers.get("content-type") || "";
+            if (!contentType.includes("application/pdf")) {
+                toast.error("Il server non ha restituito un PDF. Verifica che il file esista in public/uploads.");
+                return;
+            }
+            const arrayBuffer = await res.arrayBuffer();
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
             const pdf = await loadingTask.promise;
 
             setPdfInstance(pdf);
@@ -185,12 +198,12 @@ export default function ImportLab() {
                 pages.push({ pageNumber: i });
             }
             setPdfPages(pages);
-            console.log(`[PDF-LOAD] Success: ${pdf.numPages} pages.`);
+            console.log(`[PDF-LOAD] Success: ${pdf.numPages} pages.");
         } catch (err: any) {
             console.error("PDF Load Error:", err);
             const msg = (err?.message || err?.toString?.() || "").toLowerCase();
-            if (msg.includes("fetch") || msg.includes("failed") || msg.includes("404") || msg.includes("not found"))
-                toast.error("PDF non trovato sul server. Verifica che il file sia stato caricato (es. da Gestione Cataloghi).");
+            if (msg.includes("fetch") || msg.includes("failed") || msg.includes("network"))
+                toast.error("Errore di rete. Verifica che il server sia raggiungibile.");
             else
                 toast.error("Errore nel caricamento del PDF. Verifica che il file sia valido.");
         }
