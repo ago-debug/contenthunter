@@ -203,7 +203,7 @@ export default function ImportLab() {
                 pages.push({ pageNumber: i });
             }
             setPdfPages(pages);
-            console.log(`[PDF-LOAD] Success: ${pdf.numPages} pages.");
+            console.log("[PDF-LOAD] Success: " + pdf.numPages + " pages.");
         } catch (err: any) {
             console.error("PDF Load Error:", err);
             const msg = (err?.message || err?.toString?.() || "").toLowerCase();
