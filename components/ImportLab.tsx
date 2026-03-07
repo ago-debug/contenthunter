@@ -903,7 +903,7 @@ export default function ImportLab() {
                         <motion.div
                             key={repo.id}
                             whileHover={{ y: -5 }}
-                            onClick={() => window.location.href = `/import?id=${repo.id}`}
+                            onClick={() => window.location.href = "/import?id=" + repo.id}
                             className="main-card p-8 cursor-pointer group hover:border-orange-200 transition-all border-2 border-transparent"
                         >
                             <div className="flex items-center gap-4 mb-6">
@@ -1007,7 +1007,7 @@ export default function ImportLab() {
                             </select>
                             <input
                                 type="text"
-                                placeholder={`Valore ${bulkField === "brand" ? "Brand" : "Categoria"}`}
+                                placeholder={"Valore " + (bulkField === "brand" ? "Brand" : "Categoria")}
                                 value={bulkValue}
                                 onChange={(e) => setBulkValue(e.target.value)}
                                 className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white min-w-[140px]"
@@ -1113,14 +1113,14 @@ export default function ImportLab() {
                     <div className="flex items-center gap-4 p-4 border-b border-white shrink-0">
                         <button
                             onClick={() => setIsVisualMode(false)}
-                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${!isVisualMode ? 'bg-slate-900 text-white shadow-xl' : 'bg-white text-slate-400 hover:text-slate-900 border border-slate-100'}`}
+                            className={"px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 " + (!isVisualMode ? "bg-slate-900 text-white shadow-xl" : "bg-white text-slate-400 hover:text-slate-900 border border-slate-100")}
                         >
                             <LayoutGrid className="w-3.5 h-3.5" />
                             Elenco Prodotti
                         </button>
                         <button
                             onClick={() => setIsVisualMode(true)}
-                            className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${isVisualMode ? 'bg-slate-900 text-white shadow-xl' : 'bg-white text-slate-400 hover:text-slate-900 border border-slate-100'}`}
+                            className={"px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 " + (isVisualMode ? "bg-slate-900 text-white shadow-xl" : "bg-white text-slate-400 hover:text-slate-900 border border-slate-100")}
                         >
                             <Maximize2 className="w-3.5 h-3.5" />
                             Precision Dismantler
@@ -1180,7 +1180,7 @@ export default function ImportLab() {
                                                             </td>
                                                             <td className="px-6 py-4">
                                                                 <span className="text-sm font-black text-slate-900">
-                                                                    {p.prices[0]?.price ? `${p.prices[0].price} €` : "--"}
+                                                                    {p.prices[0]?.price ? (p.prices[0].price + " €") : "--"}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-4">
@@ -1215,7 +1215,7 @@ export default function ImportLab() {
                                                             <td className="px-6 py-4 text-right">
                                                                 <button
                                                                     onClick={() => handleProductSelectForVisualMapping(p)}
-                                                                    className={`p-2 rounded-xl transition-all ${selectedProduct?.id === p.id ? 'bg-orange-500 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-lg opacity-0 group-hover:opacity-100'}`}
+                                                                    className={"p-2 rounded-xl transition-all " + (selectedProduct?.id === p.id ? "bg-orange-500 text-white shadow-lg" : "text-slate-400 hover:text-slate-900 hover:bg-white hover:shadow-lg opacity-0 group-hover:opacity-100")}
                                                                 >
                                                                     <ScanSearch className="w-5 h-5" />
                                                                 </button>
@@ -1730,11 +1730,7 @@ export default function ImportLab() {
                                                                 : [...prev, img.relativePath]
                                                         );
                                                     }}
-                                                    className={`relative aspect-square rounded-2xl border overflow-hidden group ${
-                                                        checked
-                                                            ? "border-orange-500 ring-2 ring-orange-500/40"
-                                                            : "border-slate-100 hover:border-orange-200"
-                                                    }`}
+                                                    className={"relative aspect-square rounded-2xl border overflow-hidden group " + (checked ? "border-orange-500 ring-2 ring-orange-500/40" : "border-slate-100 hover:border-orange-200")}
                                                 >
                                                     <img
                                                         src={img.url}
