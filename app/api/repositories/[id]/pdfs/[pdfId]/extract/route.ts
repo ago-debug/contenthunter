@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import fs from "fs";
-import path from "path";
 import { extractProductsFromPdf } from "@/lib/gemini-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
+import { getPdfBuffer } from "@/lib/pdf-service";
 
 export const maxDuration = 300;
 export const config = {
-    api: {
-        bodyParser: { sizeLimit: "100mb" },
-    },
+    api: { bodyParser: { sizeLimit: "100mb" } },
 };
 
 /**
- * PDF extraction via Gemini (NotebookLM-style document understanding).
- * Reads the PDF as a single corpus and extracts products into staging.
+ * PDF extraction via Gemini (NotebookLM-style). Uses pdf-service for file access.
  */
 export async function POST(
     req: NextRequest,
@@ -23,28 +19,19 @@ export async function POST(
     const startTime = Date.now();
     try {
         const { id, pdfId } = await params;
-        const catalogId = parseInt(id);
-        const parsedPdfId = parseInt(pdfId);
+        const catalogId = parseInt(id, 10);
+        const parsedPdfId = parseInt(pdfId, 10);
 
         const access = await ensureCatalogAccess(req, catalogId);
         if (!access) {
             return NextResponse.json({ error: "Non autorizzato o catalogo non trovato" }, { status: 403 });
         }
 
-        const catalogPdf = await prisma.catalogPdf.findUnique({
-            where: { id: parsedPdfId },
-        });
-        if (!catalogPdf) {
-            return NextResponse.json({ error: "PDF not found." }, { status: 404 });
+        const pdfBuffer = await getPdfBuffer(catalogId, parsedPdfId);
+        if (!pdfBuffer) {
+            return NextResponse.json({ error: "PDF non trovato o file non leggibile." }, { status: 404 });
         }
 
-        const safeFilePath = catalogPdf.filePath.startsWith("/") ? catalogPdf.filePath.slice(1) : catalogPdf.filePath;
-        const fullPath = path.join(process.cwd(), "public", safeFilePath);
-        if (!fs.existsSync(fullPath)) {
-            return NextResponse.json({ error: "Physical file not found." }, { status: 404 });
-        }
-
-        const pdfBuffer = fs.readFileSync(fullPath);
         const pdfBase64 = pdfBuffer.toString("base64");
 
         const { products: extractedProducts } = await extractProductsFromPdf(pdfBase64);
@@ -117,13 +104,17 @@ export async function POST(
             }
         }
 
+        const pdfMeta = await prisma.catalogPdf.findUnique({
+            where: { id: parsedPdfId },
+            select: { fileName: true },
+        });
         await prisma.catalogPdf.update({
             where: { id: parsedPdfId },
             data: { processed: true },
         });
         await prisma.catalog.update({
             where: { id: catalogId },
-            data: { lastListinoName: "Gemini_" + catalogPdf.fileName },
+            data: { lastListinoName: "Gemini_" + (pdfMeta?.fileName || "catalog") },
         });
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);

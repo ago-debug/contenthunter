@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import fs from "fs";
-import path from "path";
 import { summarizePdf } from "@/lib/gemini-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
+import { getPdfBuffer } from "@/lib/pdf-service";
 
 export const maxDuration = 120;
 
@@ -16,29 +14,20 @@ export async function GET(
 ) {
     try {
         const { id, pdfId } = await params;
-        const catalogId = parseInt(id);
-        const parsedPdfId = parseInt(pdfId);
+        const catalogId = parseInt(id, 10);
+        const parsedPdfId = parseInt(pdfId, 10);
 
         const access = await ensureCatalogAccess(req, catalogId);
         if (!access) {
             return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
         }
 
-        const catalogPdf = await prisma.catalogPdf.findUnique({
-            where: { id: parsedPdfId },
-        });
-        if (!catalogPdf) {
-            return NextResponse.json({ error: "PDF not found." }, { status: 404 });
+        const pdfBuffer = await getPdfBuffer(catalogId, parsedPdfId);
+        if (!pdfBuffer) {
+            return NextResponse.json({ error: "PDF non trovato o file non leggibile." }, { status: 404 });
         }
 
-        const safeFilePath = catalogPdf.filePath.startsWith("/") ? catalogPdf.filePath.slice(1) : catalogPdf.filePath;
-        const fullPath = path.join(process.cwd(), "public", safeFilePath);
-        if (!fs.existsSync(fullPath)) {
-            return NextResponse.json({ error: "Physical file not found." }, { status: 404 });
-        }
-
-        const pdfBase64 = fs.readFileSync(fullPath).toString("base64");
-        const result = await summarizePdf(pdfBase64);
+        const result = await summarizePdf(pdfBuffer.toString("base64"));
         return NextResponse.json(result);
     } catch (err: any) {
         console.error("[Gemini PDF] Summarize error:", err);

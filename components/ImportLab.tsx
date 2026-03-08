@@ -127,8 +127,8 @@ export default function ImportLab() {
     // Handle PDF switching
     useEffect(() => {
         if (repository?.pdfs?.length > 0 && repository.pdfs[currentPdfIdx]) {
-            console.log(`[PDF-SWITCH] Loading PDF index ${currentPdfIdx}: ${repository.pdfs[currentPdfIdx].fileName}`);
-            loadPdfPages(repository.pdfs[currentPdfIdx].filePath);
+            console.log("[PDF-SWITCH] Loading PDF index " + currentPdfIdx + ": " + repository.pdfs[currentPdfIdx].fileName);
+            loadPdfPages(repository.pdfs[currentPdfIdx].id);
         }
     }, [currentPdfIdx, repository?.pdfs]);
 
@@ -157,7 +157,7 @@ export default function ImportLab() {
 
             // If there are PDFs, load the first one's pages if needed
             if (repoRes.data.pdfs?.length > 0) {
-                loadPdfPages(repoRes.data.pdfs[0].filePath);
+                loadPdfPages(repoRes.data.pdfs[0].id);
             }
         } catch (err) {
             console.error("Fetch error:", err);
@@ -167,22 +167,12 @@ export default function ImportLab() {
         }
     };
 
-    const loadPdfPages = async (filePath: string) => {
-        if (!filePath) return;
+    const loadPdfPages = async (pdfId: number) => {
+        if (!catalogIdParam || !pdfId) return;
 
-        // Correctly handle paths for /api/storage?path=
-        let storagePath = filePath;
-        if (filePath.includes("path=")) {
-            storagePath = decodeURIComponent(filePath.split("path=")[1]);
-        }
-
-        // Ensure path starts without slash for the storage proxy
-        const cleanPath = storagePath.startsWith("/") ? storagePath.slice(1) : storagePath;
-        const proxyUrl = `/api/storage?path=${encodeURIComponent(cleanPath)}`;
-
+        const url = "/api/repositories/" + catalogIdParam + "/pdfs/" + pdfId + "/file";
         try {
-            console.log(`[PDF-LOAD] Requesting from storage: ${proxyUrl}`);
-            const res = await fetch(proxyUrl);
+            const res = await fetch(url, { credentials: "include" });
             if (!res.ok) {
                 const text = await res.text();
                 console.warn("[PDF-LOAD] Server responded with", res.status, text?.slice(0, 100));
@@ -755,7 +745,7 @@ export default function ImportLab() {
 
     // Global PDF Search
     const handlePdfSearch = async () => {
-        if (!repository?.pdfs?.length || products.length === 0) {
+        if (!repository?.pdfs?.length || products.length === 0 || !catalogIdParam) {
             toast.warning("Carica almeno un PDF e un listino per iniziare la ricerca.");
             return;
         }
@@ -768,8 +758,10 @@ export default function ImportLab() {
             const updatedProducts = [...products];
 
             for (const pdf of repository.pdfs) {
-                const safePdfPath = (pdf.filePath.startsWith('/') ? pdf.filePath.substring(1) : pdf.filePath).split('/').map((s: string) => encodeURIComponent(s)).join('/');
-                const loadingTask = pdfjsLib.getDocument("/" + safePdfPath);
+                const res = await fetch("/api/repositories/" + catalogIdParam + "/pdfs/" + pdf.id + "/file", { credentials: "include" });
+                if (!res.ok) continue;
+                const arrayBuffer = await res.arrayBuffer();
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
                 const pdfDoc = await loadingTask.promise;
 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
