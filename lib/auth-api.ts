@@ -92,16 +92,33 @@ export async function requireCompanyId(req: Request): Promise<{ session: Session
 /**
  * Verifica che il catalogo esista e appartenga all'azienda dell'utente.
  * Da usare nelle route repositories/[id]/... (id = catalogId).
+ * Se l'utente è admin globale e non invia companyId, l'accesso è consentito se il catalogo esiste.
  */
 export async function ensureCatalogAccess(
     req: Request,
     catalogId: number
 ): Promise<{ companyId: number } | null> {
-    const ctx = await requireCompanyId(req);
-    if (!ctx) return null;
-    const catalog = await prisma.catalog.findFirst({
-        where: { id: catalogId, companyId: ctx.companyId },
-        select: { id: true },
-    });
-    return catalog ? { companyId: ctx.companyId } : null;
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return null;
+
+    const fromReq = await getCompanyIdFromRequest(req);
+    const effectiveCompanyId = getCompanyId(session, fromReq);
+
+    if (effectiveCompanyId != null) {
+        const catalog = await prisma.catalog.findFirst({
+            where: { id: catalogId, companyId: effectiveCompanyId },
+            select: { id: true, companyId: true },
+        });
+        return catalog ? { companyId: effectiveCompanyId } : null;
+    }
+
+    if (session.user.isGlobalAdmin) {
+        const catalog = await prisma.catalog.findFirst({
+            where: { id: catalogId },
+            select: { id: true, companyId: true },
+        });
+        return catalog && catalog.companyId != null ? { companyId: catalog.companyId } : null;
+    }
+
+    return null;
 }
