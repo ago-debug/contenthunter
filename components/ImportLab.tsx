@@ -186,7 +186,7 @@ export default function ImportLab() {
         }
     };
 
-    const loadPdfPages = async (pdfId: number) => {
+    const loadPdfPages = async (pdfId: number, retry = false) => {
         if (!catalogIdParam || !pdfId) return;
 
         const url = "/api/repositories/" + catalogIdParam + "/pdfs/" + pdfId + "/file";
@@ -196,20 +196,20 @@ export default function ImportLab() {
                 const text = await res.text();
                 console.warn("[PDF-LOAD] Server responded with", res.status, text?.slice(0, 100));
                 if (res.status === 422) {
-                    toast.error("Il file sul server non è un PDF valido. Ricarica il PDF da Gestione Cataloghi.");
+                    toast.error("Il file non è un PDF valido. Prova a ricaricarlo dalla sezione PDF (menu).");
                 } else {
-                    toast.error("PDF non trovato sul server (404). Carica il file da Gestione Cataloghi o verifica il path.");
+                    toast.error("PDF non trovato (404). Carica il file dalla sezione PDF o Import Lab.");
                 }
                 return;
             }
             const contentType = res.headers.get("content-type") || "";
             if (!contentType.includes("application/pdf")) {
-                toast.error("Il server non ha restituito un PDF. Verifica che il file esista in public/uploads.");
+                toast.error("Il server non ha restituito un PDF.");
                 return;
             }
             const arrayBuffer = await res.arrayBuffer();
             if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-                toast.error("Il server ha restituito un file vuoto. Verifica che il PDF esista in public/uploads.");
+                toast.error("File vuoto. Ricarica il PDF dalla sezione PDF.");
                 return;
             }
             const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -226,12 +226,22 @@ export default function ImportLab() {
             console.error("PDF Load Error:", err);
             const msg = (err?.message || err?.toString?.() || "").toLowerCase();
             const name = (err?.name || "").toString();
-            if (msg.includes("fetch") || msg.includes("failed") || msg.includes("network"))
+            const isStructureError =
+                name === "InvalidPDFException" ||
+                msg.includes("invalid pdf") ||
+                msg.includes("invalid pdf structure") ||
+                (msg.length <= 3 && msg.length > 0);
+            if (msg.includes("fetch") || msg.includes("failed") || msg.includes("network")) {
                 toast.error("Errore di rete. Verifica che il server sia raggiungibile.");
-            else if (name === "InvalidPDFException" || msg.includes("invalid pdf") || msg.includes("invalid pdf structure"))
-                toast.error("File non valido o danneggiato. Ricarica il PDF da Gestione Cataloghi o verifica che esista sul server.");
-            else
-                toast.error("Errore nel caricamento del PDF. Verifica che il file sia valido.");
+            } else if (isStructureError) {
+                if (!retry) {
+                    loadPdfPages(pdfId, true);
+                    return;
+                }
+                toast.error("Questo PDF non può essere aperto nel viewer. Caricalo dalla sezione PDF (menu) per normalizzarlo, oppure usa un altro file.");
+            } else {
+                toast.error("Errore nel caricamento del PDF. Prova dalla sezione PDF.");
+            }
         }
     };
 
