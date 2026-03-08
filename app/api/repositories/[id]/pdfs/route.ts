@@ -4,7 +4,16 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 
-export const maxDuration = 60; // Increase to 60 seconds for large file processing
+export const maxDuration = 60;
+
+/** Max PDF size (50 MB). Larger files can cause timeouts and "Invalid PDF structure" in the browser. */
+const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
+
+/** Check PDF has valid trailer (%%EOF). Many broken/truncated PDFs lack it. */
+function hasValidPdfTrailer(buffer: Buffer): boolean {
+    const tail = buffer.subarray(Math.max(0, buffer.length - 2048));
+    return tail.toString("ascii").includes("%%EOF");
+}
 
 export async function POST(
     req: NextRequest,
@@ -34,18 +43,31 @@ export async function POST(
         }
 
         const buffer = Buffer.from(arrayBuffer);
+        const sizeBytes = buffer.length;
 
-        // --- MANDATORY MAGIC BYTE CHECK ---
-        const magic = buffer.subarray(0, 4).toString();
-        console.log(`[UPLOAD-CHECK] Processing file: ${name}. Magic Header: ${magic}`);
+        if (sizeBytes > MAX_PDF_SIZE_BYTES) {
+            const maxMb = Math.round(MAX_PDF_SIZE_BYTES / 1024 / 1024);
+            return NextResponse.json(
+                { error: "File troppo grande. Dimensione massima " + maxMb + " MB. Riduci il PDF o dividi in più file." },
+                { status: 413 }
+            );
+        }
 
+        const magic = buffer.subarray(0, 4).toString("ascii");
         if (magic !== "%PDF") {
-            console.error(`[UPLOAD-ERROR] File ${name} is NOT a valid PDF. Starts with: ${magic}`);
+            console.error("[UPLOAD-ERROR] File " + name + " is NOT a valid PDF. Magic: " + magic);
             return NextResponse.json({ error: "Il file inviato non sembra essere un PDF valido (struttura corrotta)." }, { status: 400 });
         }
 
+        if (!hasValidPdfTrailer(buffer)) {
+            return NextResponse.json(
+                { error: "PDF incompleto o corrotto (manca la fine del file). Riprova a salvare o esportare di nuovo il PDF." },
+                { status: 400 }
+            );
+        }
+
         const cleanName = name.replace(/[^a-zA-Z0-9.-]/g, "_");
-        const fileName = `${Date.now()}-${cleanName}`;
+        const fileName = Date.now() + "-" + cleanName;
         const uploadDir = path.join(process.cwd(), "public/uploads");
 
         await mkdir(uploadDir, { recursive: true });
@@ -57,11 +79,16 @@ export async function POST(
             data: {
                 catalogId,
                 fileName: name,
-                filePath: `/uploads/${fileName}`
+                filePath: "/uploads/" + fileName
             }
         });
 
-        return NextResponse.json(pdf);
+        return NextResponse.json({
+            ...pdf,
+            sizeBytes,
+            sizeMB: Math.round((sizeBytes / 1024 / 1024) * 100) / 100,
+            validated: true
+        });
     } catch (err: any) {
         console.error("PDF Upload error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });

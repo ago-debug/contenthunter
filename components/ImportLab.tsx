@@ -708,19 +708,25 @@ export default function ImportLab() {
         }
     };
 
-    // PDF Upload Handler
+    // PDF Upload Handler (max 50 MB, validated on server)
+    const MAX_PDF_UPLOAD_MB = 50;
     const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !catalogIdParam) return;
+
+        const sizeMB = file.size / 1024 / 1024;
+        if (sizeMB > MAX_PDF_UPLOAD_MB) {
+            toast.error("File troppo grande (max " + MAX_PDF_UPLOAD_MB + " MB). Riduci il PDF o dividi in più file.");
+            return;
+        }
 
         setIsUploadingPdf(true);
         const toastId = toast.loading("Caricamento PDF: " + file.name + "...");
 
         try {
-            // Using a Blob wrapper to ensure browser treats it as atomic binary content
-            const blob = new Blob([file], { type: 'application/pdf' });
+            const blob = new Blob([file], { type: "application/pdf" });
 
-            await axios.post("/api/repositories/" + catalogIdParam + "/pdfs", blob, {
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/pdfs", blob, {
                 headers: {
                     "Content-Type": "application/pdf",
                     "X-File-Name": encodeURIComponent(file.name)
@@ -729,11 +735,19 @@ export default function ImportLab() {
                 maxBodyLength: Infinity
             });
 
-            toast.update(toastId, { render: "PDF caricato con successo!", type: "success", isLoading: false, autoClose: 3000 });
-            fetchRepository(parseInt(catalogIdParam!));
+            const sizeMsg = res.data?.sizeMB != null ? " (" + res.data.sizeMB + " MB, verificato)" : "";
+            toast.update(toastId, { render: "PDF caricato con successo!" + sizeMsg, type: "success", isLoading: false, autoClose: 3000 });
+            fetchRepository(parseInt(catalogIdParam));
         } catch (err: any) {
-            console.error("PDF upload error:", err);
-            toast.update(toastId, { render: "Errore durante il caricamento del PDF.", type: "error", isLoading: false, autoClose: 3000 });
+            const status = err?.response?.status;
+            const msg = err?.response?.data?.error;
+            if (status === 413) {
+                toast.update(toastId, { render: msg || "File troppo grande (max 50 MB).", type: "error", isLoading: false, autoClose: 5000 });
+            } else if (status === 400 && msg) {
+                toast.update(toastId, { render: msg, type: "error", isLoading: false, autoClose: 5000 });
+            } else {
+                toast.update(toastId, { render: "Errore durante il caricamento del PDF.", type: "error", isLoading: false, autoClose: 3000 });
+            }
         } finally {
             setIsUploadingPdf(false);
         }
