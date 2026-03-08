@@ -65,11 +65,7 @@ export async function POST(
         return NextResponse.json(
             {
                 error: message,
-                hint: isConfig
-                    ? "Imposta GEMINI_API_KEY in .env"
-                    : isGemini
-                      ? "Il PDF potrebbe non essere supportato. Ricaricalo dalla sezione PDF (normalizzazione) e riprova."
-                      : undefined,
+                hint: isConfig ? "Imposta GEMINI_API_KEY in .env" : undefined,
             },
             { status }
         );

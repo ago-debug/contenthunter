@@ -61,11 +61,14 @@ export async function POST(
         } catch (geminiErr: any) {
             console.error("[Gemini PDF] Extract API error:", geminiErr);
             const msg = geminiErr?.message ?? "Errore sconosciuto";
-            const hint = !process.env.GEMINI_API_KEY
-                ? "Imposta GEMINI_API_KEY in .env"
-                : msg.includes("JSON") || msg.includes("parse")
-                  ? "La risposta di Gemini non è valida. Riprova o usa un PDF più semplice."
-                  : "Verifica il PDF e riprova.";
+            const hint =
+                msg.includes("Ricarica") || msg.includes("normalizzazione")
+                    ? undefined
+                    : !process.env.GEMINI_API_KEY
+                      ? "Imposta GEMINI_API_KEY in .env"
+                      : msg.includes("JSON") || msg.includes("parse")
+                        ? "La risposta di Gemini non è valida. Riprova o usa un PDF più semplice."
+                        : "Verifica il PDF e riprova.";
             return NextResponse.json(
                 { error: msg, hint },
                 { status: 502 }
