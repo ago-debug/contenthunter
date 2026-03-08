@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { PDFDocument } from "pdf-lib";
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024;
+/** Consigliato per Gemini (evita timeout/errori): max ~18 MB. */
+export const MAX_PDF_SIZE_FOR_GEMINI_BYTES = 18 * 1024 * 1024;
 const UPLOAD_DIR = "uploads";
 
 function getPublicDir(): string {

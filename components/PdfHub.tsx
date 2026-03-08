@@ -103,7 +103,15 @@ export default function PdfHub() {
         axios
             .get("/api/repositories/" + selectedId + "/pdfs/" + pdfId + "/summarize")
             .then((res) => setSummary(res.data))
-            .catch((err) => toast.error(err?.response?.data?.error || "Errore riassunto"))
+            .catch((err) => {
+                const msg =
+                    err?.response?.data?.error ||
+                    (err?.response?.status === 502
+                        ? "Il server non ha risposto in tempo (502). Prova con un PDF più piccolo o riprova."
+                        : "Errore riassunto.");
+                const hint = err?.response?.data?.hint;
+                toast.error(hint ? `${msg} ${hint}` : msg, { autoClose: 6000 });
+            })
             .finally(() => setSummarizingId(null));
     };
 
@@ -123,13 +131,17 @@ export default function PdfHub() {
                 axios.get("/api/catalogues/" + selectedId).then((r) => setCatalog(r.data));
             })
             .catch((err) => {
-                const msg = err?.response?.data?.error || "Errore estrazione.";
+                const msg =
+                    err?.response?.data?.error ||
+                    (err?.response?.status === 502
+                        ? "Il server non ha risposto in tempo (502). Prova con un PDF più piccolo o riprova."
+                        : "Errore estrazione.");
                 const hint = err?.response?.data?.hint;
                 toast.update(toastId, {
                     render: hint ? msg + " " + hint : msg,
                     type: "error",
                     isLoading: false,
-                    autoClose: 5000,
+                    autoClose: 6000,
                 });
             })
             .finally(() => setExtractingId(null));
@@ -147,7 +159,15 @@ export default function PdfHub() {
             .then((res) => {
                 setAskAnswerByPdfId((prev) => ({ ...prev, [pdfId]: res.data?.answer ?? "" }));
             })
-            .catch((err) => toast.error(err?.response?.data?.error || "Errore risposta"))
+            .catch((err) => {
+                const msg =
+                    err?.response?.data?.error ||
+                    (err?.response?.status === 502
+                        ? "Il server non ha risposto in tempo (502). Prova con un PDF più piccolo o riprova."
+                        : "Errore risposta.");
+                const hint = err?.response?.data?.hint;
+                toast.error(hint ? `${msg} ${hint}` : msg, { autoClose: 6000 });
+            })
             .finally(() => setAskPdfId(null));
     };
 

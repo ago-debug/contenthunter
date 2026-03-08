@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { summarizePdf } from "@/lib/gemini-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
-import { getPdfBuffer, tryNormalizePdfBuffer } from "@/lib/pdf-service";
+import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
 
 export const maxDuration = 120;
 
@@ -26,6 +26,16 @@ export async function GET(
         const pdfBuffer = await getPdfBuffer(catalogId, parsedPdfId);
         if (!pdfBuffer) {
             return NextResponse.json({ error: "PDF non trovato o file non leggibile." }, { status: 404 });
+        }
+        if (pdfBuffer.length > MAX_PDF_SIZE_FOR_GEMINI_BYTES) {
+            const mb = Math.round(pdfBuffer.length / 1024 / 1024);
+            return NextResponse.json(
+                {
+                    error: `PDF troppo grande per l'analisi (${mb} MB).`,
+                    hint: "Per Riassunto/Estrazione usa un file sotto i 18 MB o dividi il catalogo in più PDF.",
+                },
+                { status: 413 }
+            );
         }
 
         const forGemini = (await tryNormalizePdfBuffer(pdfBuffer)) ?? pdfBuffer;
