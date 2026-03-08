@@ -42,7 +42,7 @@ export function validatePdfBufferForServe(buffer: Buffer): { ok: true } | { ok: 
     return { ok: true };
 }
 
-/** Validazione completa (upload): magic %PDF, trailer %%EOF, max size. */
+/** Validazione upload: magic %PDF e max size (no trailer per accettare più PDF). */
 export function validatePdfBuffer(buffer: Buffer): { ok: true } | { ok: false; error: string } {
     if (buffer.length === 0) {
         return { ok: false, error: "File vuoto." };
@@ -56,10 +56,6 @@ export function validatePdfBuffer(buffer: Buffer): { ok: true } | { ok: false; e
     const magic = buffer.subarray(0, 4).toString("ascii");
     if (magic !== "%PDF") {
         return { ok: false, error: "Il file non è un PDF valido (struttura corrotta)." };
-    }
-    const tail = buffer.subarray(Math.max(0, buffer.length - 2048));
-    if (!tail.toString("ascii").includes("%%EOF")) {
-        return { ok: false, error: "PDF incompleto o corrotto (manca la fine del file)." };
     }
     return { ok: true };
 }

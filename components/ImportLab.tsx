@@ -37,29 +37,48 @@ interface StagingProduct {
     foundInPdf?: { pageNumber: number, pdfId: number }[];
 }
 
-// Helper component to render a single PDF page thumbnail
+// Helper component to render a single PDF page thumbnail (cancels previous render to avoid canvas conflict)
 const PdfPageThumbnail = ({ pageNumber, pdfDoc }: { pageNumber: number, pdfDoc: any }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const renderTaskRef = useRef<any>(null);
 
     useEffect(() => {
+        if (!canvasRef.current || !pdfDoc) return;
+        let cancelled = false;
+
         const renderPage = async () => {
-            if (!canvasRef.current || !pdfDoc) return;
             try {
+                if (renderTaskRef.current) {
+                    renderTaskRef.current.cancel();
+                    renderTaskRef.current = null;
+                }
                 const page = await pdfDoc.getPage(pageNumber);
+                if (cancelled) return;
                 const viewport = page.getViewport({ scale: 0.4 });
                 const canvas = canvasRef.current;
+                if (!canvas || cancelled) return;
                 const context = canvas.getContext("2d");
-
-                if (context) {
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    await page.render({ canvasContext: context, viewport }).promise;
+                if (!context) return;
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                const task = page.render({ canvasContext: context, viewport });
+                renderTaskRef.current = task;
+                await task.promise;
+                if (!cancelled) renderTaskRef.current = null;
+            } catch (err: any) {
+                if (err?.name !== "RenderingCancelledException") {
+                    console.error("Error rendering thumbnail:", err);
                 }
-            } catch (err) {
-                console.error("Error rendering thumbnail:", err);
             }
         };
         renderPage();
+        return () => {
+            cancelled = true;
+            if (renderTaskRef.current) {
+                try { renderTaskRef.current.cancel(); } catch (_) {}
+                renderTaskRef.current = null;
+            }
+        };
     }, [pageNumber, pdfDoc]);
 
     return (

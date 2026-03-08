@@ -34,7 +34,26 @@ export async function POST(
 
         const pdfBase64 = pdfBuffer.toString("base64");
 
-        const { products: extractedProducts } = await extractProductsFromPdf(pdfBase64);
+        let extractedProducts: any[];
+        try {
+            const result = await extractProductsFromPdf(pdfBase64);
+            extractedProducts = result?.products ?? [];
+        } catch (geminiErr: any) {
+            console.error("[Gemini PDF] Extract API error:", geminiErr);
+            const msg = geminiErr?.message ?? "Errore sconosciuto";
+            const hint = !process.env.GEMINI_API_KEY
+                ? "Imposta GEMINI_API_KEY in .env"
+                : msg.includes("JSON") || msg.includes("parse")
+                  ? "La risposta di Gemini non è valida. Riprova o usa un PDF più semplice."
+                  : "Verifica il PDF e riprova.";
+            return NextResponse.json(
+                { error: msg, hint },
+                { status: 502 }
+            );
+        }
+        if (!Array.isArray(extractedProducts)) {
+            extractedProducts = [];
+        }
         console.log("[Gemini PDF] Extracted", extractedProducts.length, "products.");
 
         await prisma.stagingProduct.deleteMany({ where: { catalogId } });
