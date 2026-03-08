@@ -42,8 +42,17 @@ export async function POST(
             );
         }
 
-        const forGemini = (await tryNormalizePdfBuffer(pdfBuffer)) ?? pdfBuffer;
-        const pdfBase64 = forGemini.toString("base64");
+        const normalized = await tryNormalizePdfBuffer(pdfBuffer);
+        if (normalized === null) {
+            return NextResponse.json(
+                {
+                    error: "Questo PDF ha una struttura non standard e non può essere elaborato.",
+                    hint: "Ri-salva il PDF da Acrobat o da un altro programma, oppure carica un file diverso.",
+                },
+                { status: 400 }
+            );
+        }
+        const pdfBase64 = normalized.toString("base64");
 
         let extractedProducts: any[];
         try {

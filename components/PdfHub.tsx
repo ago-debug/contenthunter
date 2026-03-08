@@ -36,7 +36,13 @@ export default function PdfHub() {
         axios
             .get("/api/catalogues")
             .then((res) => setCatalogues(res.data || []))
-            .catch(() => toast.error("Errore caricamento cataloghi"))
+            .catch((err) => {
+                const msg =
+                    err?.response?.status === 403
+                        ? err?.response?.data?.error || "Sessione scaduta o non autorizzato. Effettua di nuovo l'accesso."
+                        : "Errore caricamento cataloghi";
+                toast.error(msg);
+            })
             .finally(() => setLoading(false));
     }, []);
 

@@ -38,8 +38,17 @@ export async function GET(
             );
         }
 
-        const forGemini = (await tryNormalizePdfBuffer(pdfBuffer)) ?? pdfBuffer;
-        const result = await summarizePdf(forGemini.toString("base64"));
+        const normalized = await tryNormalizePdfBuffer(pdfBuffer);
+        if (normalized === null) {
+            return NextResponse.json(
+                {
+                    error: "Questo PDF ha una struttura non standard e non può essere analizzato.",
+                    hint: "Ri-salva il PDF da Acrobat o da un altro programma, oppure carica un file diverso. Il viewer potrebbe mostrare errori di compressione.",
+                },
+                { status: 400 }
+            );
+        }
+        const result = await summarizePdf(normalized.toString("base64"));
         return NextResponse.json(result);
     } catch (err: any) {
         console.error("[Gemini PDF] Summarize error:", err);
