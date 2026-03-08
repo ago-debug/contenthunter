@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { askAboutPdf } from "@/lib/gemini-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
-import { getPdfBuffer } from "@/lib/pdf-service";
+import { getPdfBuffer, tryNormalizePdfBuffer } from "@/lib/pdf-service";
 
 export const maxDuration = 120;
 
@@ -34,18 +34,25 @@ export async function POST(
             return NextResponse.json({ error: "PDF non trovato o file non leggibile." }, { status: 404 });
         }
 
-        const { answer } = await askAboutPdf(pdfBuffer.toString("base64"), question);
+        const forGemini = (await tryNormalizePdfBuffer(pdfBuffer)) ?? pdfBuffer;
+        const { answer } = await askAboutPdf(forGemini.toString("base64"), question);
         return NextResponse.json({ answer });
     } catch (err: any) {
         console.error("[Gemini PDF] Ask error:", err);
         const message = err?.message || "Errore sconosciuto";
         const isConfig = message.includes("GEMINI_API_KEY");
+        const isGemini = message.includes("Gemini") || message.includes("blocked") || message.includes("non supportato");
+        const status = isGemini ? 502 : 500;
         return NextResponse.json(
             {
                 error: message,
-                hint: isConfig ? "Imposta GEMINI_API_KEY in .env" : undefined,
+                hint: isConfig
+                    ? "Imposta GEMINI_API_KEY in .env"
+                    : isGemini
+                      ? "Il PDF potrebbe non essere supportato. Ricaricalo dalla sezione PDF (normalizzazione) e riprova."
+                      : undefined,
             },
-            { status: 500 }
+            { status }
         );
     }
 }

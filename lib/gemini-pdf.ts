@@ -13,6 +13,20 @@ function getClient() {
     return new GoogleGenerativeAI(key);
 }
 
+/** Get text from Gemini response; throws with a clear message if blocked or empty. */
+function getResponseText(result: { response: { text: () => string } }): string {
+    try {
+        const text = result.response.text();
+        return text ?? "{}";
+    } catch (e: any) {
+        const msg = e?.message ?? "";
+        if (msg.includes("valid `Part`") || msg.includes("safety") || msg.includes("blocked")) {
+            throw new Error("Gemini ha bloccato la risposta (contenuto o PDF non supportato). Riprova con un altro PDF o domanda.");
+        }
+        throw e;
+    }
+}
+
 const EXTRACT_PROMPT = `Sei un analizzatore di documenti stile NotebookLM: leggi il PDF come un unico corpus e estrai dati in modo preciso e strutturato.
 
 Questo PDF è un catalogo prodotti. Per ogni prodotto individuato (anche da tabelle, schede tecniche, listini), restituisci un oggetto JSON.
@@ -86,17 +100,29 @@ export async function extractProductsFromPdf(pdfBase64: string): Promise<Extract
         },
     });
 
-    const result = await model.generateContent([
-        {
-            inlineData: {
-                data: pdfBase64,
-                mimeType: "application/pdf",
+    let result;
+    try {
+        result = await model.generateContent([
+            {
+                inlineData: {
+                    data: pdfBase64,
+                    mimeType: "application/pdf",
+                },
             },
-        },
-        { text: EXTRACT_PROMPT },
-    ]);
+            { text: EXTRACT_PROMPT },
+        ]);
+    } catch (apiErr: any) {
+        const m = apiErr?.message ?? "";
+        if (m.includes("404") || m.includes("not found") || m.includes("not available")) {
+            throw new Error("Modello Gemini non disponibile. Controlla GEMINI_API_KEY e che il modello sia abilitato.");
+        }
+        if (m.includes("400") || m.includes("Invalid") || m.includes("invalid")) {
+            throw new Error("PDF non valido o non supportato da Gemini. Ricarica il file dalla sezione PDF (normalizzazione) e riprova.");
+        }
+        throw apiErr;
+    }
 
-    const text = result.response.text() || "{}";
+    const text = getResponseText(result) || "{}";
     const parsed = JSON.parse(text) as ExtractResult;
     if (!parsed.products || !Array.isArray(parsed.products)) {
         throw new Error("Risposta AI non valida: mancano 'products'.");
@@ -119,17 +145,29 @@ export async function summarizePdf(pdfBase64: string): Promise<SummarizeResult> 
         },
     });
 
-    const result = await model.generateContent([
-        {
-            inlineData: {
-                data: pdfBase64,
-                mimeType: "application/pdf",
+    let result;
+    try {
+        result = await model.generateContent([
+            {
+                inlineData: {
+                    data: pdfBase64,
+                    mimeType: "application/pdf",
+                },
             },
-        },
-        { text: SUMMARIZE_PROMPT },
-    ]);
+            { text: SUMMARIZE_PROMPT },
+        ]);
+    } catch (apiErr: any) {
+        const m = apiErr?.message ?? "";
+        if (m.includes("404") || m.includes("not found") || m.includes("not available")) {
+            throw new Error("Modello Gemini non disponibile. Controlla GEMINI_API_KEY e che il modello sia abilitato.");
+        }
+        if (m.includes("400") || m.includes("Invalid") || m.includes("invalid")) {
+            throw new Error("PDF non valido o non supportato da Gemini. Ricarica il file dalla sezione PDF (normalizzazione) e riprova.");
+        }
+        throw apiErr;
+    }
 
-    const text = result.response.text() || "{}";
+    const text = getResponseText(result) || "{}";
     const parsed = JSON.parse(text) as SummarizeResult;
     if (!parsed.summary) throw new Error("Risposta AI non valida: manca 'summary'.");
     return parsed;
@@ -156,17 +194,29 @@ Domanda: ${question}
 
 Rispondi con un JSON: { "answer": "la tua risposta testuale" }`;
 
-    const result = await model.generateContent([
-        {
-            inlineData: {
-                data: pdfBase64,
-                mimeType: "application/pdf",
+    let result;
+    try {
+        result = await model.generateContent([
+            {
+                inlineData: {
+                    data: pdfBase64,
+                    mimeType: "application/pdf",
+                },
             },
-        },
-        { text: prompt },
-    ]);
+            { text: prompt },
+        ]);
+    } catch (apiErr: any) {
+        const m = apiErr?.message ?? "";
+        if (m.includes("404") || m.includes("not found") || m.includes("not available")) {
+            throw new Error("Modello Gemini non disponibile. Controlla GEMINI_API_KEY e che il modello sia abilitato.");
+        }
+        if (m.includes("400") || m.includes("Invalid") || m.includes("invalid")) {
+            throw new Error("PDF non valido o non supportato da Gemini. Ricarica il file dalla sezione PDF (normalizzazione) e riprova.");
+        }
+        throw apiErr;
+    }
 
-    const text = result.response.text() || "{}";
+    const text = getResponseText(result) || "{}";
     const parsed = JSON.parse(text) as { answer?: string };
     const answer = parsed.answer != null ? String(parsed.answer) : text;
     return { answer };

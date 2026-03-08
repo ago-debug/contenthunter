@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extractProductsFromPdf } from "@/lib/gemini-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
-import { getPdfBuffer } from "@/lib/pdf-service";
+import { getPdfBuffer, tryNormalizePdfBuffer } from "@/lib/pdf-service";
 
 export const maxDuration = 300;
 export const config = {
@@ -32,7 +32,8 @@ export async function POST(
             return NextResponse.json({ error: "PDF non trovato o file non leggibile." }, { status: 404 });
         }
 
-        const pdfBase64 = pdfBuffer.toString("base64");
+        const forGemini = (await tryNormalizePdfBuffer(pdfBuffer)) ?? pdfBuffer;
+        const pdfBase64 = forGemini.toString("base64");
 
         let extractedProducts: any[];
         try {
