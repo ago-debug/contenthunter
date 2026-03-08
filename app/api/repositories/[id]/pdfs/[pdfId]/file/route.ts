@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import fs from "fs";
-import { getPdfRecord, validatePdfBuffer } from "@/lib/pdf-service";
+import { getPdfRecord, validatePdfBufferForServe } from "@/lib/pdf-service";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 
 /**
@@ -34,7 +34,7 @@ export async function GET(
         }
 
         const data = await readFile(record.absolutePath);
-        const validation = validatePdfBuffer(data);
+        const validation = validatePdfBufferForServe(data);
         if (!validation.ok) {
             return NextResponse.json({ error: validation.error }, { status: 422 });
         }

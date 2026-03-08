@@ -30,7 +30,19 @@ export function pdfFilePathToAbsolute(filePath: string): string {
     return path.resolve(getPublicDir(), relative);
 }
 
-/** Controlla che i primi bytes siano %PDF e che ci sia %%EOF nel trailer. */
+/** Controllo minimo per servire un file già salvato: magic %PDF e non vuoto. */
+export function validatePdfBufferForServe(buffer: Buffer): { ok: true } | { ok: false; error: string } {
+    if (buffer.length === 0) {
+        return { ok: false, error: "File vuoto." };
+    }
+    const magic = buffer.subarray(0, 4).toString("ascii");
+    if (magic !== "%PDF") {
+        return { ok: false, error: "Il file non è un PDF valido." };
+    }
+    return { ok: true };
+}
+
+/** Validazione completa (upload): magic %PDF, trailer %%EOF, max size. */
 export function validatePdfBuffer(buffer: Buffer): { ok: true } | { ok: false; error: string } {
     if (buffer.length === 0) {
         return { ok: false, error: "File vuoto." };
