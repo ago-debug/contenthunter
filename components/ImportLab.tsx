@@ -744,8 +744,9 @@ export default function ImportLab() {
                 maxBodyLength: Infinity
             });
 
-            const sizeMsg = res.data?.sizeMB != null ? " (" + res.data.sizeMB + " MB, verificato)" : "";
-            toast.update(toastId, { render: "PDF caricato con successo!" + sizeMsg, type: "success", isLoading: false, autoClose: 3000 });
+            let sizeMsg = res.data?.sizeMB != null ? " " + res.data.sizeMB + " MB" : "";
+            if (res.data?.normalized) sizeMsg = sizeMsg ? sizeMsg + ", normalizzato" : " normalizzato";
+            toast.update(toastId, { render: "PDF caricato con successo!" + (sizeMsg ? " (" + sizeMsg.trim() + ")" : ""), type: "success", isLoading: false, autoClose: 3000 });
             fetchRepository(parseInt(catalogIdParam));
         } catch (err: any) {
             const status = err?.response?.status;

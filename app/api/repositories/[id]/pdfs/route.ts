@@ -33,12 +33,13 @@ export async function POST(
 
         const buffer = Buffer.from(arrayBuffer);
         try {
-            const { pdf, sizeBytes } = await savePdf(catalogId, buffer, name);
+            const { pdf, sizeBytes, normalized } = await savePdf(catalogId, buffer, name);
             return NextResponse.json({
                 ...pdf,
                 sizeBytes,
                 sizeMB: Math.round((sizeBytes / 1024 / 1024) * 100) / 100,
                 validated: true,
+                normalized: !!normalized,
             });
         } catch (err: any) {
             const message = err?.message || "Errore salvataggio PDF";
