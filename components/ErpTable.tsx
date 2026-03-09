@@ -1275,9 +1275,6 @@ export default function ErpTable() {
                                                                         const newImages = selectedProduct.images.filter((_: any, idx: number) => idx !== i);
                                                                         setSelectedProduct({ ...selectedProduct, images: newImages });
                                                                     }}
-                                                                    onClick={() => {
-                                                                        /* no-op, gestito sopra */
-                                                                    }}
                                                                     className="p-2 bg-red-500 text-white rounded-lg shadow-xl transform hover:scale-110 transition-all"
                                                                 >
                                                                     <Trash2 className="w-4 h-4" />
