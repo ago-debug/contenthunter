@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
                 continue;
             }
 
-            const baseText = product.texts[0];
+            const baseText: any = (product as any).texts?.[0] || null;
             const extraPreview = product.extraFields
                 .map((ef) => `${ef.key}: ${ef.value}`)
                 .join(", ")
