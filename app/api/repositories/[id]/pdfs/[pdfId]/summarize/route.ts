@@ -7,7 +7,8 @@ export const maxDuration = 120;
 
 /**
  * NotebookLM-style: summarize the PDF (overview, sections, page count).
- * Uses normalized PDF when possible for better compatibility with Gemini.
+ * Uses normalized PDF when possible; if normalization fails (e.g. PDF con molte immagini),
+ * invia l'originale a Gemini che supporta più formati.
  */
 export async function GET(
     req: NextRequest,
@@ -39,16 +40,8 @@ export async function GET(
         }
 
         const normalized = await tryNormalizePdfBuffer(pdfBuffer);
-        if (normalized === null) {
-            return NextResponse.json(
-                {
-                    error: "Questo PDF ha una struttura non standard e non può essere analizzato.",
-                    hint: "Ri-salva il PDF da Acrobat o da un altro programma, oppure carica un file diverso. Il viewer potrebbe mostrare errori di compressione.",
-                },
-                { status: 400 }
-            );
-        }
-        const result = await summarizePdf(normalized.toString("base64"));
+        const forGemini = normalized ?? pdfBuffer;
+        const result = await summarizePdf(forGemini.toString("base64"));
         return NextResponse.json(result);
     } catch (err: any) {
         console.error("[Gemini PDF] Summarize error:", err);

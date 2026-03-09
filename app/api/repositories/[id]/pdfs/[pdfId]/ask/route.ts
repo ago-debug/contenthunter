@@ -45,16 +45,8 @@ export async function POST(
         }
 
         const normalized = await tryNormalizePdfBuffer(pdfBuffer);
-        if (normalized === null) {
-            return NextResponse.json(
-                {
-                    error: "Questo PDF ha una struttura non standard e non può essere analizzato.",
-                    hint: "Ri-salva il PDF da Acrobat o da un altro programma, oppure carica un file diverso.",
-                },
-                { status: 400 }
-            );
-        }
-        const { answer } = await askAboutPdf(normalized.toString("base64"), question);
+        const forGemini = normalized ?? pdfBuffer;
+        const { answer } = await askAboutPdf(forGemini.toString("base64"), question);
         return NextResponse.json({ answer });
     } catch (err: any) {
         console.error("[Gemini PDF] Ask error:", err);
