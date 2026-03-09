@@ -51,7 +51,8 @@ async function run() {
                 await prisma.bulletPoint.create({
                     data: {
                         content: content,
-                        productId: text.productId
+                        productId: text.productId,
+                        companyId: text.product.companyId
                     }
                 });
                 createdCount++;
