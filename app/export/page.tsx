@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { FileDown, List, Database, Search, Filter, CheckSquare, Square, Package, CheckCircle2 } from "lucide-react";
 import axios from "axios";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 // Stessi campi della scheda prodotto (Master ERP)
 const EXPORT_FIELD_OPTIONS: { key: string; label: string }[] = [
@@ -45,6 +46,7 @@ export default function ExportPage() {
     const [filterSubCategoryId, setFilterSubCategoryId] = useState<string | number>("all");
     const [filterSubSubCategoryId, setFilterSubSubCategoryId] = useState<string | number>("all");
     const [exporting, setExporting] = useState(false);
+    const companyContext = useCompanyContext();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -86,7 +88,9 @@ export default function ExportPage() {
             if (filterSubCategoryId !== "all") filters.subCategoryId = Number(filterSubCategoryId);
             if (filterSubSubCategoryId !== "all") filters.subSubCategoryId = Number(filterSubSubCategoryId);
 
-            const res = await fetch("/api/export", {
+            const companyId = companyContext?.selectedCompanyId;
+            const query = companyId != null ? `?companyId=${companyId}` : "";
+            const res = await fetch(`/api/export${query}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ fields: selectedFields, filters }),

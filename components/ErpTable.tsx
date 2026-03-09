@@ -54,6 +54,7 @@ export default function ErpTable() {
     const [catalogCropImageUrl, setCatalogCropImageUrl] = useState<string | null>(null);
     const [catalogCropBox, setCatalogCropBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
     const catalogCropImgRef = useRef<HTMLImageElement | null>(null);
+    const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -491,75 +492,43 @@ export default function ErpTable() {
         if (selectedIds.length === 0) return;
         setShowBulkSeoModal(false);
         setIsBulkWorking(true);
-        const toastId = toast.loading(`Generazione contenuti SEO AI: 0/${selectedIds.length}...`);
-        const lang = "it";
-        let done = 0;
-        let errors = 0;
+        const toastId = toast.loading(`Generazione contenuti SEO AI avviata per ${selectedIds.length} prodotti...`);
         try {
-            const productList = products.filter((p: any) => selectedIds.includes(p.id));
-            for (const product of productList) {
-                try {
-                    const { images, extraFields, docDescription, ...cleanProductData } = product;
-                    const res = await fetch("/api/ai/describe", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            productData: {
-                                ...cleanProductData,
-                                docDescription: (docDescription?.substring(0, 2000) || ""),
-                                extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
-                            },
-                            language: lang,
-                            options: { respectExisting: !overwriteExisting, useExistingAsModel: true }
-                        })
-                    });
-                    if (!res.ok) throw new Error(await res.text());
-                    const reader = res.body?.getReader();
-                    const decoder = new TextDecoder();
-                    let accumulated = "";
-                    if (reader) {
-                        while (true) {
-                            const { done: streamDone, value } = await reader.read();
-                            if (streamDone) break;
-                            accumulated += decoder.decode(value, { stream: true });
-                        }
-                    }
-                    const shortMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
-                    const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
-                    const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
-                    const newShort = shortMatch ? shortMatch[1].trim() : "";
-                    const newDesc = descMatch ? descMatch[1].trim() : "";
-                    const newBullets = bulletMatch ? bulletMatch[1].trim() : "";
-                    const existing = product.translations?.[lang] || {};
-                    const payload = {
-                        ...product,
-                        translations: {
-                            ...product.translations,
-                            [lang]: {
-                                ...existing,
-                                seoAiText: overwriteExisting || !existing.seoAiText ? newShort || existing.seoAiText : existing.seoAiText,
-                                description: overwriteExisting || !existing.description ? newDesc || existing.description : existing.description,
-                                bulletPoints: overwriteExisting || !existing.bulletPoints ? newBullets || existing.bulletPoints : existing.bulletPoints
-                            }
-                        }
-                    };
-                    await axios.post("/api/products", payload);
-                } catch (e) {
-                    errors++;
-                }
-                done++;
-                toast.update(toastId, { render: `Generazione SEO AI: ${done}/${selectedIds.length}${errors ? ` (${errors} errori)` : ""}` });
+            const res = await fetch("/api/products/seo-bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    productIds: selectedIds,
+                    overwriteExisting,
+                    language: "it",
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data?.error || "Errore generazione SEO AI");
             }
+            const success = data?.success ?? 0;
+            const total = data?.total ?? selectedIds.length;
+            const errors = data?.errors ?? 0;
             toast.update(toastId, {
-                render: errors ? `Completato: ${done - errors} aggiornati, ${errors} errori.` : `${done} prodotti aggiornati con contenuti SEO AI.`,
-                type: errors ? "warning" : "success",
+                render:
+                    errors > 0
+                        ? `SEO AI completata: ${success}/${total} prodotti aggiornati, ${errors} errori.`
+                        : `SEO AI completata: ${success}/${total} prodotti aggiornati.`,
+                type: errors > 0 ? "warning" : "success",
                 isLoading: false,
-                autoClose: 4000
+                autoClose: 5000,
             });
             setSelectedIds([]);
             fetchProducts();
         } catch (err) {
-            toast.update(toastId, { render: "Errore generazione SEO AI", type: "error", isLoading: false, autoClose: 4000 });
+            console.error("Errore bulk SEO AI:", err);
+            toast.update(toastId, {
+                render: "Errore generazione SEO AI",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000,
+            });
         } finally {
             setIsBulkWorking(false);
         }
@@ -1250,17 +1219,64 @@ export default function ErpTable() {
                                                     <Scissors className="w-4 h-4" />
                                                     Seleziona da catalogo (crop)
                                                 </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        if (!selectedProduct?.id) return;
+                                                        const toastId = toast.loading("Generazione foto ambientata AI in corso...");
+                                                        try {
+                                                            const res = await axios.post(`/api/products/${selectedProduct.id}/ambient-image`, {});
+                                                            const img = res.data?.image;
+                                                            if (img?.url) {
+                                                                const newImages = [...(selectedProduct.images || []), { id: img.id, url: img.url }];
+                                                                setSelectedProduct({ ...selectedProduct, images: newImages });
+                                                                toast.update(toastId, {
+                                                                    render: "Foto ambientata generata e aggiunta.",
+                                                                    type: "success",
+                                                                    isLoading: false,
+                                                                    autoClose: 3000,
+                                                                });
+                                                            } else {
+                                                                toast.update(toastId, {
+                                                                    render: "Generazione completata ma nessuna immagine restituita.",
+                                                                    type: "warning",
+                                                                    isLoading: false,
+                                                                    autoClose: 4000,
+                                                                });
+                                                            }
+                                                        } catch (err: any) {
+                                                            toast.update(toastId, {
+                                                                render: err?.response?.data?.error || "Errore durante la generazione della foto ambientata.",
+                                                                type: "error",
+                                                                isLoading: false,
+                                                                autoClose: 4000,
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-700 flex items-center gap-2"
+                                                >
+                                                    <Sparkles className="w-4 h-4" />
+                                                    Foto ambientata AI
+                                                </button>
                                             </div>
                                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                                 {selectedProduct.images && selectedProduct.images.length > 0 ? (
                                                     selectedProduct.images.map((img: any, i: number) => (
-                                                        <div key={img.id || i} className="group relative aspect-square rounded-2xl border border-gray-200 overflow-hidden bg-gray-50 shadow-sm hover:border-blue-300 transition-all">
+                                                        <div
+                                                            key={img.id || i}
+                                                            className="group relative aspect-square rounded-2xl border border-gray-200 overflow-hidden bg-gray-50 shadow-sm hover:border-blue-300 transition-all cursor-zoom-in"
+                                                            onClick={() => setZoomImageUrl(img.url)}
+                                                        >
                                                             <CorporateImage src={img.url} alt={selectedProduct.sku} className="w-full h-full object-contain p-2" />
                                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
                                                                 <button
-                                                                    onClick={() => {
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
                                                                         const newImages = selectedProduct.images.filter((_: any, idx: number) => idx !== i);
                                                                         setSelectedProduct({ ...selectedProduct, images: newImages });
+                                                                    }}
+                                                                    onClick={() => {
+                                                                        /* no-op, gestito sopra */
                                                                     }}
                                                                     className="p-2 bg-red-500 text-white rounded-lg shadow-xl transform hover:scale-110 transition-all"
                                                                 >
@@ -1389,30 +1405,40 @@ export default function ErpTable() {
                                                 <div className="md:col-span-2 bg-white p-8 rounded-3xl border border-gray-200 shadow-sm animate-in zoom-in-95">
                                                     <h5 className="text-[9px] font-black uppercase tracking-widest text-slate-900 mb-6 bg-slate-50 w-max px-3 py-1 rounded-full border border-slate-200 italic">Risultati Ricerca Remota</h5>
                                                     <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-6">
-                                                        {webImages.map((wImg: any, idx: number) => (
-                                                            <div key={idx} className="relative aspect-square w-28 h-28 shrink-0 rounded-2xl overflow-hidden border border-gray-100 group bg-gray-50 cursor-pointer hover:border-slate-900 shadow-sm"
-                                                                onClick={async () => {
-                                                                    const url = typeof wImg === 'string' ? wImg : wImg.url;
-                                                                    const toastId = toast.loading("Salvataggio locale...");
-                                                                    const localUrl = await saveImageToServer(url, selectedProduct.sku);
-                                                                    const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: localUrl }];
-                                                                    setSelectedProduct({ ...selectedProduct, images: newImages });
-                                                                    toast.update(toastId, { render: "Risorsa accodata.", type: "success", isLoading: false, autoClose: 2000 });
-                                                                }}>
-                                                                <CorporateImage src={typeof wImg === 'string' ? wImg : wImg.url} alt="Web Match" className="w-full h-full object-contain p-2" />
-                                                                <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center">
-                                                                    <div className="p-2 bg-slate-900 text-white rounded-full scale-50 group-hover:scale-100 transition-all">
-                                                                        <Plus className="w-4 h-4" />
+                                                        {webImages.map((wImg: any, idx: number) => {
+                                                            const url = typeof wImg === 'string' ? wImg : wImg.url;
+                                                            return (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="relative aspect-square w-28 h-28 shrink-0 rounded-2xl overflow-hidden border border-gray-100 group bg-gray-50 cursor-zoom-in hover:border-slate-900 shadow-sm"
+                                                                    onClick={() => setZoomImageUrl(url)}
+                                                                >
+                                                                    <CorporateImage src={url} alt="Web Match" className="w-full h-full object-contain p-2" />
+                                                                    <div className="absolute inset-0 bg-slate-900/10 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={async (e) => {
+                                                                                e.stopPropagation();
+                                                                                const toastId = toast.loading("Salvataggio locale...");
+                                                                                const localUrl = await saveImageToServer(url, selectedProduct.sku);
+                                                                                const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: localUrl }];
+                                                                                setSelectedProduct({ ...selectedProduct, images: newImages });
+                                                                                toast.update(toastId, { render: "Risorsa accodata.", type: "success", isLoading: false, autoClose: 2000 });
+                                                                            }}
+                                                                            className="p-2 bg-slate-900 text-white rounded-full scale-50 group-hover:scale-100 transition-all shadow-lg"
+                                                                        >
+                                                                            <Plus className="w-4 h-4" />
+                                                                        </button>
                                                                     </div>
+                                                                    {(wImg.productData || wImg.source?.includes('Shop')) && (
+                                                                        <div className="absolute top-0 right-0 bg-slate-900 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg flex items-center gap-1">
+                                                                            <ShoppingCart className="w-2.5 h-2.5" />
+                                                                            SHOPPING
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                {(wImg.productData || wImg.source?.includes('Shop')) && (
-                                                                    <div className="absolute top-0 right-0 bg-slate-900 text-white text-[7px] font-black px-1.5 py-0.5 rounded-bl-lg flex items-center gap-1">
-                                                                        <ShoppingCart className="w-2.5 h-2.5" />
-                                                                        SHOPPING
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             )}
@@ -2623,6 +2649,32 @@ export default function ErpTable() {
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Zoom immagine (tutte le sorgenti) */}
+            <AnimatePresence>
+                {zoomImageUrl && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[190] flex items-center justify-center bg-black/80 p-4"
+                        onClick={() => setZoomImageUrl(null)}
+                    >
+                        <img
+                            src={zoomImageUrl}
+                            alt="Preview"
+                            className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <button
+                            className="absolute top-4 right-4 p-2 bg-white/20 rounded-full hover:bg-white/30 text-white"
+                            onClick={() => setZoomImageUrl(null)}
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </motion.div>
                 )}
             </AnimatePresence>
 
