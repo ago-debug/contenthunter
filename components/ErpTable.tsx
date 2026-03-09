@@ -55,6 +55,7 @@ export default function ErpTable() {
     const [catalogCropBox, setCatalogCropBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
     const catalogCropImgRef = useRef<HTMLImageElement | null>(null);
     const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+    const [ambientPrompt, setAmbientPrompt] = useState<string>("");
 
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -1210,7 +1211,7 @@ export default function ErpTable() {
                                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 mb-6 flex items-center gap-2">
                                                 <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Digital Asset Management
                                             </h4>
-                                            <div className="mb-4 flex flex-wrap gap-2">
+                                            <div className="mb-4 flex flex-wrap gap-2 items-center">
                                                 <button
                                                     type="button"
                                                     onClick={() => { setShowCatalogCropModal(true); setCatalogCropStep('catalog'); setCatalogCropCatalogId(null); setCatalogCropMatches([]); setCatalogCropPage(null); setCatalogCropImageUrl(null); setCatalogCropBox(null); }}
@@ -1219,13 +1220,22 @@ export default function ErpTable() {
                                                     <Scissors className="w-4 h-4" />
                                                     Seleziona da catalogo (crop)
                                                 </button>
+                                                <input
+                                                    type="text"
+                                                    value={ambientPrompt}
+                                                    onChange={e => setAmbientPrompt(e.target.value)}
+                                                    placeholder="Es. cucina, tavola apparecchiata, bagno..."
+                                                    className="flex-1 min-w-[160px] px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-[11px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                                />
                                                 <button
                                                     type="button"
                                                     onClick={async () => {
                                                         if (!selectedProduct?.id) return;
                                                         const toastId = toast.loading("Generazione foto ambientata AI in corso...");
                                                         try {
-                                                            const res = await axios.post(`/api/products/${selectedProduct.id}/ambient-image`, {});
+                                                        const res = await axios.post(`/api/products/${selectedProduct.id}/ambient-image`, {
+                                                            prompt: ambientPrompt || undefined,
+                                                        });
                                                             const img = res.data?.image;
                                                             if (img?.url) {
                                                                 const newImages = [...(selectedProduct.images || []), { id: img.id, url: img.url }];
@@ -1268,18 +1278,18 @@ export default function ErpTable() {
                                                             onClick={() => setZoomImageUrl(img.url)}
                                                         >
                                                             <CorporateImage src={img.url} alt={selectedProduct.sku} className="w-full h-full object-contain p-2" />
-                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-2">
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        const newImages = selectedProduct.images.filter((_: any, idx: number) => idx !== i);
-                                                                        setSelectedProduct({ ...selectedProduct, images: newImages });
-                                                                    }}
-                                                                    className="p-2 bg-red-500 text-white rounded-lg shadow-xl transform hover:scale-110 transition-all"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const newImages = selectedProduct.images.filter((_: any, idx: number) => idx !== i);
+                                                                    setSelectedProduct({ ...selectedProduct, images: newImages });
+                                                                }}
+                                                                className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-white/90 border border-slate-200 text-slate-500 hover:bg-red-500 hover:text-white hover:border-red-500 flex items-center justify-center text-[10px] font-black shadow-sm opacity-0 group-hover:opacity-100 transition-all"
+                                                                title="Rimuovi immagine"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
                                                             <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-white/90 backdrop-blur text-slate-900 text-[9px] font-black rounded border border-gray-200">
                                                                 {i === 0 ? 'MAIN' : `#${i + 1}`}
                                                             </div>

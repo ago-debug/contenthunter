@@ -253,7 +253,11 @@ export async function POST(req: NextRequest) {
                         .filter((l: string) => l.length > 0);
                     if (lines.length > 0) {
                         await prisma.bulletPoint.createMany({
-                            data: lines.map((l: string) => ({ content: l, productId: product.id }))
+                            data: lines.map((l: string) => ({
+                                content: l,
+                                productId: product.id,
+                                companyId,
+                            }))
                         });
                     }
                 }
