@@ -21,7 +21,12 @@ const EXPORT_FIELD_OPTIONS: { key: string; label: string }[] = [
     { key: "weight", label: "Peso (kg)" },
     { key: "status", label: "Status ERP" },
     { key: "stock", label: "Quantità stock" },
-    { key: "images", label: "Immagini (link)" },
+    { key: "image1", label: "Immagine 1 (link)" },
+    { key: "image2", label: "Immagine 2 (link)" },
+    { key: "image3", label: "Immagine 3 (link)" },
+    { key: "image4", label: "Immagine 4 (link)" },
+    { key: "image5", label: "Immagine 5 (link)" },
+    { key: "images", label: "Immagini (tutte, link)" },
     { key: "seoAiText", label: "Copywriting breve / SEO" },
     { key: "description", label: "Descrizione lunga" },
     { key: "docDescription", label: "Sorgente dati tecnici" },
@@ -38,7 +43,16 @@ export default function ExportPage() {
     const [allBrands, setAllBrands] = useState<any[]>([]);
     const [allCategories, setAllCategories] = useState<any[]>([]);
     const [selectedFields, setSelectedFields] = useState<string[]>([
-        "sku", "title", "price", "brand", "categoryName", "images"
+        "sku",
+        "title",
+        "price",
+        "brand",
+        "categoryName",
+        "image1",
+        "image2",
+        "image3",
+        "image4",
+        "image5",
     ]);
     const [filterSearch, setFilterSearch] = useState("");
     const [filterBrandId, setFilterBrandId] = useState<string | number>("all");

@@ -18,7 +18,12 @@ const EXPORT_FIELDS: { key: string; label: string }[] = [
     { key: "weight", label: "Peso (kg)" },
     { key: "status", label: "Status ERP" },
     { key: "stock", label: "Quantità stock" },
-    { key: "images", label: "Immagini (link)" },
+    { key: "image1", label: "Immagine 1 (link)" },
+    { key: "image2", label: "Immagine 2 (link)" },
+    { key: "image3", label: "Immagine 3 (link)" },
+    { key: "image4", label: "Immagine 4 (link)" },
+    { key: "image5", label: "Immagine 5 (link)" },
+    { key: "images", label: "Immagini (tutte, link)" },
     { key: "seoAiText", label: "Copywriting breve / SEO" },
     { key: "description", label: "Descrizione lunga" },
     { key: "docDescription", label: "Sorgente dati tecnici" },
@@ -250,6 +255,21 @@ export async function POST(req: NextRequest) {
                         break;
                     case "stock":
                         row[label] = stock;
+                        break;
+                    case "image1":
+                        row[label] = imageLinks[0] || "";
+                        break;
+                    case "image2":
+                        row[label] = imageLinks[1] || "";
+                        break;
+                    case "image3":
+                        row[label] = imageLinks[2] || "";
+                        break;
+                    case "image4":
+                        row[label] = imageLinks[3] || "";
+                        break;
+                    case "image5":
+                        row[label] = imageLinks[4] || "";
                         break;
                     case "bulletPoints":
                         row[label] = itText.bulletPoints || "";
