@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
 import { useCatalog } from "./CatalogContext";
@@ -134,6 +135,7 @@ export default function ImportLab() {
     const [imagePickerItems, setImagePickerItems] = useState<{ fileName: string; relativePath: string; url: string }[]>([]);
     const [imagePickerLoading, setImagePickerLoading] = useState(false);
     const [imagePickerSelection, setImagePickerSelection] = useState<string[]>([]);
+    const companyContext = useCompanyContext();
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -141,7 +143,7 @@ export default function ImportLab() {
         } else {
             fetchAllRepositories();
         }
-    }, [catalogIdParam]);
+    }, [catalogIdParam, companyContext?.selectedCompanyId]);
 
     // Handle PDF switching
     useEffect(() => {

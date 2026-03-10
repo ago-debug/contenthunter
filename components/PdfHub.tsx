@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 const MAX_PDF_MB = 50;
 
@@ -29,6 +30,7 @@ export default function PdfHub() {
     const [askPdfId, setAskPdfId] = useState<number | null>(null);
     const [askQuestion, setAskQuestion] = useState("");
     const [askAnswerByPdfId, setAskAnswerByPdfId] = useState<Record<number, string>>({});
+    const companyContext = useCompanyContext();
     const [summary, setSummary] = useState<any>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -44,7 +46,7 @@ export default function PdfHub() {
                 toast.error(msg);
             })
             .finally(() => setLoading(false));
-    }, []);
+    }, [companyContext?.selectedCompanyId]);
 
     useEffect(() => {
         if (!selectedId) {

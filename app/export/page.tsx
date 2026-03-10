@@ -80,7 +80,7 @@ export default function ExportPage() {
             }
         };
         fetchData();
-    }, []);
+    }, [companyContext?.selectedCompanyId]);
 
     const toggleField = (key: string) => {
         setSelectedFields((prev) =>
