@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extractProductsFromPdf } from "@/lib/gemini-pdf";
+import { openaiExtractProductsFromPdf } from "@/lib/openai-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
 
@@ -43,12 +44,16 @@ export async function POST(
         }
 
         const normalized = await tryNormalizePdfBuffer(pdfBuffer);
-        const forGemini = normalized ?? pdfBuffer;
-        const pdfBase64 = forGemini.toString("base64");
+        const forAi = normalized ?? pdfBuffer;
+        const pdfBase64 = forAi.toString("base64");
 
         let extractedProducts: any[];
         try {
-            const result = await extractProductsFromPdf(pdfBase64);
+            const provider = process.env.PDF_AI_PROVIDER || "gemini";
+            const result =
+                provider === "openai"
+                    ? await openaiExtractProductsFromPdf(pdfBase64)
+                    : await extractProductsFromPdf(pdfBase64);
             extractedProducts = result?.products ?? [];
         } catch (geminiErr: any) {
             console.error("[Gemini PDF] Extract API error:", geminiErr);

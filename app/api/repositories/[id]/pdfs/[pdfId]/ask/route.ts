@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { askAboutPdf } from "@/lib/gemini-pdf";
+import { openaiAskAboutPdf } from "@/lib/openai-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
 
@@ -45,8 +46,14 @@ export async function POST(
         }
 
         const normalized = await tryNormalizePdfBuffer(pdfBuffer);
-        const forGemini = normalized ?? pdfBuffer;
-        const { answer } = await askAboutPdf(forGemini.toString("base64"), question);
+        const forAi = normalized ?? pdfBuffer;
+        const base64 = forAi.toString("base64");
+
+        const provider = process.env.PDF_AI_PROVIDER || "gemini";
+        const { answer } =
+            provider === "openai"
+                ? await openaiAskAboutPdf(base64, question)
+                : await askAboutPdf(base64, question);
         return NextResponse.json({ answer });
     } catch (err: any) {
         console.error("[Gemini PDF] Ask error:", err);

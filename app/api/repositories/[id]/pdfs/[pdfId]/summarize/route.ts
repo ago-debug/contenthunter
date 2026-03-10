@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { summarizePdf } from "@/lib/gemini-pdf";
+import { openaiSummarizePdf } from "@/lib/openai-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
 
@@ -40,8 +41,14 @@ export async function GET(
         }
 
         const normalized = await tryNormalizePdfBuffer(pdfBuffer);
-        const forGemini = normalized ?? pdfBuffer;
-        const result = await summarizePdf(forGemini.toString("base64"));
+        const forAi = normalized ?? pdfBuffer;
+        const base64 = forAi.toString("base64");
+
+        const provider = process.env.PDF_AI_PROVIDER || "gemini";
+        const result =
+            provider === "openai"
+                ? await openaiSummarizePdf(base64)
+                : await summarizePdf(base64);
         return NextResponse.json(result);
     } catch (err: any) {
         console.error("[Gemini PDF] Summarize error:", err);
