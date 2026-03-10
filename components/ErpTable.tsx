@@ -495,19 +495,14 @@ export default function ErpTable() {
         setIsBulkWorking(true);
         const toastId = toast.loading(`Generazione contenuti SEO AI avviata per ${selectedIds.length} prodotti...`);
         try {
-            const res = await fetch("/api/products/seo-bulk", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    productIds: selectedIds,
-                    overwriteExisting,
-                    language: "it",
-                }),
+            // Usiamo axios così ereditiamo automaticamente gli header (x-company-id) dal CompanyContext,
+            // evitando i 403 "azienda non specificata" per gli admin globali.
+            const { data } = await axios.post("/api/products/seo-bulk", {
+                productIds: selectedIds,
+                overwriteExisting,
+                language: "it",
             });
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data?.error || "Errore generazione SEO AI");
-            }
+
             const success = data?.success ?? 0;
             const total = data?.total ?? selectedIds.length;
             const errors = data?.errors ?? 0;

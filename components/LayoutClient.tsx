@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 import { Search, Settings, LogOut, User as UserIcon, Menu, Building2, ChevronDown } from "lucide-react";
@@ -13,6 +13,7 @@ type CompanyOption = { id: number; name: string; slug: string };
 export default function LayoutClient({ children }: { children: React.ReactNode }) {
     const { data: session, status } = useSession();
     const pathname = usePathname();
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const companyContext = useCompanyContext();
     const [companies, setCompanies] = useState<CompanyOption[]>([]);
@@ -35,6 +36,16 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
             companyContext.setSelectedCompanyId(companies[0].id);
         }
     }, [isGlobalAdmin, companyContext, companies]);
+
+    // Quando l'admin globale cambia azienda, forziamo un refresh leggero
+    // così tutte le pagine ri-eseguono i fetch con il nuovo companyId.
+    useEffect(() => {
+        if (!isGlobalAdmin) return;
+        if (!companyContext) return;
+        if (!companiesLoaded) return;
+        // Evita di fare refresh mentre siamo ancora in attesa della prima azienda.
+        router.refresh();
+    }, [isGlobalAdmin, companyContext?.selectedCompanyId, companiesLoaded, router]);
 
     const isAuthPage = pathname === "/login" || pathname === "/register";
 
