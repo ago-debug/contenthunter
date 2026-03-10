@@ -137,6 +137,13 @@ export default function ImportLab() {
     const [imagePickerSelection, setImagePickerSelection] = useState<string[]>([]);
     const companyContext = useCompanyContext();
 
+    // Conferma push verso Master ERP
+    const [isPushConfirmOpen, setIsPushConfirmOpen] = useState(false);
+    const [pushOverwriteBase, setPushOverwriteBase] = useState(false);
+    const [pushOverwriteTexts, setPushOverwriteTexts] = useState(false);
+    const [pushOverwritePrice, setPushOverwritePrice] = useState(false);
+    const [pushOverwriteExtras, setPushOverwriteExtras] = useState(false);
+
     useEffect(() => {
         if (catalogIdParam) {
             fetchRepository(parseInt(catalogIdParam));
@@ -395,7 +402,7 @@ export default function ImportLab() {
         }
     };
 
-    const handlePushToMasterErp = async () => {
+    const handlePushToMasterErp = () => {
         if (!catalogIdParam) {
             toast.warning("Apri prima un repository specifico per poter fare il push verso il Master ERP.");
             return;
@@ -405,7 +412,17 @@ export default function ImportLab() {
             return;
         }
 
-        if (!confirm("Confermi il push di " + products.length + " prodotti verso il Master ERP?")) return;
+        // Apri sempre il modale di conferma con scelta dei campi da sovrascrivere
+        setPushOverwriteBase(false);
+        setPushOverwriteTexts(false);
+        setPushOverwritePrice(false);
+        setPushOverwriteExtras(false);
+        setIsPushConfirmOpen(true);
+    };
+
+    const executePushToMasterErp = async () => {
+        if (!catalogIdParam) return;
+        if (products.length === 0) return;
 
         const toastId = toast.loading("Invio prodotti al Master ERP in corso...");
         let successCount = 0;
@@ -441,6 +458,12 @@ export default function ImportLab() {
                         images,
                         extraFields: extraObj,
                         catalogId: parseInt(catalogIdParam),
+                        overwrite: {
+                            base: pushOverwriteBase,
+                            text: pushOverwriteTexts,
+                            price: pushOverwritePrice,
+                            extras: pushOverwriteExtras,
+                        },
                     });
 
                     successCount++;
@@ -456,6 +479,7 @@ export default function ImportLab() {
                 isLoading: false,
                 autoClose: 4000
             });
+            setIsPushConfirmOpen(false);
         } catch (err: any) {
             console.error("Push Master ERP error:", err);
             toast.update(toastId, {
@@ -1715,6 +1739,133 @@ export default function ImportLab() {
                                         <Database className="w-4 h-4" />
                                     )}
                                     Conferma Importazione nel Lab
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Push to Master ERP Confirmation Modal */}
+            <AnimatePresence>
+                {isPushConfirmOpen && (
+                    <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+                        >
+                            <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-3 bg-slate-900 rounded-2xl">
+                                        <Sparkles className="w-6 h-6 text-orange-300" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Conferma Push verso Master ERP</h2>
+                                        <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">
+                                            {products.length} prodotti verranno inviati dal Import Lab al Master ERP
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setIsPushConfirmOpen(false)} className="p-2 hover:bg-slate-50 rounded-full transition-colors">
+                                    <X className="w-8 h-8 text-slate-300" />
+                                </button>
+                            </div>
+
+                            <div className="p-8 space-y-6">
+                                <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6">
+                                    <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">
+                                        Regole di sovrascrittura
+                                    </p>
+                                    <p className="text-sm text-slate-500 mb-4">
+                                        Per i prodotti che esistono già nel Master ERP, seleziona in modo esplicito quali dati possono essere
+                                        <span className="font-bold"> sovrascritti</span>. Se non selezioni nulla, i prodotti esistenti verranno
+                                        lasciati intatti (verranno creati solo i nuovi prodotti e i collegamenti al catalogo).
+                                    </p>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                        <label className="flex items-start gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={pushOverwriteBase}
+                                                onChange={(e) => setPushOverwriteBase(e.target.checked)}
+                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-slate-800">Dati base prodotto</div>
+                                                <div className="text-xs text-slate-500">
+                                                    SKU, brand, categoria, EAN, parent SKU.
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <label className="flex items-start gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={pushOverwriteTexts}
+                                                onChange={(e) => setPushOverwriteTexts(e.target.checked)}
+                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-slate-800">Testi e bullet</div>
+                                                <div className="text-xs text-slate-500">
+                                                    Titolo, descrizione, descrizione da documento, bullet points, SEO AI.
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <label className="flex items-start gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={pushOverwritePrice}
+                                                onChange={(e) => setPushOverwritePrice(e.target.checked)}
+                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-slate-800">Prezzo di listino</div>
+                                                <div className="text-xs text-slate-500">
+                                                    Aggiorna il prezzo del listino &quot;default&quot;.
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <label className="flex items-start gap-3 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={pushOverwriteExtras}
+                                                onChange={(e) => setPushOverwriteExtras(e.target.checked)}
+                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                            />
+                                            <div>
+                                                <div className="font-bold text-slate-800">Campi extra</div>
+                                                <div className="text-xs text-slate-500">
+                                                    Dimensioni, peso, materiale e tutti gli altri campi extra.
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="text-xs text-slate-500">
+                                    Puoi annullare questa operazione chiudendo il pannello o premendo &quot;Annulla&quot;:
+                                    nessun dato verrà scritto nel Master ERP finché non confermi esplicitamente.
+                                </div>
+                            </div>
+
+                            <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
+                                <button
+                                    onClick={() => setIsPushConfirmOpen(false)}
+                                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                                >
+                                    Annulla (torna al Lab)
+                                </button>
+                                <button
+                                    onClick={executePushToMasterErp}
+                                    className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3"
+                                >
+                                    <Sparkles className="w-4 h-4 text-orange-300" />
+                                    Conferma Push verso Master ERP
                                 </button>
                             </div>
                         </motion.div>

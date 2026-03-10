@@ -13,7 +13,8 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const {
             sku, title, description, docDescription, price, category, brand, brandId,
-            dimensions, weight, material, bulletPoints, seoAiText, images, extraFields, catalogId, ean, parentSku
+            dimensions, weight, material, bulletPoints, seoAiText, images, extraFields, catalogId, ean, parentSku,
+            overwrite
         } = body;
 
         if (!sku) {
@@ -22,6 +23,11 @@ export async function POST(req: NextRequest) {
 
         const cleanSku = sku.toString().trim();
         const cleanEan = ean ? ean.toString().trim() : null;
+
+        const overwriteBase: boolean = overwrite?.base === true;
+        const overwriteText: boolean = overwrite?.text === true;
+        const overwritePrice: boolean = overwrite?.price === true;
+        const overwriteExtras: boolean = overwrite?.extras === true;
 
         // 1. Find existing product by EAN or SKU (scoped by company)
         let existingProduct = null;
@@ -86,20 +92,25 @@ export async function POST(req: NextRequest) {
         // 2. Create or Update base Product HUB
         let product;
         if (existingProduct) {
-            product = await prisma.product.update({
-                where: { id: existingProduct.id },
-                data: {
-                    sku: cleanSku, // Allow SKU update if found by EAN
-                    brand: brand || undefined,
-                    brandId: resolvedBrandId,
-                    category: category || undefined,
-                    categoryId: resolvedCatId,
-                    subCategoryId: resolvedSubCatId,
-                    subSubCategoryId: resolvedSubSubCatId,
-                    ean: cleanEan || undefined,
-                    parentSku: parentSku || undefined
-                },
-            });
+            if (overwriteBase) {
+                product = await prisma.product.update({
+                    where: { id: existingProduct.id },
+                    data: {
+                        sku: cleanSku, // Allow SKU update if found by EAN
+                        brand: brand || undefined,
+                        brandId: resolvedBrandId,
+                        category: category || undefined,
+                        categoryId: resolvedCatId,
+                        subCategoryId: resolvedSubCatId,
+                        subSubCategoryId: resolvedSubSubCatId,
+                        ean: cleanEan || undefined,
+                        parentSku: parentSku || undefined
+                    },
+                });
+            } else {
+                // Non sovrascrivere i dati base se non autorizzato
+                product = existingProduct;
+            }
         } else {
             product = await prisma.product.create({
                 data: {
@@ -117,36 +128,38 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 2. Upsert Italian texts
+        // 2. Upsert Italian texts (solo se autorizzato oppure se il prodotto è nuovo)
         if (title !== undefined || description !== undefined || docDescription !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
-            await prisma.productText.upsert({
-                where: {
-                    productId_language: { productId: product.id, language: "it" }
-                },
-                update: {
-                    title: title || null,
-                    description: description || null,
-                    docDescription: docDescription || null,
-                    bulletPoints: bulletPoints || null,
-                    seoAiText: seoAiText || null
-                },
-                create: {
-                    productId: product.id,
-                    language: "it",
-                    title: title || null,
-                    description: description || null,
-                    docDescription: docDescription || null,
-                    bulletPoints: bulletPoints || null,
-                    seoAiText: seoAiText || null
-                }
-            });
+            if (!existingProduct || overwriteText) {
+                await prisma.productText.upsert({
+                    where: {
+                        productId_language: { productId: product.id, language: "it" }
+                    },
+                    update: {
+                        title: title || null,
+                        description: description || null,
+                        docDescription: docDescription || null,
+                        bulletPoints: bulletPoints || null,
+                        seoAiText: seoAiText || null
+                    },
+                    create: {
+                        productId: product.id,
+                        language: "it",
+                        title: title || null,
+                        description: description || null,
+                        docDescription: docDescription || null,
+                        bulletPoints: bulletPoints || null,
+                        seoAiText: seoAiText || null
+                    }
+                });
+            }
         }
 
-        // 3. Upsert Default Price
+        // 3. Upsert Default Price (solo se autorizzato oppure se il prodotto è nuovo)
         if (price !== undefined && price !== null && price !== "") {
             const priceStr = price.toString().replace(/[^0-9.,-]/g, "").replace(",", ".");
             const parsedPrice = parseFloat(priceStr);
-            if (!isNaN(parsedPrice)) {
+            if (!isNaN(parsedPrice) && (!existingProduct || overwritePrice)) {
                 await prisma.productPrice.upsert({
                     where: {
                         productId_listName: { productId: product.id, listName: "default" }
@@ -158,31 +171,33 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Handle "Old" hardcoded fields mapping them to Extra EAV just in case
-        const legacyExtras = [
-            { key: "dimensions", value: dimensions },
-            { key: "weight", value: weight },
-            { key: "material", value: material }
-        ];
+        if (!existingProduct || overwriteExtras) {
+            const legacyExtras = [
+                { key: "dimensions", value: dimensions },
+                { key: "weight", value: weight },
+                { key: "material", value: material }
+            ];
 
-        for (const leg of legacyExtras) {
-            if (leg.value) {
-                await prisma.productExtra.upsert({
-                    where: { productId_key: { productId: product.id, key: leg.key } },
-                    update: { value: leg.value.toString() },
-                    create: { productId: product.id, key: leg.key, value: leg.value.toString() }
-                });
-            }
-        }
-
-        // 5. Handle truly dynamic extra fields
-        if (extraFields && typeof extraFields === 'object') {
-            for (const [key, value] of Object.entries(extraFields)) {
-                if (value) {
+            for (const leg of legacyExtras) {
+                if (leg.value) {
                     await prisma.productExtra.upsert({
-                        where: { productId_key: { productId: product.id, key: key } },
-                        update: { value: value.toString() },
-                        create: { productId: product.id, key: key, value: value.toString() }
+                        where: { productId_key: { productId: product.id, key: leg.key } },
+                        update: { value: leg.value.toString() },
+                        create: { productId: product.id, key: leg.key, value: leg.value.toString() }
                     });
+                }
+            }
+
+            // 5. Handle truly dynamic extra fields
+            if (extraFields && typeof extraFields === 'object') {
+                for (const [key, value] of Object.entries(extraFields)) {
+                    if (value) {
+                        await prisma.productExtra.upsert({
+                            where: { productId_key: { productId: product.id, key: key } },
+                            update: { value: value.toString() },
+                            create: { productId: product.id, key: key, value: value.toString() }
+                        });
+                    }
                 }
             }
         }
