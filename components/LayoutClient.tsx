@@ -30,22 +30,9 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
         }
     }, [isGlobalAdmin]);
 
-    // Admin globale senza azienda selezionata: seleziona la prima disponibile così le API ricevono x-company-id
-    useEffect(() => {
-        if (isGlobalAdmin && companyContext && companies.length > 0 && companyContext.selectedCompanyId == null) {
-            companyContext.setSelectedCompanyId(companies[0].id);
-        }
-    }, [isGlobalAdmin, companyContext, companies]);
-
-    // Quando l'admin globale cambia azienda, forziamo un refresh leggero
-    // così tutte le pagine ri-eseguono i fetch con il nuovo companyId.
-    useEffect(() => {
-        if (!isGlobalAdmin) return;
-        if (!companyContext) return;
-        if (!companiesLoaded) return;
-        // Evita di fare refresh mentre siamo ancora in attesa della prima azienda.
-        router.refresh();
-    }, [isGlobalAdmin, companyContext?.selectedCompanyId, companiesLoaded, router]);
+    // (Intenzionalmente niente auto-selezione o refresh qui.)
+    // La selezione azienda è gestita dal CompanyContext e dai singoli moduli
+    // che rifanno i fetch quando cambia selectedCompanyId.
 
     const isAuthPage = pathname === "/login" || pathname === "/register";
 

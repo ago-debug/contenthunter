@@ -493,32 +493,94 @@ export default function ErpTable() {
         if (selectedIds.length === 0) return;
         setShowBulkSeoModal(false);
         setIsBulkWorking(true);
-        const toastId = toast.loading(`Generazione contenuti SEO AI avviata per ${selectedIds.length} prodotti...`);
+        const toastId = toast.loading(`Generazione contenuti SEO AI: 0/${selectedIds.length}...`);
+        const lang = "it";
+        let done = 0;
+        let errors = 0;
         try {
-            // Usiamo axios così ereditiamo automaticamente gli header (x-company-id) dal CompanyContext,
-            // evitando i 403 "azienda non specificata" per gli admin globali.
-            const { data } = await axios.post("/api/products/seo-bulk", {
-                productIds: selectedIds,
-                overwriteExisting,
-                language: "it",
-            });
-
-            const success = data?.success ?? 0;
-            const total = data?.total ?? selectedIds.length;
-            const errors = data?.errors ?? 0;
+            const productList = products.filter((p: any) => selectedIds.includes(p.id));
+            for (const product of productList) {
+                try {
+                    const { images, extraFields, docDescription, ...cleanProductData } = product;
+                    const res = await fetch("/api/ai/describe", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            productData: {
+                                ...cleanProductData,
+                                docDescription: (docDescription?.substring(0, 2000) || ""),
+                                extraFieldsPreview: extraFields
+                                    ? Object.entries(extraFields)
+                                          .map(([k, v]) => `${k}: ${v}`)
+                                          .join(", ")
+                                          .substring(0, 1000)
+                                    : "",
+                            },
+                            language: lang,
+                            options: { respectExisting: !overwriteExisting, useExistingAsModel: true },
+                        }),
+                    });
+                    if (!res.ok) throw new Error(await res.text());
+                    const reader = res.body?.getReader();
+                    const decoder = new TextDecoder();
+                    let accumulated = "";
+                    if (reader) {
+                        while (true) {
+                            const { done: streamDone, value } = await reader.read();
+                            if (streamDone) break;
+                            accumulated += decoder.decode(value, { stream: true });
+                        }
+                    }
+                    const shortMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
+                    const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+                    const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
+                    const newShort = shortMatch ? shortMatch[1].trim() : "";
+                    const newDesc = descMatch ? descMatch[1].trim() : "";
+                    const newBullets = bulletMatch ? bulletMatch[1].trim() : "";
+                    const existing = product.translations?.[lang] || {};
+                    const payload = {
+                        ...product,
+                        translations: {
+                            ...product.translations,
+                            [lang]: {
+                                ...existing,
+                                seoAiText:
+                                    overwriteExisting || !existing.seoAiText
+                                        ? newShort || existing.seoAiText
+                                        : existing.seoAiText,
+                                description:
+                                    overwriteExisting || !existing.description
+                                        ? newDesc || existing.description
+                                        : existing.description,
+                                bulletPoints:
+                                    overwriteExisting || !existing.bulletPoints
+                                        ? newBullets || existing.bulletPoints
+                                        : existing.bulletPoints,
+                            },
+                        },
+                    };
+                    await axios.post("/api/products", payload);
+                } catch (e) {
+                    errors++;
+                }
+                done++;
+                toast.update(toastId, {
+                    render: `Generazione SEO AI: ${done}/${selectedIds.length}${
+                        errors ? ` (${errors} errori)` : ""
+                    }`,
+                });
+            }
             toast.update(toastId, {
-                render:
-                    errors > 0
-                        ? `SEO AI completata: ${success}/${total} prodotti aggiornati, ${errors} errori.`
-                        : `SEO AI completata: ${success}/${total} prodotti aggiornati.`,
-                type: errors > 0 ? "warning" : "success",
+                render: errors
+                    ? `Completato: ${done - errors} aggiornati, ${errors} errori.`
+                    : `${done} prodotti aggiornati con contenuti SEO AI.`,
+                type: errors ? "warning" : "success",
                 isLoading: false,
-                autoClose: 5000,
+                autoClose: 4000,
             });
             setSelectedIds([]);
             fetchProducts();
         } catch (err) {
-            console.error("Errore bulk SEO AI:", err);
             toast.update(toastId, {
                 render: "Errore generazione SEO AI",
                 type: "error",
