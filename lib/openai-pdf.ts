@@ -54,22 +54,20 @@ FORMATO:
 
 async function callJsonModel(system: string, user: string): Promise<any> {
     const client = getOpenAI();
-    const resp = await client.responses.create({
-        model: "gpt-4.1-mini",
-        input: [
+    const resp = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
             { role: "system", content: system },
             { role: "user", content: user },
         ],
-        response_format: {
-            type: "json_object",
-        },
+        response_format: { type: "json_object" as const },
+        temperature: 0.2,
     });
 
-    const content = resp.output[0]?.content?.[0];
-    if (!content || content.type !== "output_text") {
-        throw new Error("Risposta OpenAI non valida (manca output_text).");
+    const raw = resp.choices[0]?.message?.content;
+    if (!raw || typeof raw !== "string") {
+        throw new Error("Risposta OpenAI non valida (manca contenuto testuale).");
     }
-    const raw = content.text;
     return JSON.parse(raw);
 }
 
@@ -114,11 +112,11 @@ ${pdfBase64.substring(0, 10000)}
 export async function openaiAskAboutPdf(pdfBase64: string, question: string): Promise<{ answer: string }> {
     const client = getOpenAI();
     const system =
-        "Sei un assistente che risponde a domande su un singolo documento PDF. Usa solo quello che trovi nel documento; se non trovi la risposta, dillo esplicitamente.";
+        "Sei un assistente che risponde a domande su un singolo documento PDF. Usa solo quello che trovi nel documento; se non trovi la risposta, dillo esplicitamente. Rispondi in italiano.";
 
-    const resp = await client.responses.create({
-        model: "gpt-4.1-mini",
-        input: [
+    const resp = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
             { role: "system", content: system },
             {
                 role: "user",
@@ -126,15 +124,17 @@ export async function openaiAskAboutPdf(pdfBase64: string, question: string): Pr
                     `PDF (base64, potrebbe essere troncato se molto lungo):\n${pdfBase64.substring(
                         0,
                         10000
-                    )}\n\nDomanda: ${question}\n\nRispondi con una risposta breve e precisa, in italiano.`,
+                    )}\n\nDomanda: ${question}`,
             },
         ],
+        temperature: 0.3,
     });
 
-    const content = resp.output[0]?.content?.[0];
-    if (!content || content.type !== "output_text") {
-        throw new Error("Risposta OpenAI non valida (manca output_text).");
+    const answer = resp.choices[0]?.message?.content;
+    if (!answer || typeof answer !== "string") {
+        throw new Error("Risposta OpenAI non valida (manca contenuto testuale).");
     }
-    return { answer: content.text };
+    return { answer };
 }
+
 
