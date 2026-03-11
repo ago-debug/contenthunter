@@ -197,6 +197,69 @@ function basicExtractFromHtml(html: string, url: string): any {
             block.find("[itemprop='price']").first().text().trim() ||
             block.find(".price, .product-price").first().text().trim();
 
+        // Prova a leggere attributi tabellari / liste (per SKU, EAN e altri campi)
+        const attributes: Record<string, string> = {};
+
+        // tabelle tipo specifiche tecniche
+        block.find("table tr").each((_, row) => {
+            const cells = $(row).find("th,td");
+            if (cells.length >= 2) {
+                const key = $(cells[0]).text().trim();
+                const value = $(cells[cells.length - 1]).text().trim();
+                if (key && value) {
+                    attributes[key] = value;
+                }
+            }
+        });
+
+        // liste "Chiave: Valore"
+        block.find("li").each((_, li) => {
+            const txt = $(li).text().trim();
+            const idx = txt.indexOf(":");
+            if (idx > 0) {
+                const key = txt.slice(0, idx).trim();
+                const value = txt.slice(idx + 1).trim();
+                if (key && value && !attributes[key]) {
+                    attributes[key] = value;
+                }
+            }
+        });
+
+        // Heuristica per SKU / EAN
+        let sku: string | null = null;
+        let ean: string | null = null;
+
+        const fullText = block.text();
+        const skuMatch = fullText.match(/\bSKU[:\s#]*([A-Za-z0-9\-_.]+)/i);
+        if (skuMatch && skuMatch[1]) {
+            sku = skuMatch[1].trim();
+        }
+        const eanMatch = fullText.match(/\bEAN[:\s#]*([0-9]{8,14})/i);
+        if (eanMatch && eanMatch[1]) {
+            ean = eanMatch[1].trim();
+        }
+
+        // Prova a estrarre da attributi se non trovati nel testo libero
+        if (!sku) {
+            for (const [k, v] of Object.entries(attributes)) {
+                if (/sku|codice|referenza/i.test(k) && v) {
+                    sku = v.toString().trim();
+                    break;
+                }
+            }
+        }
+        if (!ean) {
+            for (const [k, v] of Object.entries(attributes)) {
+                if (/ean|barcode|gtin/i.test(k) && v) {
+                    const digits = v.toString().replace(/[^\d]/g, "");
+                    if (digits.length >= 8 && digits.length <= 14) {
+                        ean = digits;
+                        break;
+                    }
+                }
+            }
+        }
+
         const imgSrc = block.find("img").first().attr("src") || undefined;
         const productUrl = block.find("a").first().attr("href") || undefined;
 
@@ -214,6 +277,9 @@ function basicExtractFromHtml(html: string, url: string): any {
             name: name || null,
             price: priceText || null,
             mainImage: absImg,
+            sku,
+            ean,
+            attributes,
         });
     });
 
