@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 
+function isRealProduct(p: any): boolean {
+    if (!p) return false;
+    const hasId = !!(p.name && String(p.name).trim()) || !!(p.sku && String(p.sku).trim()) || !!(p.ean && String(p.ean).trim());
+    const hasPrice = p.price != null && String(p.price).trim() !== "";
+    const hasImage = !!(p.mainImage || (p.images && p.images.length > 0));
+    const hasDesc = !!(p.description && String(p.description).trim());
+    const hasProductUrl = !!(p.url && String(p.url).trim());
+    return hasId && (hasPrice || hasImage || hasDesc) && hasProductUrl;
+}
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -45,16 +55,6 @@ export async function POST(
             where: { jobId },
             orderBy: { id: "asc" },
         });
-
-        function isRealProduct(p: any): boolean {
-            if (!p) return false;
-            const hasId = !!(p.name && String(p.name).trim()) || !!(p.sku && String(p.sku).trim()) || !!(p.ean && String(p.ean).trim());
-            const hasPrice = p.price != null && String(p.price).trim() !== "";
-            const hasImage = !!(p.mainImage || (p.images && p.images.length > 0));
-            const hasDesc = !!(p.description && String(p.description).trim());
-            const hasProductUrl = !!(p.url && String(p.url).trim());
-            return hasId && (hasPrice || hasImage || hasDesc) && hasProductUrl;
-        }
 
         const byUrl = new Map<string, any>();
         for (const r of results) {
