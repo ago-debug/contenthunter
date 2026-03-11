@@ -670,40 +670,39 @@ export default function ScrapingPage() {
                                 {jobResults.length > 0 && (
                                     <>
                                         <div className="px-4 py-2 flex items-center justify-between">
-                                <div className="px-4 py-2 flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
-                                            Risultati job #{selectedJobId}
-                                        </span>
-                                        <span className="text-[10px] font-bold text-slate-400">
-                                            {jobResults.length} pagine
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
-                                        <button
-                                            type="button"
-                                            onClick={() => setResultView("structured")}
-                                            className={`px-3 py-1 rounded-full ${
-                                                resultView === "structured"
-                                                    ? "bg-white text-slate-900 border border-slate-200"
-                                                    : "text-slate-500 hover:text-slate-800"
-                                            }`}
-                                        >
-                                            Structured Data
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setResultView("html")}
-                                            className={`px-3 py-1 rounded-full ${
-                                                resultView === "html"
-                                                    ? "bg-white text-slate-900 border border-slate-200"
-                                                    : "text-slate-500 hover:text-slate-800"
-                                            }`}
-                                        >
-                                            HTML
-                                        </button>
-                                    </div>
-                                </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                                    Risultati job #{selectedJobId}
+                                                </span>
+                                                <span className="text-[10px] font-bold text-slate-400">
+                                                    {jobResults.length} pagine
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setResultView("structured")}
+                                                    className={`px-3 py-1 rounded-full ${
+                                                        resultView === "structured"
+                                                            ? "bg-white text-slate-900 border border-slate-200"
+                                                            : "text-slate-500 hover:text-slate-800"
+                                                    }`}
+                                                >
+                                                    Structured Data
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setResultView("html")}
+                                                    className={`px-3 py-1 rounded-full ${
+                                                        resultView === "html"
+                                                            ? "bg-white text-slate-900 border border-slate-200"
+                                                            : "text-slate-500 hover:text-slate-800"
+                                                    }`}
+                                                >
+                                                    HTML
+                                                </button>
+                                            </div>
+                                        </div>
                                         <div className="px-4 pb-4 max-h-72 overflow-y-auto bg-white border-t border-slate-100">
                                     {resultView === "structured" ? (
                                         jobResults[0].extracted ? (
