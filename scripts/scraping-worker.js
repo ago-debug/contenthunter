@@ -3,6 +3,7 @@
 
 const { PrismaClient } = require("@prisma/client");
 const cheerio = require("cheerio");
+const axios = require("axios");
 
 const prisma = new PrismaClient();
 
@@ -187,9 +188,9 @@ async function processOnePage() {
 
   let statusCode = null;
   try {
-    const resp = await fetch(url, { method: "GET" });
+    const resp = await axios.get(url, { responseType: "text" });
     statusCode = resp.status;
-    const html = await resp.text();
+    const html = resp.data || "";
 
     const extracted = basicExtractFromHtml(html, url);
 
