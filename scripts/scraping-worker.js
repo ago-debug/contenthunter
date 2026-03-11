@@ -1,6 +1,18 @@
 // Simple scraping worker that consumes ScrapePage queue and fills ScrapeResult
 // Run with: node scripts/scraping-worker.js
 
+// Minimal polyfill for File to satisfy undici/OpenAI when running in plain Node
+if (typeof global.File === "undefined") {
+  global.File = class File {
+    constructor(parts, name, options = {}) {
+      this.parts = parts;
+      this.name = name;
+      this.type = options.type || "";
+      this.lastModified = options.lastModified || Date.now();
+    }
+  };
+}
+
 const { PrismaClient } = require("@prisma/client");
 const cheerio = require("cheerio");
 const axios = require("axios");
