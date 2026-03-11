@@ -1,5 +1,12 @@
-// Simple scraping worker that consumes ScrapePage queue and fills ScrapeResult
-// Run with: node scripts/scraping-worker.js
+// Scraping worker: coda ScrapePage -> fetch HTML -> estrazione prodotti (JSON-LD + HTML) -> ScrapeResult
+//
+// Flusso: 1) Localizza sitemap (robots.txt Sitemap: oppure /sitemap.xml)
+//         2) Parsing sitemap (supporta Sitemap Index -> sitemap figlie)
+//         3) Filtra URL da sitemap (solo pagine prodotto se sitemap mista)
+//         4) Coda: URL in ScrapePage (stesso dominio, max 2000/job)
+//         5) Request + estrazione: delay tra richieste (rate limit), 404 -> skipped
+//         6) Dati preferiti: JSON-LD schema.org/Product, fallback selettori CSS
+// Run: node scripts/scraping-worker.js
 
 // Minimal polyfill for File to satisfy undici/OpenAI when running in plain Node
 if (typeof global.File === "undefined") {
@@ -18,6 +25,13 @@ const cheerio = require("cheerio");
 const axios = require("axios");
 
 const prisma = new PrismaClient();
+const MAX_PAGES_PER_JOB = 2000; // limite di sicurezza per non scansionare siti infiniti
+const DELAY_BETWEEN_REQUESTS_MS = 1500; // rate limiting: pausa tra una richiesta e l'altra (evita 403)
+const SITEMAP_FETCH_TIMEOUT_MS = 10000;
+const MAX_SITEMAP_INDEX_DEPTH = 3; // massima profondità sitemap index (es. index -> index -> prodotti)
+
+// Pattern URL che indicano pagine prodotto (per filtrare sitemap miste blog/categorie/prodotti)
+const PRODUCT_PATH_PATTERN = /\/?(p|prodotto|product|prodotti|products|shop\/[^/]+|item|articolo)(\/|$|\?)/i;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,6 +64,91 @@ function isRealProduct(p) {
   const hasDesc = !!(p.description && String(p.description).trim());
   const hasProductUrl = !!(p.url && String(p.url).trim());
   return hasId && (hasPrice || hasImage || hasDesc) && hasProductUrl;
+}
+
+/** Estrae URL sitemap da robots.txt (righe Sitemap: https://...) */
+async function getSitemapUrlsFromRobots(origin) {
+  const out = [];
+  try {
+    const resp = await axios.get(`${origin}/robots.txt`, { responseType: "text", timeout: 5000 });
+    if (resp.status !== 200 || !resp.data) return out;
+    const text = String(resp.data);
+    const lines = text.split(/\r?\n/);
+    for (const line of lines) {
+      const m = line.match(/^Sitemap:\s*(https?:\/\/[^\s#]+)/i);
+      if (m) out.push(m[1].trim());
+    }
+  } catch {
+    // robots.txt assente o non leggibile
+  }
+  return out;
+}
+
+/**
+ * Scarica un file sitemap XML e restituisce gli URL.
+ * Se è un Sitemap Index (<sitemap><loc>...</loc></sitemap>), segue i link (fino a depth livelli).
+ * Altrimenti estrae i <loc> delle pagine.
+ * @param {string} sitemapUrl - URL del file sitemap
+ * @param {string} origin - origin consentita (solo URL stesso dominio)
+ * @param {Set<string>} skipExt - regex per estensioni da escludere
+ * @param {number} depth - profondità corrente (sitemap index)
+ * @returns {Promise<string[]>} - lista URL normalizzate
+ */
+async function fetchSitemapAndCollectUrls(sitemapUrl, origin, skipExt, depth = 0) {
+  const urls = [];
+  if (depth > MAX_SITEMAP_INDEX_DEPTH) return urls;
+  try {
+    const resp = await axios.get(sitemapUrl, { responseType: "text", timeout: SITEMAP_FETCH_TIMEOUT_MS });
+    if (resp.status !== 200 || !resp.data) return urls;
+    const xml = String(resp.data);
+    const $ = cheerio.load(xml, { xmlMode: true });
+
+    const sitemapLocs = [];
+    $("sitemap loc").each((_, el) => {
+      const loc = $(el).text().trim();
+      if (loc) sitemapLocs.push(loc);
+    });
+
+    if (sitemapLocs.length > 0) {
+      for (const loc of sitemapLocs) {
+        try {
+          const childUrl = new URL(loc);
+          if (childUrl.origin !== origin) continue;
+          const sub = await fetchSitemapAndCollectUrls(loc, origin, skipExt, depth + 1);
+          urls.push(...sub);
+        } catch {
+          // ignora sitemap figlia non valida
+        }
+      }
+      return urls;
+    }
+
+    $("url loc, loc").each((_, el) => {
+      const loc = $(el).text().trim();
+      if (!loc) return;
+      try {
+        const u = new URL(loc);
+        if (u.origin !== origin) return;
+        if (skipExt.test(loc)) return;
+        urls.push(normalizeUrlForCrawl(loc));
+      } catch {
+        // ignora
+      }
+    });
+  } catch {
+    // sitemap non scaricabile (404, timeout, ecc.)
+  }
+  return urls;
+}
+
+/** Restituisce true se l'URL sembra una pagina prodotto (per filtrare sitemap miste). */
+function looksLikeProductUrl(urlStr) {
+  try {
+    const path = new URL(urlStr).pathname || "";
+    return PRODUCT_PATH_PATTERN.test(path);
+  } catch {
+    return false;
+  }
 }
 
 function basicExtractFromHtml(html, url) {
@@ -293,9 +392,93 @@ async function processOnePage() {
 
   let statusCode = null;
   try {
-    const resp = await axios.get(url, { responseType: "text" });
+    const resp = await axios.get(url, { responseType: "text", timeout: 15000 });
     statusCode = resp.status;
+
+    if (statusCode === 404) {
+      await prisma.scrapePage.update({
+        where: { id: page.id },
+        data: { status: "skipped", statusCode: 404, error: "Page not found (404)" },
+      });
+      const agg = await prisma.scrapePage.groupBy({
+        by: ["status"],
+        where: { jobId: job.id },
+        _count: { _all: true },
+      });
+      let total = 0;
+      let done = 0;
+      let error = 0;
+      for (const row of agg) {
+        total += row._count._all;
+        if (row.status === "done") done += row._count._all;
+        if (row.status === "error") error += row._count._all;
+      }
+      const hasPending = agg.some((r) => r.status === "pending" || r.status === "running");
+      await prisma.scrapeJob.update({
+        where: { id: job.id },
+        data: {
+          totalPages: total,
+          successCount: done,
+          errorCount: error,
+          status: hasPending ? "running" : "done",
+          finishedAt: hasPending ? null : new Date(),
+        },
+      });
+      await sleep(DELAY_BETWEEN_REQUESTS_MS);
+      return true;
+    }
+
     const html = resp.data || "";
+
+    // Sulla pagina di partenza: 1) Leggi robots.txt per Sitemap: 2) Sitemap index + prodotti 3) Filtra URL prodotto
+    const sitemapLinks = new Set();
+    if (spider.startUrl) {
+      try {
+        const start = new URL(spider.startUrl);
+        const isStartPage =
+          normalizeUrlForCrawl(spider.startUrl) === normalizeUrlForCrawl(url);
+        const skipExt = /\.(pdf|zip|rar|jpg|jpeg|png|gif|webp|svg|css|js|woff2?|ico|mp4|webm)(\?|$)/i;
+
+        if (isStartPage) {
+          const sitemapUrlsToFetch = new Set();
+          // Da robots.txt (percorso quasi sempre dichiarato)
+          const fromRobots = await getSitemapUrlsFromRobots(start.origin);
+          fromRobots.forEach((u) => sitemapUrlsToFetch.add(u));
+          // Fallback: path comuni se robots non ha Sitemap
+          if (sitemapUrlsToFetch.size === 0) {
+            [
+              "/sitemap.xml",
+              "/sitemap_index.xml",
+              "/sitemap-index.xml",
+              "/sitemap1.xml",
+              "/sitemap-products.xml",
+              "/sitemap_product.xml",
+              "/product-sitemap.xml",
+            ].forEach((path) => sitemapUrlsToFetch.add(`${start.origin}${path}`));
+          }
+
+          for (const sitemapUrl of sitemapUrlsToFetch) {
+            const collected = await fetchSitemapAndCollectUrls(
+              sitemapUrl,
+              start.origin,
+              skipExt
+            );
+            const isProductSitemap = /product|prodotti|item|shop/i.test(sitemapUrl);
+            for (const loc of collected) {
+              if (!loc) continue;
+              if (isProductSitemap) {
+                sitemapLinks.add(loc);
+              } else if (looksLikeProductUrl(loc)) {
+                sitemapLinks.add(loc);
+              }
+            }
+            await sleep(500); // breve pausa tra una sitemap e l'altra
+          }
+        }
+      } catch {
+        // startUrl non valida, ignora sitemap
+      }
+    }
 
     const extracted = basicExtractFromHtml(html, url);
 
@@ -313,7 +496,6 @@ async function processOnePage() {
     const $ = cheerio.load(html);
     const base = new URL(url);
     const startOrigin = spider.startUrl ? new URL(spider.startUrl).origin : base.origin;
-    const MAX_PAGES_PER_JOB = 2000;
 
     const productUrls = new Set();
     if (extracted && Array.isArray(extracted.products)) {
@@ -339,10 +521,13 @@ async function processOnePage() {
     });
 
     const productAbs = [...productUrls].map((href) => makeAbsoluteUrl(href, base.toString())).filter(Boolean);
-    const toEnqueue = new Set([
-      ...productAbs.map(normalizeUrlForCrawl),
-      ...sameSiteLinks,
-    ].filter(Boolean));
+    const toEnqueue = new Set(
+      [
+        ...productAbs.map(normalizeUrlForCrawl),
+        ...sameSiteLinks,
+        ...sitemapLinks,
+      ].filter(Boolean)
+    );
 
     // Evita duplicati: URL già in coda o già processate per questo job
     const existing = await prisma.scrapePage.findMany({
@@ -403,6 +588,8 @@ async function processOnePage() {
         finishedAt: hasPending ? null : new Date(),
       },
     });
+
+    await sleep(DELAY_BETWEEN_REQUESTS_MS); // rate limiting: pausa tra richieste
   } catch (err) {
     console.error("[worker] Error processing page", page.id, err);
     await prisma.scrapePage.update({
