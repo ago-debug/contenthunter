@@ -22,6 +22,7 @@ model Company {
   tags      Tag[]
   bulletPoints BulletPoint[]
   templates Template[]
+  scrapeProjects ScrapeProject[]
 }
 
 model Catalog {
@@ -217,6 +218,69 @@ model ProductImage {
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId], map: "ProductImage_productId_fkey")
+}
+
+/// Scraping Hub (tipo Zyte) - progetti / spider / job / risultati
+
+model ScrapeProject {
+  id          Int           @id @default(autoincrement())
+  companyId   Int
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  spiders     ScrapeSpider[]
+
+  @@index([companyId])
+}
+
+model ScrapeSpider {
+  id          Int           @id @default(autoincrement())
+  projectId   Int
+  project     ScrapeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  startUrl    String?       @db.LongText
+  config      Json?         // impostazioni HTTP / proxy / headers / rate limit
+  template    Json?         // schema estrazione (campi, selettori, ecc.)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  jobs        ScrapeJob[]
+
+  @@index([projectId])
+}
+
+model ScrapeJob {
+  id           Int          @id @default(autoincrement())
+  spiderId     Int
+  spider       ScrapeSpider @relation(fields: [spiderId], references: [id], onDelete: Cascade)
+  status       String       @default("pending") // pending, running, done, failed
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  totalPages   Int?
+  successCount Int?
+  errorCount   Int?
+  logSnippet   String?      @db.Text
+  createdAt    DateTime     @default(now())
+
+  results      ScrapeResult[]
+
+  @@index([spiderId])
+}
+
+model ScrapeResult {
+  id         Int        @id @default(autoincrement())
+  jobId      Int
+  job        ScrapeJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String     @db.LongText
+  statusCode Int?
+  rawHtml    String?    @db.LongText
+  extracted  Json?      // dati strutturati estratti (es. product schema)
+  createdAt  DateTime   @default(now())
+
+  @@index([jobId])
 }
 
 model PdfPage {

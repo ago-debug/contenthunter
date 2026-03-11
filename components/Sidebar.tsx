@@ -16,7 +16,8 @@ import {
     List,
     Tag as TagIcon,
     Building2,
-    X
+    X,
+    Globe2
 } from "lucide-react";
 
 type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
@@ -61,6 +62,12 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         {
             label: "System & AI",
             items: systemItems,
+        },
+        {
+            label: "Scraping",
+            items: [
+                { href: "/scraping", label: "Scraping Hub", icon: Globe2 },
+            ]
         }
     ];
 
