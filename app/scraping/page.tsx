@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useCompanyContext } from "@/contexts/CompanyContext";
-import { Box, Plus, RefreshCw, Search, Spider, PlayCircle, Globe2 } from "lucide-react";
+import { Box, Plus, RefreshCw, Search, Layers, PlayCircle, Globe2 } from "lucide-react";
 import { toast } from "react-toastify";
 
 interface ScrapeProject {
@@ -297,7 +297,7 @@ export default function ScrapingPage() {
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
                         <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                                <Spider className="w-4 h-4 text-slate-400" />
+                                <Layers className="w-4 h-4 text-slate-400" />
                                 <span className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
                                     Spider
                                 </span>
