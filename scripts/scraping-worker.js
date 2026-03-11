@@ -32,6 +32,16 @@ function makeAbsoluteUrl(href, base) {
   }
 }
 
+function normalizeUrlForCrawl(u) {
+  if (!u) return "";
+  try {
+    const parsed = new URL(u);
+    return parsed.origin + parsed.pathname + parsed.search;
+  } catch {
+    return u;
+  }
+}
+
 function isRealProduct(p) {
   if (!p) return false;
   const hasId = !!(p.name && String(p.name).trim()) || !!(p.sku && String(p.sku).trim()) || !!(p.ean && String(p.ean).trim());
@@ -299,10 +309,11 @@ async function processOnePage() {
       },
     });
 
-    // Simple link discovery: segui solo le URL dei prodotti estratti
+    // Scoperta link: stesso sito (dominio dello startUrl) per scansionare tutte le pagine
     const $ = cheerio.load(html);
-
     const base = new URL(url);
+    const startOrigin = spider.startUrl ? new URL(spider.startUrl).origin : base.origin;
+    const MAX_PAGES_PER_JOB = 2000;
 
     const productUrls = new Set();
     if (extracted && Array.isArray(extracted.products)) {
@@ -311,10 +322,41 @@ async function processOnePage() {
       }
     }
 
-    const toEnqueue = new Set([...productUrls].map((href) => makeAbsoluteUrl(href, base.toString())).filter(Boolean));
+    const skipExtension = /\.(pdf|zip|rar|jpg|jpeg|png|gif|webp|svg|css|js|woff2?|ico|mp4|webm)(\?|$)/i;
+    const sameSiteLinks = new Set();
+    $("a[href]").each((_, el) => {
+      const href = $(el).attr("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
+      const abs = makeAbsoluteUrl(href, base.toString());
+      if (!abs) return;
+      if (skipExtension.test(abs)) return;
+      try {
+        if (new URL(abs).origin !== startOrigin) return;
+        sameSiteLinks.add(normalizeUrlForCrawl(abs));
+      } catch {
+        // ignore invalid URL
+      }
+    });
 
-    // Enqueue new pages
-    for (const link of toEnqueue) {
+    const productAbs = [...productUrls].map((href) => makeAbsoluteUrl(href, base.toString())).filter(Boolean);
+    const toEnqueue = new Set([
+      ...productAbs.map(normalizeUrlForCrawl),
+      ...sameSiteLinks,
+    ].filter(Boolean));
+
+    // Evita duplicati: URL già in coda o già processate per questo job
+    const existing = await prisma.scrapePage.findMany({
+      where: { jobId: job.id },
+      select: { url: true },
+    });
+    const existingNormalized = new Set(existing.map((r) => normalizeUrlForCrawl(r.url)));
+    const toAdd = [...toEnqueue].filter((link) => link && !existingNormalized.has(link));
+
+    const currentTotal = existing.length;
+    const canAdd = Math.max(0, MAX_PAGES_PER_JOB - currentTotal);
+    const toInsert = toAdd.slice(0, canAdd);
+
+    for (const link of toInsert) {
       try {
         await prisma.scrapePage.create({
           data: {
@@ -324,7 +366,7 @@ async function processOnePage() {
           },
         });
       } catch (e) {
-        // likely duplicate entry, ignore
+        // duplicate or DB error, skip
       }
     }
 
