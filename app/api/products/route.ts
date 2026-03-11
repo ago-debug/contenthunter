@@ -24,8 +24,14 @@ export async function POST(req: NextRequest) {
         const cleanSku = sku.toString().trim();
         const cleanEan = ean ? ean.toString().trim() : null;
 
-        const overwriteBase: boolean = overwrite?.base === true;
-        const overwriteText: boolean = overwrite?.text === true;
+        const overwriteBrand: boolean = overwrite?.brand === true;
+        const overwriteCategory: boolean = overwrite?.category === true;
+        const overwriteEan: boolean = overwrite?.ean === true;
+        const overwriteParentSku: boolean = overwrite?.parentSku === true;
+        const overwriteTitle: boolean = overwrite?.title === true;
+        const overwriteLongDescription: boolean = overwrite?.longDescription === true;
+        const overwriteBulletPoints: boolean = overwrite?.bulletPoints === true;
+        const overwriteSeoAi: boolean = overwrite?.seoAiText === true;
         const overwritePrice: boolean = overwrite?.price === true;
         const overwriteExtras: boolean = overwrite?.extras === true;
 
@@ -92,23 +98,31 @@ export async function POST(req: NextRequest) {
         // 2. Create or Update base Product HUB
         let product;
         if (existingProduct) {
-            if (overwriteBase) {
+            // Usa sempre SKU/EAN come indici: lo SKU esistente NON viene mai sovrascritto.
+            const updateData: any = {};
+            if (overwriteBrand) {
+                updateData.brand = brand || undefined;
+                updateData.brandId = resolvedBrandId;
+            }
+            if (overwriteCategory) {
+                updateData.category = category || undefined;
+                updateData.categoryId = resolvedCatId;
+                updateData.subCategoryId = resolvedSubCatId;
+                updateData.subSubCategoryId = resolvedSubSubCatId;
+            }
+            if (overwriteEan) {
+                updateData.ean = cleanEan || undefined;
+            }
+            if (overwriteParentSku) {
+                updateData.parentSku = parentSku || undefined;
+            }
+
+            if (Object.keys(updateData).length > 0) {
                 product = await prisma.product.update({
                     where: { id: existingProduct.id },
-                    data: {
-                        sku: cleanSku, // Allow SKU update if found by EAN
-                        brand: brand || undefined,
-                        brandId: resolvedBrandId,
-                        category: category || undefined,
-                        categoryId: resolvedCatId,
-                        subCategoryId: resolvedSubCatId,
-                        subSubCategoryId: resolvedSubSubCatId,
-                        ean: cleanEan || undefined,
-                        parentSku: parentSku || undefined
-                    },
+                    data: updateData,
                 });
             } else {
-                // Non sovrascrivere i dati base se non autorizzato
                 product = existingProduct;
             }
         } else {
@@ -128,31 +142,63 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        // 2. Upsert Italian texts (solo se autorizzato oppure se il prodotto è nuovo)
+        // 2. Upsert Italian texts con controllo di campo per sovrascrittura
         if (title !== undefined || description !== undefined || docDescription !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
-            if (!existingProduct || overwriteText) {
-                await prisma.productText.upsert({
+            let existingText: any = null;
+            if (existingProduct) {
+                existingText = await prisma.productText.findUnique({
                     where: {
-                        productId_language: { productId: product.id, language: "it" }
-                    },
-                    update: {
-                        title: title || null,
-                        description: description || null,
-                        docDescription: docDescription || null,
-                        bulletPoints: bulletPoints || null,
-                        seoAiText: seoAiText || null
-                    },
-                    create: {
-                        productId: product.id,
-                        language: "it",
-                        title: title || null,
-                        description: description || null,
-                        docDescription: docDescription || null,
-                        bulletPoints: bulletPoints || null,
-                        seoAiText: seoAiText || null
+                        productId_language: { productId: existingProduct.id, language: "it" }
                     }
                 });
             }
+
+            const finalTitle =
+                !existingText ? (title ?? null)
+                    : overwriteTitle && title !== undefined ? (title ?? null)
+                        : existingText.title ?? null;
+
+            const finalDescription =
+                !existingText ? (description ?? null)
+                    : overwriteLongDescription && description !== undefined ? (description ?? null)
+                        : existingText.description ?? null;
+
+            const finalDocDescription =
+                !existingText ? (docDescription ?? null)
+                    : docDescription !== undefined ? (docDescription ?? null)
+                        : existingText.docDescription ?? null;
+
+            const finalBulletPoints =
+                !existingText ? (bulletPoints ?? null)
+                    : overwriteBulletPoints && bulletPoints !== undefined ? (bulletPoints ?? null)
+                        : existingText.bulletPoints ?? null;
+
+            const finalSeoAi =
+                !existingText ? (seoAiText ?? null)
+                    : overwriteSeoAi && seoAiText !== undefined ? (seoAiText ?? null)
+                        : existingText.seoAiText ?? null;
+
+            await prisma.productText.upsert({
+                where: {
+                    productId_language: { productId: product.id, language: "it" }
+                },
+                update: {
+                    title: finalTitle,
+                    description: finalDescription,
+                    docDescription: finalDocDescription,
+                    bulletPoints: finalBulletPoints,
+                    seoAiText: finalSeoAi
+                },
+                create: {
+                    productId: product.id,
+                    language: "it",
+                    title: finalTitle,
+                    description: finalDescription,
+                    docDescription: finalDocDescription,
+                    bulletPoints: finalBulletPoints,
+                    seoAiText: finalSeoAi
+                }
+            });
         }
 
         // 3. Upsert Default Price (solo se autorizzato oppure se il prodotto è nuovo)

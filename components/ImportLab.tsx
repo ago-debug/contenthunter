@@ -139,8 +139,14 @@ export default function ImportLab() {
 
     // Conferma push verso Master ERP
     const [isPushConfirmOpen, setIsPushConfirmOpen] = useState(false);
-    const [pushOverwriteBase, setPushOverwriteBase] = useState(false);
-    const [pushOverwriteTexts, setPushOverwriteTexts] = useState(false);
+    const [pushOverwriteBrand, setPushOverwriteBrand] = useState(false);
+    const [pushOverwriteCategory, setPushOverwriteCategory] = useState(false);
+    const [pushOverwriteEan, setPushOverwriteEan] = useState(false);
+    const [pushOverwriteParentSku, setPushOverwriteParentSku] = useState(false);
+    const [pushOverwriteTitle, setPushOverwriteTitle] = useState(false);
+    const [pushOverwriteLongDesc, setPushOverwriteLongDesc] = useState(false);
+    const [pushOverwriteBullets, setPushOverwriteBullets] = useState(false);
+    const [pushOverwriteSeo, setPushOverwriteSeo] = useState(false);
     const [pushOverwritePrice, setPushOverwritePrice] = useState(false);
     const [pushOverwriteExtras, setPushOverwriteExtras] = useState(false);
 
@@ -413,8 +419,14 @@ export default function ImportLab() {
         }
 
         // Apri sempre il modale di conferma con scelta dei campi da sovrascrivere
-        setPushOverwriteBase(false);
-        setPushOverwriteTexts(false);
+        setPushOverwriteBrand(false);
+        setPushOverwriteCategory(false);
+        setPushOverwriteEan(false);
+        setPushOverwriteParentSku(false);
+        setPushOverwriteTitle(false);
+        setPushOverwriteLongDesc(false);
+        setPushOverwriteBullets(false);
+        setPushOverwriteSeo(false);
         setPushOverwritePrice(false);
         setPushOverwriteExtras(false);
         setIsPushConfirmOpen(true);
@@ -459,8 +471,14 @@ export default function ImportLab() {
                         extraFields: extraObj,
                         catalogId: parseInt(catalogIdParam),
                         overwrite: {
-                            base: pushOverwriteBase,
-                            text: pushOverwriteTexts,
+                            brand: pushOverwriteBrand,
+                            category: pushOverwriteCategory,
+                            ean: pushOverwriteEan,
+                            parentSku: pushOverwriteParentSku,
+                            title: pushOverwriteTitle,
+                            longDescription: pushOverwriteLongDesc,
+                            bulletPoints: pushOverwriteBullets,
+                            seoAiText: pushOverwriteSeo,
                             price: pushOverwritePrice,
                             extras: pushOverwriteExtras,
                         },
@@ -1780,70 +1798,168 @@ export default function ImportLab() {
                                     </p>
                                     <p className="text-sm text-slate-500 mb-4">
                                         Per i prodotti che esistono già nel Master ERP, seleziona in modo esplicito quali dati possono essere
-                                        <span className="font-bold"> sovrascritti</span>. Se non selezioni nulla, i prodotti esistenti verranno
-                                        lasciati intatti (verranno creati solo i nuovi prodotti e i collegamenti al catalogo).
+                                        <span className="font-bold"> sovrascritti</span>. Lo <span className="font-bold">SKU</span> non viene mai modificato
+                                        ed è sempre usato insieme all&apos;EAN come chiave di identificazione del prodotto.
+                                        Se non selezioni nulla, i prodotti esistenti verranno lasciati intatti (verranno creati solo i nuovi prodotti e i collegamenti al catalogo).
                                     </p>
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                                        <label className="flex items-start gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={pushOverwriteBase}
-                                                onChange={(e) => setPushOverwriteBase(e.target.checked)}
-                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
-                                            />
-                                            <div>
-                                                <div className="font-bold text-slate-800">Dati base prodotto</div>
-                                                <div className="text-xs text-slate-500">
-                                                    SKU, brand, categoria, EAN, parent SKU.
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Identità e classificazione</p>
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteBrand}
+                                                    onChange={(e) => setPushOverwriteBrand(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Brand</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Sovrascrivi brand e collegamento alla tabella marchi.
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
+                                            </label>
 
-                                        <label className="flex items-start gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={pushOverwriteTexts}
-                                                onChange={(e) => setPushOverwriteTexts(e.target.checked)}
-                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
-                                            />
-                                            <div>
-                                                <div className="font-bold text-slate-800">Testi e bullet</div>
-                                                <div className="text-xs text-slate-500">
-                                                    Titolo, descrizione, descrizione da documento, bullet points, SEO AI.
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteCategory}
+                                                    onChange={(e) => setPushOverwriteCategory(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Categoria</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Sovrascrivi categoria e gerarchia (livello 1-2-3).
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
+                                            </label>
 
-                                        <label className="flex items-start gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={pushOverwritePrice}
-                                                onChange={(e) => setPushOverwritePrice(e.target.checked)}
-                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
-                                            />
-                                            <div>
-                                                <div className="font-bold text-slate-800">Prezzo di listino</div>
-                                                <div className="text-xs text-slate-500">
-                                                    Aggiorna il prezzo del listino &quot;default&quot;.
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteEan}
+                                                    onChange={(e) => setPushOverwriteEan(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">EAN / Barcode</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Sovrascrivi il codice a barre associato allo SKU.
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
+                                            </label>
 
-                                        <label className="flex items-start gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={pushOverwriteExtras}
-                                                onChange={(e) => setPushOverwriteExtras(e.target.checked)}
-                                                className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
-                                            />
-                                            <div>
-                                                <div className="font-bold text-slate-800">Campi extra</div>
-                                                <div className="text-xs text-slate-500">
-                                                    Dimensioni, peso, materiale e tutti gli altri campi extra.
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteParentSku}
+                                                    onChange={(e) => setPushOverwriteParentSku(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">SKU di base (parent)</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Collega/scollega lo SKU a una variante padre.
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
+                                            </label>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Contenuti e pricing</p>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteTitle}
+                                                    onChange={(e) => setPushOverwriteTitle(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Titolo</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Sovrascrivi il titolo principale del prodotto.
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteLongDesc}
+                                                    onChange={(e) => setPushOverwriteLongDesc(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Descrizione lunga</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Testo descrittivo esteso (scheda prodotto).
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteBullets}
+                                                    onChange={(e) => setPushOverwriteBullets(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Bullet / Caratteristiche</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Elenco puntato delle caratteristiche principali.
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteSeo}
+                                                    onChange={(e) => setPushOverwriteSeo(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Descrizione breve / SEO</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Campo di sintesi usato per SEO, listing, ecc.
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwritePrice}
+                                                    onChange={(e) => setPushOverwritePrice(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Prezzo di listino</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Aggiorna il prezzo del listino &quot;default&quot;.
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteExtras}
+                                                    onChange={(e) => setPushOverwriteExtras(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Campi extra</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Dimensioni, peso, materiale e tutti gli altri campi extra (incluso stock, status, ecc.).
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
