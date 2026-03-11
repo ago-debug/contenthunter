@@ -32,6 +32,16 @@ function makeAbsoluteUrl(href, base) {
   }
 }
 
+function isRealProduct(p) {
+  if (!p) return false;
+  const hasId = !!(p.name && String(p.name).trim()) || !!(p.sku && String(p.sku).trim()) || !!(p.ean && String(p.ean).trim());
+  const hasPrice = p.price != null && String(p.price).trim() !== "";
+  const hasImage = !!(p.mainImage || (p.images && p.images.length > 0));
+  const hasDesc = !!(p.description && String(p.description).trim());
+  const hasProductUrl = !!(p.url && String(p.url).trim());
+  return hasId && (hasPrice || hasImage || hasDesc) && hasProductUrl;
+}
+
 function basicExtractFromHtml(html, url) {
   const $ = cheerio.load(html);
 
@@ -70,14 +80,16 @@ function basicExtractFromHtml(html, url) {
           const prod = item.item || item;
           if (!prod) continue;
           if (prod["@type"] === "Product") {
-            products.push(normalizeSchemaProduct(prod, url));
+            const normalized = normalizeSchemaProduct(prod, url);
+            if (isRealProduct(normalized)) products.push(normalized);
           }
         }
         continue;
       }
-      // Single Product
+      // Single Product (solo se sembra un prodotto vero, non Organization/Brand)
       if (node["@type"] === "Product") {
-        products.push(normalizeSchemaProduct(node, url));
+        const normalized = normalizeSchemaProduct(node, url);
+        if (isRealProduct(normalized)) products.push(normalized);
       }
     }
   });
@@ -162,7 +174,10 @@ function basicExtractFromHtml(html, url) {
     if (seen.has(key)) return;
     seen.add(key);
 
-    if (!name && !absUrl && !absImg) return;
+    // Solo blocchi che sembrano prodotti: almeno (nome/sku/ean) e (prezzo/link/immagine)
+    const hasId = !!(name || sku || ean);
+    const hasData = !!(priceText && priceText.trim()) || !!absUrl || !!absImg;
+    if (!hasId || !hasData) return;
 
     products.push({
       url: absUrl,
@@ -175,21 +190,7 @@ function basicExtractFromHtml(html, url) {
     });
   });
 
-  if (products.length === 0) {
-    $("img")
-      .slice(0, 24)
-      .each((_, el) => {
-        const src = $(el).attr("src") || undefined;
-        const absImg = makeAbsoluteUrl(src, url) || src || null;
-        if (!absImg) return;
-        products.push({
-          url,
-          name: $(el).attr("alt") || null,
-          price: null,
-          mainImage: absImg,
-        });
-      });
-  }
+  // Non aggiungere immagini generiche come "prodotti" (logo, banner) — solo dati strutturati o blocchi .product
 
   return {
     url,
@@ -234,8 +235,14 @@ function normalizeSchemaProduct(prod, baseUrl) {
 }
 
 async function processOnePage() {
-  const page = await prisma.scrapePage.findFirst({
-    where: { status: "pending" },
+  // Prendi una pagina pending oppure una in errore da ritentare (max 1 retry)
+  let page = await prisma.scrapePage.findFirst({
+    where: {
+      OR: [
+        { status: "pending" },
+        { status: "error", retryCount: { lt: 1 } },
+      ],
+    },
     orderBy: { id: "asc" },
     include: {
       job: {
@@ -247,6 +254,14 @@ async function processOnePage() {
   });
 
   if (!page) return false;
+
+  if (page.status === "error") {
+    await prisma.scrapePage.update({
+      where: { id: page.id },
+      data: { status: "pending", error: null, retryCount: (page.retryCount || 0) + 1 },
+    });
+    page = { ...page, status: "pending" };
+  }
 
   const job = page.job;
   const spider = job.spider;

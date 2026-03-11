@@ -46,15 +46,27 @@ export async function POST(
             orderBy: { id: "asc" },
         });
 
-        const products: any[] = [];
+        function isRealProduct(p: any): boolean {
+            if (!p) return false;
+            const hasId = !!(p.name && String(p.name).trim()) || !!(p.sku && String(p.sku).trim()) || !!(p.ean && String(p.ean).trim());
+            const hasPrice = p.price != null && String(p.price).trim() !== "";
+            const hasImage = !!(p.mainImage || (p.images && p.images.length > 0));
+            const hasDesc = !!(p.description && String(p.description).trim());
+            const hasProductUrl = !!(p.url && String(p.url).trim());
+            return hasId && (hasPrice || hasImage || hasDesc) && hasProductUrl;
+        }
+
+        const byUrl = new Map<string, any>();
         for (const r of results) {
             const ext = (r.extracted || {}) as any;
             if (!ext || !Array.isArray(ext.products)) continue;
             for (const p of ext.products) {
-                if (!p) continue;
-                products.push(p);
+                if (!p || !isRealProduct(p)) continue;
+                const url = (p.url && String(p.url).trim()) || "";
+                if (url && !byUrl.has(url)) byUrl.set(url, p);
             }
         }
+        const products = Array.from(byUrl.values());
 
         if (products.length === 0) {
             return NextResponse.json(

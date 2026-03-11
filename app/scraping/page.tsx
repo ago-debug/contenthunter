@@ -65,6 +65,32 @@ export default function ScrapingPage() {
     const [selectedImportCatalogId, setSelectedImportCatalogId] = useState<number | null>(null);
     const [isImporting, setIsImporting] = useState(false);
 
+    // Considera solo prodotti veri: almeno identificatore (nome/sku/ean) e (prezzo o immagine o descrizione) e URL
+    const isRealProduct = (p: any) => {
+        if (!p) return false;
+        const hasId = !!(p.name && String(p.name).trim()) || !!(p.sku && String(p.sku).trim()) || !!(p.ean && String(p.ean).trim());
+        const hasPrice = p.price != null && String(p.price).trim() !== "";
+        const hasImage = !!(p.mainImage || (p.images && p.images.length > 0));
+        const hasDesc = !!(p.description && String(p.description).trim());
+        const hasProductUrl = !!(p.url && String(p.url).trim());
+        return hasId && (hasPrice || hasImage || hasDesc) && hasProductUrl;
+    };
+
+    // Aggrega prodotti da tutte le pagine e filtra solo prodotti veri, deduplicati per URL
+    const aggregatedProducts = (() => {
+        const byUrl = new Map<string, any>();
+        for (const r of jobResults) {
+            const list = Array.isArray(r?.extracted?.products) ? r.extracted.products : [];
+            for (const p of list) {
+                if (!isRealProduct(p)) continue;
+                const url = (p.url && String(p.url).trim()) || "";
+                if (!url) continue;
+                if (!byUrl.has(url)) byUrl.set(url, p);
+            }
+        }
+        return Array.from(byUrl.values());
+    })();
+
     const loadProjects = async () => {
         try {
             setLoading(true);
@@ -725,12 +751,10 @@ export default function ScrapingPage() {
                                         </div>
                                         <div className="px-4 pb-4 max-h-72 overflow-y-auto bg-white border-t border-slate-100">
                                     {resultView === "structured" ? (
-                                        jobResults[0].extracted ? (
-                                            Array.isArray(jobResults[0].extracted.products) &&
-                                            jobResults[0].extracted.products.length > 0 ? (
+                                        aggregatedProducts.length > 0 ? (
                                                 <div className="text-[11px] text-slate-800">
                                                     <div className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                                                        Product List ({jobResults[0].extracted.products.length})
+                                                        Prodotti ({aggregatedProducts.length}) — da {jobResults.length} pagine
                                                     </div>
                                                     <div className="border border-slate-100 rounded-xl overflow-hidden">
                                                         <table className="w-full text-left text-[11px]">
@@ -743,7 +767,7 @@ export default function ScrapingPage() {
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                {jobResults[0].extracted.products.slice(0, 30).map((p: any, idx: number) => (
+                                                                {aggregatedProducts.slice(0, 50).map((p: any, idx: number) => (
                                                                     <tr key={idx} className="border-t border-slate-100">
                                                                         <td className="px-3 py-2 align-top font-bold text-slate-800">
                                                                             {p.name || "—"}
@@ -771,20 +795,18 @@ export default function ScrapingPage() {
                                                         </table>
                                                     </div>
                                                 </div>
-                                            ) : (
+                                            ) : jobResults[0]?.extracted ? (
                                                 <pre className="text-[11px] text-slate-800 whitespace-pre-wrap">
                                                     {JSON.stringify(jobResults[0].extracted, null, 2)}
                                                 </pre>
-                                            )
-                                        ) : (
+                                            ) : (
                                             <p className="text-[11px] text-slate-500 py-3">
-                                                Nessun dato strutturato ancora estratto. Per ora è disponibile solo l&apos;HTML
-                                                grezzo della pagina.
+                                                Nessun prodotto valido estratto dalle {jobResults.length} pagine. In anteprima mostriamo solo prodotti con nome/sku/ean, prezzo o immagine e URL.
                                             </p>
                                         )
                                     ) : (
                                         <pre className="text-[10px] text-slate-700 whitespace-pre-wrap">
-                                            {(jobResults[0].rawHtml || "").substring(0, 20000) ||
+                                            {(jobResults[0]?.rawHtml || "").substring(0, 20000) ||
                                                 "Nessun HTML salvato per questo job."}
                                         </pre>
                                     )}

@@ -292,6 +292,7 @@ model ScrapePage {
   status     String     @default("pending") // pending, running, done, error, skipped
   statusCode Int?
   error      String?    @db.Text
+  retryCount Int        @default(0) // numero di tentativi (retry pagine in errore)
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
