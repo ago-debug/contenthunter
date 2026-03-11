@@ -48,6 +48,40 @@ function basicExtractFromHtml(html, url) {
 
   const products = [];
 
+  // 1) Structured data JSON-LD (schema.org/Product, ItemList)
+  $("script[type='application/ld+json']").each((_, el) => {
+    const raw = $(el).contents().text();
+    if (!raw) return;
+    let json;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    const nodes = Array.isArray(json) ? json : [json];
+    for (const node of nodes) {
+      if (!node) continue;
+      // ItemList of products
+      if (
+        (node["@type"] === "ItemList" || node["@type"] === "CollectionPage") &&
+        Array.isArray(node.itemListElement)
+      ) {
+        for (const item of node.itemListElement) {
+          const prod = item.item || item;
+          if (!prod) continue;
+          if (prod["@type"] === "Product") {
+            products.push(normalizeSchemaProduct(prod, url));
+          }
+        }
+        continue;
+      }
+      // Single Product
+      if (node["@type"] === "Product") {
+        products.push(normalizeSchemaProduct(node, url));
+      }
+    }
+  });
+
   const productSelectors = [
     "[itemtype*='Product']",
     ".product",
@@ -162,6 +196,40 @@ function basicExtractFromHtml(html, url) {
     title: title.trim() || null,
     categoryName: categoryName || null,
     products,
+  };
+}
+
+function normalizeSchemaProduct(prod, baseUrl) {
+  const url = makeAbsoluteUrl(prod.url || prod.offers?.url || null, baseUrl);
+  const images = [];
+  if (Array.isArray(prod.image)) {
+    for (const img of prod.image) {
+      const abs = makeAbsoluteUrl(img, baseUrl);
+      if (abs) images.push(abs);
+    }
+  } else if (prod.image) {
+    const abs = makeAbsoluteUrl(prod.image, baseUrl);
+    if (abs) images.push(abs);
+  }
+
+  const offers = prod.offers || {};
+  const attrs = {};
+  if (offers.itemCondition) attrs["itemCondition"] = offers.itemCondition;
+  if (offers.availability) attrs["availability"] = offers.availability;
+  if (offers.priceCurrency) attrs["priceCurrency"] = offers.priceCurrency;
+  if (offers.priceValidUntil) attrs["priceValidUntil"] = offers.priceValidUntil;
+
+  return {
+    url,
+    name: prod.name || null,
+    description: prod.description || null,
+    price: offers.price || prod.price || null,
+    mainImage: images[0] || null,
+    images,
+    sku: prod.sku || null,
+    ean: prod.gtin13 || prod.gtin || null,
+    brand: prod.brand?.name || prod.brand || null,
+    attributes: attrs,
   };
 }
 
