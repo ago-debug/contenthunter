@@ -216,26 +216,10 @@ async function processOnePage() {
       },
     });
 
-    // Simple link discovery: follow product URLs & pagination-like links
+    // Simple link discovery: segui solo le URL dei prodotti estratti
     const $ = cheerio.load(html);
-    const links = new Set();
 
     const base = new URL(url);
-
-    $("a[href]").each((_, el) => {
-      const href = $(el).attr("href");
-      if (!href) return;
-      const abs = makeAbsoluteUrl(href, base.toString());
-      if (!abs) return;
-      // Same host only
-      try {
-        const u = new URL(abs);
-        if (u.host !== base.host) return;
-      } catch {
-        return;
-      }
-      links.add(abs);
-    });
 
     const productUrls = new Set();
     if (extracted && Array.isArray(extracted.products)) {
@@ -244,7 +228,7 @@ async function processOnePage() {
       }
     }
 
-    const toEnqueue = new Set([...links, ...productUrls]);
+    const toEnqueue = new Set([...productUrls].map((href) => makeAbsoluteUrl(href, base.toString())).filter(Boolean));
 
     // Enqueue new pages
     for (const link of toEnqueue) {

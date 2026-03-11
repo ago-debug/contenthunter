@@ -99,14 +99,16 @@ export default function ScrapingPage() {
         }
     };
 
-    const loadJobs = async (spiderId: number) => {
+    const loadJobs = async (spiderId: number, keepSelection: boolean = false) => {
         try {
             const res = await axios.get<ScrapeJob[]>("/api/scraping/jobs", {
                 params: { spiderId },
             });
             setJobs(res.data || []);
-            setSelectedJobId(null);
-            setJobResults([]);
+            if (!keepSelection) {
+                setSelectedJobId(null);
+                setJobResults([]);
+            }
         } catch (err: any) {
             console.error("loadJobs error", err);
             toast.error("Errore nel caricamento dei job.");
@@ -153,6 +155,24 @@ export default function ScrapingPage() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedSpiderId]);
+
+    // Auto-refresh dei job quando almeno uno è in running/pending
+    useEffect(() => {
+        if (!selectedSpiderId) return;
+        const hasActive = jobs.some(
+            (j) => j.status === "running" || j.status === "pending"
+        );
+        if (!hasActive) return;
+
+        const id = setInterval(() => {
+            loadJobs(selectedSpiderId, true);
+            if (selectedJobId) {
+                loadJobResults(selectedJobId);
+            }
+        }, 4000);
+        return () => clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedSpiderId, jobs, selectedJobId]);
 
     const handleCreateProject = async () => {
         const name = newProjectName.trim();
