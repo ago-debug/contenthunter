@@ -33,6 +33,16 @@ interface ScrapeJob {
     errorCount?: number | null;
 }
 
+interface ScrapeResult {
+    id: number;
+    jobId: number;
+    url: string;
+    statusCode?: number | null;
+    rawHtml?: string | null;
+    extracted?: any;
+    createdAt: string;
+}
+
 export default function ScrapingPage() {
     const companyContext = useCompanyContext();
     const [loading, setLoading] = useState(false);
@@ -41,6 +51,9 @@ export default function ScrapingPage() {
     const [spiders, setSpiders] = useState<ScrapeSpider[]>([]);
     const [selectedSpiderId, setSelectedSpiderId] = useState<number | null>(null);
     const [jobs, setJobs] = useState<ScrapeJob[]>([]);
+    const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+    const [jobResults, setJobResults] = useState<ScrapeResult[]>([]);
+    const [resultView, setResultView] = useState<"structured" | "html">("structured");
 
     const [newProjectName, setNewProjectName] = useState("");
     const [newProjectDesc, setNewProjectDesc] = useState("");
@@ -88,9 +101,21 @@ export default function ScrapingPage() {
                 params: { spiderId },
             });
             setJobs(res.data || []);
+            setSelectedJobId(null);
+            setJobResults([]);
         } catch (err: any) {
             console.error("loadJobs error", err);
             toast.error("Errore nel caricamento dei job.");
+        }
+    };
+
+    const loadJobResults = async (jobId: number) => {
+        try {
+            const res = await axios.get<ScrapeResult[]>(`/api/scraping/jobs/${jobId}/results`);
+            setJobResults(res.data || []);
+        } catch (err: any) {
+            console.error("loadJobResults error", err);
+            toast.error("Errore nel caricamento dei risultati.");
         }
     };
 
@@ -171,8 +196,10 @@ export default function ScrapingPage() {
             const res = await axios.post<ScrapeJob>("/api/scraping/jobs", {
                 spiderId: selectedSpiderId,
             });
-            toast.success("Job creato (pending).");
+            toast.success("Job eseguito.");
             setJobs((prev) => [res.data, ...prev]);
+            setSelectedJobId(res.data.id);
+            loadJobResults(res.data.id);
         } catch (err: any) {
             console.error("createJob error", err);
             toast.error(err.response?.data?.error || "Errore creazione job.");
@@ -427,43 +454,161 @@ export default function ScrapingPage() {
                                 </div>
                             ) : (
                                 <ul className="divide-y divide-slate-100">
-                                    {jobs.map((j) => (
-                                        <li key={j.id} className="px-4 py-3 text-[11px]">
-                                            <div className="flex items-center justify-between gap-2">
-                                                <span className="font-black text-slate-900">
-                                                    Job #{j.id}
-                                                </span>
-                                                <span
-                                                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.18em] ${
-                                                        j.status === "done"
-                                                            ? "bg-emerald-50 text-emerald-600"
-                                                            : j.status === "running"
-                                                                ? "bg-blue-50 text-blue-600"
-                                                                : j.status === "failed"
-                                                                    ? "bg-red-50 text-red-600"
-                                                                    : "bg-slate-50 text-slate-500"
-                                                    }`}
-                                                >
-                                                    {j.status}
-                                                </span>
-                                            </div>
-                                            <div className="mt-1 flex items-center gap-3 text-slate-500">
-                                                <span>
-                                                    {j.totalPages != null ? `${j.totalPages} pagine` : "— pagine"}
-                                                </span>
-                                                <span>OK: {j.successCount ?? 0}</span>
-                                                <span>ERR: {j.errorCount ?? 0}</span>
-                                            </div>
-                                            <div className="mt-1 text-[9px] text-slate-400 flex gap-2 flex-wrap">
-                                                <span>Creato: {new Date(j.createdAt).toLocaleString()}</span>
-                                                {j.startedAt && <span>Start: {new Date(j.startedAt).toLocaleString()}</span>}
-                                                {j.finishedAt && <span>Fine: {new Date(j.finishedAt).toLocaleString()}</span>}
-                                            </div>
-                                        </li>
-                                    ))}
+                                    {jobs.map((j) => {
+                                        const activeJob = selectedJobId === j.id;
+                                        return (
+                                            <li
+                                                key={j.id}
+                                                className={`px-4 py-3 text-[11px] cursor-pointer hover:bg-slate-50 ${
+                                                    activeJob ? "bg-slate-50" : ""
+                                                }`}
+                                                onClick={() => {
+                                                    setSelectedJobId(j.id);
+                                                    loadJobResults(j.id);
+                                                }}
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="font-black text-slate-900">
+                                                        Job #{j.id}
+                                                    </span>
+                                                    <span
+                                                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.18em] ${
+                                                            j.status === "done"
+                                                                ? "bg-emerald-50 text-emerald-600"
+                                                                : j.status === "running"
+                                                                    ? "bg-blue-50 text-blue-600"
+                                                                    : j.status === "failed"
+                                                                        ? "bg-red-50 text-red-600"
+                                                                        : "bg-slate-50 text-slate-500"
+                                                        }`}
+                                                    >
+                                                        {j.status}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 flex items-center gap-3 text-slate-500">
+                                                    <span>
+                                                        {j.totalPages != null ? `${j.totalPages} pagine` : "— pagine"}
+                                                    </span>
+                                                    <span>OK: {j.successCount ?? 0}</span>
+                                                    <span>ERR: {j.errorCount ?? 0}</span>
+                                                </div>
+                                                <div className="mt-1 text-[9px] text-slate-400 flex gap-2 flex-wrap">
+                                                    <span>Creato: {new Date(j.createdAt).toLocaleString()}</span>
+                                                    {j.startedAt && <span>Start: {new Date(j.startedAt).toLocaleString()}</span>}
+                                                    {j.finishedAt && <span>Fine: {new Date(j.finishedAt).toLocaleString()}</span>}
+                                                </div>
+                                            </li>
+                                        );
+                                    })}
                                 </ul>
                             )}
                         </div>
+
+                        {/* Dettaglio risultati stile Zyte */}
+                        {selectedJobId && jobResults.length > 0 && (
+                            <div className="border-t border-slate-100 bg-slate-50/60">
+                                <div className="px-4 py-2 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                            Risultati job #{selectedJobId}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-400">
+                                            {jobResults.length} pagine
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em]">
+                                        <button
+                                            type="button"
+                                            onClick={() => setResultView("structured")}
+                                            className={`px-3 py-1 rounded-full ${
+                                                resultView === "structured"
+                                                    ? "bg-white text-slate-900 border border-slate-200"
+                                                    : "text-slate-500 hover:text-slate-800"
+                                            }`}
+                                        >
+                                            Structured Data
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setResultView("html")}
+                                            className={`px-3 py-1 rounded-full ${
+                                                resultView === "html"
+                                                    ? "bg-white text-slate-900 border border-slate-200"
+                                                    : "text-slate-500 hover:text-slate-800"
+                                            }`}
+                                        >
+                                            HTML
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="px-4 pb-4 max-h-72 overflow-y-auto bg-white border-t border-slate-100">
+                                    {resultView === "structured" ? (
+                                        jobResults[0].extracted ? (
+                                            Array.isArray(jobResults[0].extracted.products) &&
+                                            jobResults[0].extracted.products.length > 0 ? (
+                                                <div className="text-[11px] text-slate-800">
+                                                    <div className="mb-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                                                        Product List ({jobResults[0].extracted.products.length})
+                                                    </div>
+                                                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                                                        <table className="w-full text-left text-[11px]">
+                                                            <thead className="bg-slate-50">
+                                                                <tr>
+                                                                    <th className="px-3 py-2 font-black text-slate-500">Name</th>
+                                                                    <th className="px-3 py-2 font-black text-slate-500">Price</th>
+                                                                    <th className="px-3 py-2 font-black text-slate-500">URL</th>
+                                                                    <th className="px-3 py-2 font-black text-slate-500">Image</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {jobResults[0].extracted.products.slice(0, 30).map((p: any, idx: number) => (
+                                                                    <tr key={idx} className="border-t border-slate-100">
+                                                                        <td className="px-3 py-2 align-top font-bold text-slate-800">
+                                                                            {p.name || "—"}
+                                                                        </td>
+                                                                        <td className="px-3 py-2 align-top text-slate-700 whitespace-nowrap">
+                                                                            {p.price || "—"}
+                                                                        </td>
+                                                                        <td className="px-3 py-2 align-top text-slate-600 max-w-[220px] truncate">
+                                                                            {p.url || "—"}
+                                                                        </td>
+                                                                        <td className="px-3 py-2 align-top">
+                                                                            {p.mainImage ? (
+                                                                                <img
+                                                                                    src={p.mainImage}
+                                                                                    alt={p.name || ""}
+                                                                                    className="w-16 h-16 object-cover rounded-lg border border-slate-100 bg-slate-50"
+                                                                                />
+                                                                            ) : (
+                                                                                <span className="text-slate-400">—</span>
+                                                                            )}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <pre className="text-[11px] text-slate-800 whitespace-pre-wrap">
+                                                    {JSON.stringify(jobResults[0].extracted, null, 2)}
+                                                </pre>
+                                            )
+                                        ) : (
+                                            <p className="text-[11px] text-slate-500 py-3">
+                                                Nessun dato strutturato ancora estratto. Per ora è disponibile solo l&apos;HTML
+                                                grezzo della pagina.
+                                            </p>
+                                        )
+                                    ) : (
+                                        <pre className="text-[10px] text-slate-700 whitespace-pre-wrap">
+                                            {(jobResults[0].rawHtml || "").substring(0, 20000) ||
+                                                "Nessun HTML salvato per questo job."}
+                                        </pre>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
