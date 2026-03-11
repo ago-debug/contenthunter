@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
-import * as cheerio from "cheerio";
 
 // Elenco job per spider o progetto
 export async function GET(req: NextRequest) {
@@ -51,7 +50,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// Crea un nuovo job e prova ad eseguirlo subito (sincrono su una singola pagina)
+// Crea un nuovo job e mette in coda la prima pagina (startUrl).
 export async function POST(req: NextRequest) {
     const ctx = await requireCompanyId(req);
     if (!ctx) {
@@ -81,14 +80,14 @@ export async function POST(req: NextRequest) {
         }
 
         // 1) Crea il job in stato pending
-        let job = await prisma.scrapeJob.create({
+        const job = await prisma.scrapeJob.create({
             data: {
                 spiderId,
                 status: "pending",
             },
         });
 
-        // 2) Esegui subito uno scraping base (una sola pagina: startUrl o url passato nel body)
+        // 2) Metti in coda la prima pagina (startUrl o url passato nel body)
         const targetUrl: string | null = (body.url ?? spider.startUrl ?? null) || null;
         if (!targetUrl) {
             return NextResponse.json(
@@ -97,212 +96,18 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        try {
-            job = await prisma.scrapeJob.update({
-                where: { id: job.id },
-                data: {
-                    status: "running",
-                    startedAt: new Date(),
-                },
-            });
-
-            const resp = await fetch(targetUrl, { method: "GET" });
-            const html = await resp.text();
-
-            const extracted = basicExtractFromHtml(html, targetUrl);
-
-            await prisma.scrapeResult.create({
-                data: {
-                    jobId: job.id,
-                    url: targetUrl,
-                    statusCode: resp.status,
-                    rawHtml: html,
-                    extracted,
-                },
-            });
-
-            job = await prisma.scrapeJob.update({
-                where: { id: job.id },
-                data: {
-                    status: "done",
-                    finishedAt: new Date(),
-                    totalPages: 1,
-                    successCount: 1,
-                    errorCount: 0,
-                    logSnippet: `Fetched ${targetUrl} with status ${resp.status}`,
-                },
-            });
-        } catch (runErr: any) {
-            console.error("[SCRAPING][JOBS][RUN] error", runErr);
-            job = await prisma.scrapeJob.update({
-                where: { id: job.id },
-                data: {
-                    status: "failed",
-                    finishedAt: new Date(),
-                    errorCount: 1,
-                    logSnippet: runErr?.message ?? "Errore esecuzione job",
-                },
-            });
-        }
+        await prisma.scrapePage.create({
+            data: {
+                jobId: job.id,
+                url: targetUrl,
+                status: "pending",
+            },
+        });
 
         return NextResponse.json(job, { status: 201 });
     } catch (err: any) {
         console.error("[SCRAPING][JOBS][POST] error", err);
         return NextResponse.json({ error: "Errore nella creazione del job di scraping." }, { status: 500 });
     }
-}
-
-function makeAbsoluteUrl(href: string | undefined, base: string): string | null {
-    if (!href) return null;
-    try {
-        return new URL(href, base).toString();
-    } catch {
-        return null;
-    }
-}
-
-function basicExtractFromHtml(html: string, url: string): any {
-    const $ = cheerio.load(html);
-
-    const title = ($("meta[property='og:title']").attr("content") ||
-        $("title").first().text() ||
-        $("h1").first().text() ||
-        "").trim();
-
-    const categoryName =
-        $("nav [aria-current='page']").last().text().trim() ||
-        $(".breadcrumb li").last().text().trim() ||
-        "";
-
-    const products: any[] = [];
-
-    // Heuristica: blocchi prodotto
-    const productSelectors = [
-        "[itemtype*='Product']",
-        ".product",
-        ".product-item",
-        ".product-card",
-        ".productGrid .grid-item",
-    ];
-
-    const seen = new Set<string>();
-
-    $(productSelectors.join(",")).each((_, el) => {
-        const block = $(el);
-        const name =
-            block.find("[itemprop='name']").first().text().trim() ||
-            block.find("h2, h3").first().text().trim();
-
-        const priceText =
-            block.find("[itemprop='price']").first().text().trim() ||
-            block.find(".price, .product-price").first().text().trim();
-
-        // Prova a leggere attributi tabellari / liste (per SKU, EAN e altri campi)
-        const attributes: Record<string, string> = {};
-
-        // tabelle tipo specifiche tecniche
-        block.find("table tr").each((_, row) => {
-            const cells = $(row).find("th,td");
-            if (cells.length >= 2) {
-                const key = $(cells[0]).text().trim();
-                const value = $(cells[cells.length - 1]).text().trim();
-                if (key && value) {
-                    attributes[key] = value;
-                }
-            }
-        });
-
-        // liste "Chiave: Valore"
-        block.find("li").each((_, li) => {
-            const txt = $(li).text().trim();
-            const idx = txt.indexOf(":");
-            if (idx > 0) {
-                const key = txt.slice(0, idx).trim();
-                const value = txt.slice(idx + 1).trim();
-                if (key && value && !attributes[key]) {
-                    attributes[key] = value;
-                }
-            }
-        });
-
-        // Heuristica per SKU / EAN
-        let sku: string | null = null;
-        let ean: string | null = null;
-
-        const fullText = block.text();
-        const skuMatch = fullText.match(/\bSKU[:\s#]*([A-Za-z0-9\-_.]+)/i);
-        if (skuMatch && skuMatch[1]) {
-            sku = skuMatch[1].trim();
-        }
-        const eanMatch = fullText.match(/\bEAN[:\s#]*([0-9]{8,14})/i);
-        if (eanMatch && eanMatch[1]) {
-            ean = eanMatch[1].trim();
-        }
-
-        // Prova a estrarre da attributi se non trovati nel testo libero
-        if (!sku) {
-            for (const [k, v] of Object.entries(attributes)) {
-                if (/sku|codice|referenza/i.test(k) && v) {
-                    sku = v.toString().trim();
-                    break;
-                }
-            }
-        }
-        if (!ean) {
-            for (const [k, v] of Object.entries(attributes)) {
-                if (/ean|barcode|gtin/i.test(k) && v) {
-                    const digits = v.toString().replace(/[^\d]/g, "");
-                    if (digits.length >= 8 && digits.length <= 14) {
-                        ean = digits;
-                        break;
-                    }
-                }
-            }
-        }
-
-        const imgSrc = block.find("img").first().attr("src") || undefined;
-        const productUrl = block.find("a").first().attr("href") || undefined;
-
-        const absUrl = makeAbsoluteUrl(productUrl, url);
-        const absImg = makeAbsoluteUrl(imgSrc, url) || imgSrc || null;
-
-        const key = `${absUrl || ""}|${name}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-
-        if (!name && !absUrl && !absImg) return;
-
-        products.push({
-            url: absUrl,
-            name: name || null,
-            price: priceText || null,
-            mainImage: absImg,
-            sku,
-            ean,
-            attributes,
-        });
-    });
-
-    // Fallback: se non abbiamo trovato nulla, almeno una lista di immagini
-    if (products.length === 0) {
-        $("img").slice(0, 24).each((_, el) => {
-            const src = $(el).attr("src") || undefined;
-            const absImg = makeAbsoluteUrl(src, url) || src || null;
-            if (!absImg) return;
-            products.push({
-                url,
-                name: $(el).attr("alt") || null,
-                price: null,
-                mainImage: absImg,
-            });
-        });
-    }
-
-    return {
-        url,
-        title,
-        categoryName: categoryName || null,
-        products,
-    };
 }
 

@@ -11,7 +11,8 @@
     "db-push": "prisma db push",
     "db-generate": "prisma generate",
     "db-seed": "node prisma/seed.js",
-    "reset-password": "node scripts/reset-password.js"
+    "reset-password": "node scripts/reset-password.js",
+    "scraping-worker": "node scripts/scraping-worker.js"
   },
   "keywords": [],
   "author": "",

@@ -266,6 +266,7 @@ model ScrapeJob {
   createdAt    DateTime     @default(now())
 
   results      ScrapeResult[]
+  pages        ScrapePage[]
 
   @@index([spiderId])
 }
@@ -281,6 +282,21 @@ model ScrapeResult {
   createdAt  DateTime   @default(now())
 
   @@index([jobId])
+}
+
+model ScrapePage {
+  id         Int        @id @default(autoincrement())
+  jobId      Int
+  job        ScrapeJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String     @db.LongText
+  status     String     @default("pending") // pending, running, done, error, skipped
+  statusCode Int?
+  error      String?    @db.Text
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([jobId])
+  @@index([status])
 }
 
 model PdfPage {
