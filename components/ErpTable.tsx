@@ -120,6 +120,16 @@ export default function ErpTable() {
     const [newCatalogueForm, setNewCatalogueForm] = useState({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" as string | number });
     const [showNewCatalogueForm, setShowNewCatalogueForm] = useState(false);
 
+    // Filtri avanzati Master ERP
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+    const [filterMissingShortDesc, setFilterMissingShortDesc] = useState(false);
+    const [filterMissingLongDesc, setFilterMissingLongDesc] = useState(false);
+    const [filterMissingImages, setFilterMissingImages] = useState(false);
+    const [filterPriceMin, setFilterPriceMin] = useState<string>("");
+    const [filterPriceMax, setFilterPriceMax] = useState<string>("");
+    const [filterStockMin, setFilterStockMin] = useState<string>("");
+    const [filterStockMax, setFilterStockMax] = useState<string>("");
+
     const updateBrandInList = (brandId: number, patch: Record<string, any>) => {
         setAllBrands(prev => prev.map(brand => brand.id === brandId ? { ...brand, ...patch } : brand));
     };
@@ -713,6 +723,45 @@ export default function ErpTable() {
         const matchesSubSubCategory = subSubCategoryFilter === "all" || p.subSubCategoryId === Number(subSubCategoryFilter);
 
         if (!matchesBrand || !matchesCategory || !matchesSubCategory || !matchesSubSubCategory) return false;
+
+        // Filtri avanzati
+        if (filterMissingShortDesc) {
+            const shortText = (p.seoAiText || p.shortDescription || "").toString().trim();
+            if (shortText.length > 0) return false;
+        }
+        if (filterMissingLongDesc) {
+            const longText = (p.description || "").toString().trim();
+            if (longText.length > 0) return false;
+        }
+        if (filterMissingImages) {
+            const imgs = p.images || [];
+            if (Array.isArray(imgs) && imgs.length > 0) return false;
+        }
+
+        // Filtro prezzo da / a
+        const priceNum = parseFloat((p.price ?? "0").toString().replace(/[^0-9.,-]/g, "").replace(",", "."));
+        if (filterPriceMin) {
+            const min = parseFloat(filterPriceMin.replace(",", "."));
+            if (!isNaN(min) && !isNaN(priceNum) && priceNum < min) return false;
+        }
+        if (filterPriceMax) {
+            const max = parseFloat(filterPriceMax.replace(",", "."));
+            if (!isNaN(max) && !isNaN(priceNum) && priceNum > max) return false;
+        }
+
+        // Filtro disponibilità (stock) da / a
+        const stockNum = typeof p.stock === "number"
+            ? p.stock
+            : parseFloat((p.stock ?? "0").toString().replace(/[^0-9.-]/g, ""));
+        if (filterStockMin) {
+            const minS = parseFloat(filterStockMin.replace(",", "."));
+            if (!isNaN(minS) && !isNaN(stockNum) && stockNum < minS) return false;
+        }
+        if (filterStockMax) {
+            const maxS = parseFloat(filterStockMax.replace(",", "."));
+            if (!isNaN(maxS) && !isNaN(stockNum) && stockNum > maxS) return false;
+        }
+
         if (!term) return true;
 
         const baseMatch = (p.sku || "").toLowerCase().includes(term) ||
@@ -858,7 +907,90 @@ export default function ErpTable() {
                                 disabled={subCategoryFilter === 'all'}
                             />
                         </div>
+
+                        {/* Toggle Filtri Avanzati */}
+                        <button
+                            type="button"
+                            onClick={() => setShowAdvancedFilters((v) => !v)}
+                            className="ml-2 flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500 shrink-0 hover:bg-slate-50"
+                        >
+                            <span>Filtri avanzati</span>
+                            <ChevronDown
+                                className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
+                            />
+                        </button>
                     </div>
+
+                    {/* Sezione Filtri Avanzati a scomparsa */}
+                    {showAdvancedFilters && (
+                        <div className="mt-2 px-1 py-2 bg-slate-50 border border-slate-100 rounded-2xl flex flex-wrap gap-3 items-center text-[11px]">
+                            <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900"
+                                    checked={filterMissingShortDesc}
+                                    onChange={(e) => setFilterMissingShortDesc(e.target.checked)}
+                                />
+                                <span className="font-bold text-slate-700">Senza descrizione breve</span>
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900"
+                                    checked={filterMissingLongDesc}
+                                    onChange={(e) => setFilterMissingLongDesc(e.target.checked)}
+                                />
+                                <span className="font-bold text-slate-700">Senza descrizione lunga</span>
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900"
+                                    checked={filterMissingImages}
+                                    onChange={(e) => setFilterMissingImages(e.target.checked)}
+                                />
+                                <span className="font-bold text-slate-700">Senza immagini</span>
+                            </label>
+
+                            <div className="flex items-center gap-2 ml-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prezzo €</span>
+                                <input
+                                    type="number"
+                                    placeholder="da"
+                                    value={filterPriceMin}
+                                    onChange={(e) => setFilterPriceMin(e.target.value)}
+                                    className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800"
+                                />
+                                <span className="text-[10px] font-black text-slate-400">-</span>
+                                <input
+                                    type="number"
+                                    placeholder="a"
+                                    value={filterPriceMax}
+                                    onChange={(e) => setFilterPriceMax(e.target.value)}
+                                    className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800"
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Disponibilità</span>
+                                <input
+                                    type="number"
+                                    placeholder="da"
+                                    value={filterStockMin}
+                                    onChange={(e) => setFilterStockMin(e.target.value)}
+                                    className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800"
+                                />
+                                <span className="text-[10px] font-black text-slate-400">-</span>
+                                <input
+                                    type="number"
+                                    placeholder="a"
+                                    value={filterStockMax}
+                                    onChange={(e) => setFilterStockMax(e.target.value)}
+                                    className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Status bar - compatto su mobile */}
