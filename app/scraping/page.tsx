@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useCompanyContext } from "@/contexts/CompanyContext";
-import { Box, Plus, RefreshCw, Search, Layers, PlayCircle, Globe2 } from "lucide-react";
+import { Box, Plus, RefreshCw, Search, Layers, PlayCircle, Globe2, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 
 interface ScrapeProject {
@@ -160,6 +160,26 @@ export default function ScrapingPage() {
         }
     };
 
+    const handleDeleteProject = async (projectId: number) => {
+        if (!window.confirm("Eliminare questo progetto e tutti gli spider/job collegati?")) return;
+        try {
+            await axios.delete(`/api/scraping/projects/${projectId}`);
+            setProjects(prev => prev.filter(p => p.id !== projectId));
+            if (selectedProjectId === projectId) {
+                setSelectedProjectId(null);
+                setSpiders([]);
+                setSelectedSpiderId(null);
+                setJobs([]);
+                setSelectedJobId(null);
+                setJobResults([]);
+            }
+            toast.success("Progetto eliminato.");
+        } catch (err: any) {
+            console.error("deleteProject error", err);
+            toast.error(err.response?.data?.error || "Errore eliminazione progetto.");
+        }
+    };
+
     const handleCreateSpider = async () => {
         if (!selectedProjectId) {
             toast.warning("Seleziona prima un progetto.");
@@ -187,6 +207,24 @@ export default function ScrapingPage() {
         }
     };
 
+    const handleDeleteSpider = async (spiderId: number) => {
+        if (!window.confirm("Eliminare questo spider e i job collegati?")) return;
+        try {
+            await axios.delete(`/api/scraping/spiders/${spiderId}`);
+            setSpiders(prev => prev.filter(s => s.id !== spiderId));
+            if (selectedSpiderId === spiderId) {
+                setSelectedSpiderId(null);
+                setJobs([]);
+                setSelectedJobId(null);
+                setJobResults([]);
+            }
+            toast.success("Spider eliminato.");
+        } catch (err: any) {
+            console.error("deleteSpider error", err);
+            toast.error(err.response?.data?.error || "Errore eliminazione spider.");
+        }
+    };
+
     const handleCreateJob = async () => {
         if (!selectedSpiderId) {
             toast.warning("Seleziona uno spider.");
@@ -203,6 +241,22 @@ export default function ScrapingPage() {
         } catch (err: any) {
             console.error("createJob error", err);
             toast.error(err.response?.data?.error || "Errore creazione job.");
+        }
+    };
+
+    const handleDeleteJob = async (jobId: number) => {
+        if (!window.confirm("Eliminare questo job di scraping?")) return;
+        try {
+            await axios.delete(`/api/scraping/jobs/${jobId}`);
+            setJobs(prev => prev.filter(j => j.id !== jobId));
+            if (selectedJobId === jobId) {
+                setSelectedJobId(null);
+                setJobResults([]);
+            }
+            toast.success("Job eliminato.");
+        } catch (err: any) {
+            console.error("deleteJob error", err);
+            toast.error(err.response?.data?.error || "Errore eliminazione job.");
         }
     };
 
@@ -292,7 +346,7 @@ export default function ScrapingPage() {
                                     {projects.map((p) => {
                                         const active = selectedProjectId === p.id;
                                         return (
-                                            <li key={p.id}>
+                                            <li key={p.id} className="group flex items-stretch">
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedProjectId(p.id)}
@@ -311,6 +365,14 @@ export default function ScrapingPage() {
                                                     <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-0.5">
                                                         ID {p.id}
                                                     </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteProject(p.id)}
+                                                    className="px-2 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                    title="Elimina progetto"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
                                             </li>
                                         );
@@ -384,7 +446,7 @@ export default function ScrapingPage() {
                                     {spiders.map((s) => {
                                         const active = selectedSpiderId === s.id;
                                         return (
-                                            <li key={s.id}>
+                                            <li key={s.id} className="group flex items-stretch">
                                                 <button
                                                     type="button"
                                                     onClick={() => setSelectedSpiderId(s.id)}
@@ -403,6 +465,14 @@ export default function ScrapingPage() {
                                                     <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 mt-0.5">
                                                         ID {s.id}
                                                     </span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteSpider(s.id)}
+                                                    className="px-2 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                    title="Elimina spider"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
                                                 </button>
                                             </li>
                                         );
@@ -457,46 +527,56 @@ export default function ScrapingPage() {
                                     {jobs.map((j) => {
                                         const activeJob = selectedJobId === j.id;
                                         return (
-                                            <li
-                                                key={j.id}
-                                                className={`px-4 py-3 text-[11px] cursor-pointer hover:bg-slate-50 ${
-                                                    activeJob ? "bg-slate-50" : ""
-                                                }`}
-                                                onClick={() => {
-                                                    setSelectedJobId(j.id);
-                                                    loadJobResults(j.id);
-                                                }}
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="font-black text-slate-900">
-                                                        Job #{j.id}
-                                                    </span>
-                                                    <span
-                                                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.18em] ${
-                                                            j.status === "done"
-                                                                ? "bg-emerald-50 text-emerald-600"
-                                                                : j.status === "running"
-                                                                    ? "bg-blue-50 text-blue-600"
-                                                                    : j.status === "failed"
-                                                                        ? "bg-red-50 text-red-600"
-                                                                        : "bg-slate-50 text-slate-500"
-                                                        }`}
-                                                    >
-                                                        {j.status}
-                                                    </span>
-                                                </div>
-                                                <div className="mt-1 flex items-center gap-3 text-slate-500">
-                                                    <span>
-                                                        {j.totalPages != null ? `${j.totalPages} pagine` : "— pagine"}
-                                                    </span>
-                                                    <span>OK: {j.successCount ?? 0}</span>
-                                                    <span>ERR: {j.errorCount ?? 0}</span>
-                                                </div>
-                                                <div className="mt-1 text-[9px] text-slate-400 flex gap-2 flex-wrap">
-                                                    <span>Creato: {new Date(j.createdAt).toLocaleString()}</span>
-                                                    {j.startedAt && <span>Start: {new Date(j.startedAt).toLocaleString()}</span>}
-                                                    {j.finishedAt && <span>Fine: {new Date(j.finishedAt).toLocaleString()}</span>}
-                                                </div>
+                                            <li key={j.id} className="group flex items-stretch">
+                                                <button
+                                                    type="button"
+                                                    className={`flex-1 px-4 py-3 text-[11px] text-left cursor-pointer hover:bg-slate-50 ${
+                                                        activeJob ? "bg-slate-50" : ""
+                                                    }`}
+                                                    onClick={() => {
+                                                        setSelectedJobId(j.id);
+                                                        loadJobResults(j.id);
+                                                    }}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="font-black text-slate-900">
+                                                            Job #{j.id}
+                                                        </span>
+                                                        <span
+                                                            className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-[0.18em] ${
+                                                                j.status === "done"
+                                                                    ? "bg-emerald-50 text-emerald-600"
+                                                                    : j.status === "running"
+                                                                        ? "bg-blue-50 text-blue-600"
+                                                                        : j.status === "failed"
+                                                                            ? "bg-red-50 text-red-600"
+                                                                            : "bg-slate-50 text-slate-500"
+                                                            }`}
+                                                        >
+                                                            {j.status}
+                                                        </span>
+                                                    </div>
+                                                    <div className="mt-1 flex items-center gap-3 text-slate-500">
+                                                        <span>
+                                                            {j.totalPages != null ? `${j.totalPages} pagine` : "— pagine"}
+                                                        </span>
+                                                        <span>OK: {j.successCount ?? 0}</span>
+                                                        <span>ERR: {j.errorCount ?? 0}</span>
+                                                    </div>
+                                                    <div className="mt-1 text-[9px] text-slate-400 flex gap-2 flex-wrap">
+                                                        <span>Creato: {new Date(j.createdAt).toLocaleString()}</span>
+                                                        {j.startedAt && <span>Start: {new Date(j.startedAt).toLocaleString()}</span>}
+                                                        {j.finishedAt && <span>Fine: {new Date(j.finishedAt).toLocaleString()}</span>}
+                                                    </div>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteJob(j.id)}
+                                                    className="px-2 text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                                    title="Elimina job"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </li>
                                         );
                                     })}
