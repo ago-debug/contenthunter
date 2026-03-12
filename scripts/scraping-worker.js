@@ -407,26 +407,67 @@ function normalizeSchemaProduct(prod, baseUrl) {
   };
 }
 
-async function processOnePage() {
-  // Prendi una pagina pending oppure una in errore da ritentare (max 1 retry)
+// Restituisce la prossima pagina da processare per il job \"attivo\" (in pending/running),
+// garantendo che i job vengano eseguiti in serie (uno dopo l'altro).
+async function getNextPageForJobInSeries() {
+  // Trova il job più vecchio ancora attivo
+  const job = await prisma.scrapeJob.findFirst({
+    where: {
+      status: {
+        in: ["pending", "running"],
+      },
+    },
+    orderBy: { id: "asc" },
+    include: {
+      spider: true,
+    },
+  });
+
+  if (!job) {
+    return null;
+  }
+
+  // Trova la prossima pagina per questo job
   let page = await prisma.scrapePage.findFirst({
     where: {
+      jobId: job.id,
       OR: [
         { status: "pending" },
         { status: "error", retryCount: { lt: 1 } },
       ],
     },
     orderBy: { id: "asc" },
-    include: {
-      job: {
-        include: {
-          spider: true,
-        },
-      },
-    },
   });
 
-  if (!page) return false;
+  // Se non ci sono più pagine pendenti per questo job, finalizzalo e passa al prossimo
+  if (!page) {
+    const agg = await prisma.scrapePage.groupBy({
+      by: ["status"],
+      where: { jobId: job.id },
+      _count: { _all: true },
+    });
+    let total = 0;
+    let done = 0;
+    let error = 0;
+    for (const row of agg) {
+      total += row._count._all;
+      if (row.status === "done") done += row._count._all;
+      if (row.status === "error") error += row._count._all;
+    }
+    const hasPending = agg.some((r) => r.status === "pending" || r.status === "running");
+    await prisma.scrapeJob.update({
+      where: { id: job.id },
+      data: {
+        totalPages: total,
+        successCount: done,
+        errorCount: error,
+        status: hasPending ? "running" : "done",
+        finishedAt: hasPending ? null : new Date(),
+      },
+    });
+    // Nessuna pagina per questo job: prova con il prossimo job
+    return await getNextPageForJobInSeries();
+  }
 
   if (page.status === "error") {
     await prisma.scrapePage.update({
@@ -436,7 +477,14 @@ async function processOnePage() {
     page = { ...page, status: "pending" };
   }
 
-  const job = page.job;
+  return { job, page };
+}
+
+async function processOnePage() {
+  const data = await getNextPageForJobInSeries();
+  if (!data) return false;
+
+  const { job, page } = data;
   const spider = job.spider;
   const url = page.url;
 
