@@ -75,6 +75,56 @@ export async function POST(
             );
         }
 
+        // Carica i prodotti già esistenti collegati a questo catalogo,
+        // per poter fare il match (SKU -> EAN -> titolo) durante l'import.
+        const existingEntries = await prisma.catalogEntry.findMany({
+            where: { catalogId },
+            include: {
+                product: {
+                    include: {
+                        texts: {
+                            where: { language: "it" },
+                        },
+                    },
+                },
+            },
+        });
+
+        const normalizeSku = (v: any) =>
+            (v ? String(v).trim().toUpperCase() : "") || "";
+        const normalizeEan = (v: any) =>
+            (v ? String(v).replace(/[^\d]/g, "") : "") || "";
+        const normalizeTitle = (v: any) =>
+            (v
+                ? String(v)
+                      .toLowerCase()
+                      .replace(/[^a-z0-9àèéìòùç\s]/gi, " ")
+                      .replace(/\s+/g, " ")
+                      .trim()
+                : "") || "";
+
+        const bySku = new Map<string, { id: number; title: string | null }>();
+        const byEan = new Map<string, { id: number; title: string | null }>();
+        const byTitle = new Map<string, { id: number }>();
+
+        for (const entry of existingEntries) {
+            const prod = entry.product;
+            if (!prod) continue;
+            const text = prod.texts[0];
+            const title = text?.title || null;
+
+            const kSku = normalizeSku(prod.sku);
+            if (kSku) bySku.set(kSku, { id: prod.id, title });
+
+            const kEan = normalizeEan(prod.ean);
+            if (kEan) byEan.set(kEan, { id: prod.id, title });
+
+            const kTitle = normalizeTitle(title);
+            if (kTitle && !byTitle.has(kTitle)) {
+                byTitle.set(kTitle, { id: prod.id });
+            }
+        }
+
         // Svuota lo staging del catalogo
         await prisma.stagingProduct.deleteMany({ where: { catalogId } });
 
@@ -82,15 +132,33 @@ export async function POST(
 
         for (const raw of products) {
             const p: any = raw || {};
-            const sku = p.sku || p.SKU || p.code || null;
-            if (!sku) continue;
+            const skuRaw = p.sku || p.SKU || p.code || null;
+            if (!skuRaw) continue;
 
-            const ean = p.ean || p.EAN || null;
-            const name = p.name || p.title || null;
+            const eanRaw = p.ean || p.EAN || null;
+            const nameRaw = p.name || p.title || null;
             const priceRaw = p.price || null;
             const brand = p.brand || null;
             const category = p.categoryName || p.category || null;
             const attrs: Record<string, string> = p.attributes || {};
+
+            const skuNorm = normalizeSku(skuRaw);
+            const eanNorm = normalizeEan(eanRaw);
+            const titleNorm = normalizeTitle(nameRaw);
+
+            let matchedProductId: number | null = null;
+            let matchMethod: "sku" | "ean" | "title" | null = null;
+
+            if (skuNorm && bySku.has(skuNorm)) {
+                matchedProductId = bySku.get(skuNorm)!.id;
+                matchMethod = "sku";
+            } else if (eanNorm && byEan.has(eanNorm)) {
+                matchedProductId = byEan.get(eanNorm)!.id;
+                matchMethod = "ean";
+            } else if (titleNorm && byTitle.has(titleNorm)) {
+                matchedProductId = byTitle.get(titleNorm)!.id;
+                matchMethod = "title";
+            }
 
             const bulletLines: string[] = [];
             for (const [k, v] of Object.entries(attrs)) {
@@ -102,8 +170,8 @@ export async function POST(
             const staging = await prisma.stagingProduct.create({
                 data: {
                     catalogId,
-                    sku: String(sku),
-                    ean: ean ? String(ean) : null,
+                    sku: String(skuRaw),
+                    ean: eanRaw ? String(eanRaw) : null,
                     parentSku: null,
                     brand: brand ? String(brand) : null,
                     category: category ? String(category) : null,
@@ -114,7 +182,7 @@ export async function POST(
                 data: {
                     stagingProductId: staging.id,
                     language: "it",
-                    title: name ? String(name) : null,
+                    title: nameRaw ? String(nameRaw) : null,
                     description: null,
                     bulletPoints,
                 },
@@ -150,6 +218,26 @@ export async function POST(
                         stagingProductId: staging.id,
                         imageUrl: String(p.mainImage),
                     },
+                });
+            }
+
+            // Salva informazioni di match come extra fields nello staging,
+            // così il Lab può mostrare che esiste già un prodotto collegato.
+            if (matchedProductId && matchMethod) {
+                await prisma.stagingProductExtra.createMany({
+                    data: [
+                        {
+                            stagingProductId: staging.id,
+                            key: "matchedProductId",
+                            value: String(matchedProductId),
+                        },
+                        {
+                            stagingProductId: staging.id,
+                            key: "matchedBy",
+                            value: matchMethod,
+                        },
+                    ],
+                    skipDuplicates: true,
                 });
             }
 
