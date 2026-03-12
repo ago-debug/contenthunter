@@ -303,11 +303,20 @@ function basicExtractFromHtml(html, url) {
       }
     }
 
-    const imgSrc = block.find("img").first().attr("src") || undefined;
+    // Raccogli più immagini dal blocco prodotto (thumbnail + immagini principali)
+    const images = [];
+    block.find("img").each((_, img) => {
+      const src = $(img).attr("src");
+      if (!src) return;
+      const abs = makeAbsoluteUrl(src, url) || src;
+      if (!abs) return;
+      if (!images.includes(abs)) images.push(abs);
+    });
+
     const productUrl = block.find("a").first().attr("href") || undefined;
 
     const absUrl = makeAbsoluteUrl(productUrl, url);
-    const absImg = makeAbsoluteUrl(imgSrc, url) || imgSrc || null;
+    const mainImg = images.length > 0 ? images[0] : null;
 
     const key = `${absUrl || ""}|${name}`;
     if (seen.has(key)) return;
@@ -315,14 +324,18 @@ function basicExtractFromHtml(html, url) {
 
     // Solo blocchi che sembrano prodotti: almeno (nome/sku/ean) e (prezzo/link/immagine)
     const hasId = !!(name || sku || ean);
-    const hasData = !!(priceText && priceText.trim()) || !!absUrl || !!absImg;
+    const hasData =
+      !!(priceText && priceText.trim()) ||
+      !!absUrl ||
+      !!mainImg;
     if (!hasId || !hasData) return;
 
     products.push({
       url: absUrl,
       name: name || null,
       price: priceText || null,
-      mainImage: absImg,
+      mainImage: mainImg,
+      images,
       sku,
       ean,
       attributes,
@@ -361,6 +374,18 @@ function normalizeSchemaProduct(prod, baseUrl) {
   if (offers.availability) attrs["availability"] = offers.availability;
   if (offers.priceCurrency) attrs["priceCurrency"] = offers.priceCurrency;
   if (offers.priceValidUntil) attrs["priceValidUntil"] = offers.priceValidUntil;
+
+  // additionalProperty (PropertyValue[]) è usato spesso per attributi custom (taglia, colore, materiale, ecc.)
+  if (Array.isArray(prod.additionalProperty)) {
+    for (const prop of prod.additionalProperty) {
+      const key = prop.name || prop.propertyID;
+      const value = prop.value;
+      if (!key || value == null) continue;
+      const k = String(key).trim();
+      if (!k) continue;
+      if (attrs[k] == null) attrs[k] = String(value);
+    }
+  }
 
   return {
     url,
