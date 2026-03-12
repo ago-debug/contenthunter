@@ -167,7 +167,54 @@ function basicExtractFromHtml(html, url) {
 
   const products = [];
 
-  // 1) Structured data JSON-LD (schema.org/Product, ItemList)
+  // 1) Structured data JSON-LD (schema.org/Product, ItemList, @graph)
+  //    Supporta strutture usate da Shopify, WooCommerce, Magento, PrestaShop:
+  //    - Oggetti singoli @type: "Product"
+  //    - Array di nodi
+  //    - @graph con Product all'interno
+  //    - ItemList/CollectionPage con itemListElement -> Product
+
+  function nodeIsProduct(n) {
+    if (!n) return false;
+    const t = n["@type"];
+    if (!t) return false;
+    if (Array.isArray(t)) {
+      return t.some((x) => String(x).toLowerCase().includes("product"));
+    }
+    return String(t).toLowerCase().includes("product");
+  }
+
+  function collectProductsFromNode(node, pageUrl) {
+    if (!node) return;
+
+    // @graph: tipico di Shopify e altri temi moderni
+    if (Array.isArray(node["@graph"])) {
+      for (const g of node["@graph"]) {
+        collectProductsFromNode(g, pageUrl);
+      }
+    }
+
+    // ItemList o CollectionPage con itemListElement che contengono Product
+    if (
+      (node["@type"] === "ItemList" || node["@type"] === "CollectionPage") &&
+      Array.isArray(node.itemListElement)
+    ) {
+      for (const item of node.itemListElement) {
+        const prod = item.item || item;
+        if (prod && nodeIsProduct(prod)) {
+          const normalized = normalizeSchemaProduct(prod, pageUrl);
+          products.push(normalized);
+        }
+      }
+    }
+
+    // Nodo singolo Product (anche se arriva da @graph o array)
+    if (nodeIsProduct(node)) {
+      const normalized = normalizeSchemaProduct(node, pageUrl);
+      products.push(normalized);
+    }
+  }
+
   $("script[type='application/ld+json']").each((_, el) => {
     const raw = $(el).contents().text();
     if (!raw) return;
@@ -177,29 +224,12 @@ function basicExtractFromHtml(html, url) {
     } catch {
       return;
     }
-    const nodes = Array.isArray(json) ? json : [json];
-    for (const node of nodes) {
-      if (!node) continue;
-      // ItemList of products
-      if (
-        (node["@type"] === "ItemList" || node["@type"] === "CollectionPage") &&
-        Array.isArray(node.itemListElement)
-      ) {
-        for (const item of node.itemListElement) {
-          const prod = item.item || item;
-          if (!prod) continue;
-          if (prod["@type"] === "Product") {
-            const normalized = normalizeSchemaProduct(prod, url);
-            if (isRealProduct(normalized)) products.push(normalized);
-          }
-        }
-        continue;
+    if (Array.isArray(json)) {
+      for (const node of json) {
+        collectProductsFromNode(node, url);
       }
-      // Single Product (solo se sembra un prodotto vero, non Organization/Brand)
-      if (node["@type"] === "Product") {
-        const normalized = normalizeSchemaProduct(node, url);
-        if (isRealProduct(normalized)) products.push(normalized);
-      }
+    } else {
+      collectProductsFromNode(json, url);
     }
   });
 
@@ -310,7 +340,10 @@ function basicExtractFromHtml(html, url) {
 }
 
 function normalizeSchemaProduct(prod, baseUrl) {
-  const url = makeAbsoluteUrl(prod.url || prod.offers?.url || null, baseUrl);
+  // Alcune piattaforme (es. Shopify) possono omettere l'URL nel JSON-LD Product.
+  // In quel caso useremo l'URL della pagina come fallback (verrà passato in baseUrl).
+  const urlFromData = prod.url || (prod.offers && prod.offers.url) || null;
+  const url = makeAbsoluteUrl(urlFromData, baseUrl) || baseUrl || null;
   const images = [];
   if (Array.isArray(prod.image)) {
     for (const img of prod.image) {
@@ -336,8 +369,14 @@ function normalizeSchemaProduct(prod, baseUrl) {
     price: offers.price || prod.price || null,
     mainImage: images[0] || null,
     images,
-    sku: prod.sku || null,
-    ean: prod.gtin13 || prod.gtin || null,
+    sku: prod.sku || prod.skuId || null,
+    ean:
+      prod.gtin13 ||
+      prod.gtin ||
+      prod.gtin14 ||
+      prod.gtin12 ||
+      prod.gtin8 ||
+      null,
     brand: prod.brand?.name || prod.brand || null,
     attributes: attrs,
   };
