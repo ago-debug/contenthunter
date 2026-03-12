@@ -54,6 +54,8 @@ export async function POST(
         const results = await prisma.scrapeResult.findMany({
             where: { jobId },
             orderBy: { id: "asc" },
+            // Seleziona solo il JSON estratto per evitare payload enormi/non necessari
+            select: { extracted: true },
         });
 
         const byUrl = new Map<string, any>();
