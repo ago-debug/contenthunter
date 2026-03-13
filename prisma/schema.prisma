@@ -48,6 +48,7 @@ model Catalog {
   searchSources SearchSource[]
   pages         PdfPage[]
   stagingProducts StagingProduct[]
+  listinoFiles  CatalogListinoFile[]
 
   lastListinoName String?      @db.Text
 
