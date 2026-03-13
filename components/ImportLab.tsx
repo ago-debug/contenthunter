@@ -748,8 +748,9 @@ export default function ImportLab() {
             toast.warning("Nessun catalogo selezionato. Apri un catalogo dalla dashboard.");
             return;
         }
-        if (!mapping.sku) {
-            toast.warning("Devi mappare almeno il campo SKU!");
+        const hasKeyMapping = mapping.sku || mapping.ean || mapping.title;
+        if (!hasKeyMapping) {
+            toast.warning("Devi mappare almeno uno tra SKU, EAN o Titolo.");
             return;
         }
 
@@ -1758,7 +1759,7 @@ export default function ImportLab() {
                                 <div className="grid grid-cols-2 gap-x-12 gap-y-8">
                                     {Object.keys(mapping).map((field) => {
                                         let label = field.charAt(0).toUpperCase() + field.slice(1);
-                                        if (field === 'sku') label = 'SKU (Obbligatorio)';
+                                        if (field === 'sku') label = 'SKU (chiave preferita)';
                                         if (field === 'ean') label = 'EAN / Codice a barre';
                                         if (field === 'parentSku') label = 'SKU di Base (Varianti)';
                                         if (field === 'price') label = 'Prezzo di Listino';
@@ -1824,77 +1825,79 @@ export default function ImportLab() {
                                     </div>
                                 </div>
 
-                                <div className="mt-10 space-y-4">
-                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 px-1">
-                                        Come gestire i prodotti già presenti nel Lab
-                                    </h4>
-                                    <div className="grid sm:grid-cols-2 gap-3">
-                                        <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                checked={overwriteBaseInfo}
-                                                onChange={e => setOverwriteBaseInfo(e.target.checked)}
-                                                className="mt-1 accent-slate-900"
-                                            />
-                                            <div className="space-y-0.5">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
-                                                    Aggiorna dati base (brand, categoria)
+                                {(repository.listinoFiles?.length || repository.lastListinoName) && (
+                                    <div className="mt-10 space-y-4">
+                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 px-1">
+                                            Come gestire i prodotti già presenti nel Lab
+                                        </h4>
+                                        <div className="grid sm:grid-cols-2 gap-3">
+                                            <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overwriteBaseInfo}
+                                                    onChange={e => setOverwriteBaseInfo(e.target.checked)}
+                                                    className="mt-1 accent-slate-900"
+                                                />
+                                                <div className="space-y-0.5">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
+                                                        Aggiorna dati base (brand, categoria)
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 font-medium">
+                                                        Se attivo, il secondo file può aggiornare brand, categoria e SKU/EAN normalizzati.
+                                                    </div>
                                                 </div>
-                                                <div className="text-[11px] text-slate-500 font-medium">
-                                                    Se attivo, il secondo file può aggiornare brand, categoria e SKU/EAN normalizzati.
+                                            </label>
+                                            <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overwriteTexts}
+                                                    onChange={e => setOverwriteTexts(e.target.checked)}
+                                                    className="mt-1 accent-slate-900"
+                                                />
+                                                <div className="space-y-0.5">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
+                                                        Aggiorna testi scheda
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 font-medium">
+                                                        Titolo, descrizioni, bullet e testo SEO vengono sovrascritti solo se nel nuovo file sono valorizzati.
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
-                                        <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                checked={overwriteTexts}
-                                                onChange={e => setOverwriteTexts(e.target.checked)}
-                                                className="mt-1 accent-slate-900"
-                                            />
-                                            <div className="space-y-0.5">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
-                                                    Aggiorna testi scheda
+                                            </label>
+                                            <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overwritePrice}
+                                                    onChange={e => setOverwritePrice(e.target.checked)}
+                                                    className="mt-1 accent-slate-900"
+                                                />
+                                                <div className="space-y-0.5">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
+                                                        Aggiorna prezzo di questo listino
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 font-medium">
+                                                        Se disattivo, il prezzo esistente per questo listino rimane invariato.
+                                                    </div>
                                                 </div>
-                                                <div className="text-[11px] text-slate-500 font-medium">
-                                                    Titolo, descrizioni, bullet e testo SEO vengono sovrascritti solo se nel nuovo file sono valorizzati.
+                                            </label>
+                                            <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={overwriteExtras}
+                                                    onChange={e => setOverwriteExtras(e.target.checked)}
+                                                    className="mt-1 accent-slate-900"
+                                                />
+                                                <div className="space-y-0.5">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
+                                                        Aggiorna campi extra
+                                                    </div>
+                                                    <div className="text-[11px] text-slate-500 font-medium">
+                                                        Dimensioni, peso, materiale, magazzino locale/fornitore.
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </label>
-                                        <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                checked={overwritePrice}
-                                                onChange={e => setOverwritePrice(e.target.checked)}
-                                                className="mt-1 accent-slate-900"
-                                            />
-                                            <div className="space-y-0.5">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
-                                                    Aggiorna prezzo di questo listino
-                                                </div>
-                                                <div className="text-[11px] text-slate-500 font-medium">
-                                                    Se disattivo, il prezzo esistente per questo listino rimane invariato.
-                                                </div>
-                                            </div>
-                                        </label>
-                                        <label className="flex items-start gap-2 px-3 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-colors">
-                                            <input
-                                                type="checkbox"
-                                                checked={overwriteExtras}
-                                                onChange={e => setOverwriteExtras(e.target.checked)}
-                                                className="mt-1 accent-slate-900"
-                                            />
-                                            <div className="space-y-0.5">
-                                                <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">
-                                                    Aggiorna campi extra
-                                                </div>
-                                                <div className="text-[11px] text-slate-500 font-medium">
-                                                    Dimensioni, peso, materiale, magazzino locale/fornitore.
-                                                </div>
-                                            </div>
-                                        </label>
+                                            </label>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
 
                             <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
