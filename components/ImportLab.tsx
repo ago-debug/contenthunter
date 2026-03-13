@@ -1176,17 +1176,34 @@ export default function ImportLab() {
                             </span>
                         </div>
 
-                        {/* Current Listino Indicator - Highlighted if present */}
-                        {repository.lastListinoName && (
-                            <div className="inline-flex items-center gap-2 bg-orange-50 text-orange-600 px-3.5 py-2 rounded-xl border border-orange-100/50">
-                                <div className="p-1 bg-orange-500 rounded-md">
-                                    <FileSpreadsheet className="w-3 h-3 text-white" />
-                                </div>
-                                <span className="text-[10px] font-black uppercase tracking-widest truncate max-w-[200px]">{repository.lastListinoName}</span>
+                        {/* Listini caricati: mostra tutti i file (listinoFiles), non solo l'ultimo */}
+                        {(repository.listinoFiles?.length > 0 || repository.lastListinoName) && (
+                            <div className="inline-flex flex-wrap items-center gap-2">
+                                {(repository.listinoFiles?.length > 0
+                                    ? repository.listinoFiles
+                                    : [{ fileName: repository.lastListinoName, uploadedAt: null }]
+                                ).map((lf: { id?: number; fileName: string; uploadedAt?: string | null }) => (
+                                    <div
+                                        key={lf.id ?? lf.fileName}
+                                        className="inline-flex items-center gap-2 bg-orange-50 text-orange-600 px-3.5 py-2 rounded-xl border border-orange-100/50"
+                                    >
+                                        <div className="p-1 bg-orange-500 rounded-md shrink-0">
+                                            <FileSpreadsheet className="w-3 h-3 text-white" />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest truncate max-w-[200px]" title={lf.fileName}>
+                                            {lf.fileName}
+                                        </span>
+                                        {lf.uploadedAt && (
+                                            <span className="text-[9px] text-orange-400 font-bold shrink-0">
+                                                {new Date(lf.uploadedAt).toLocaleDateString()}
+                                            </span>
+                                        )}
+                                    </div>
+                                ))}
                                 <button
                                     onClick={handleClearStaging}
-                                    className="ml-2 p-1 hover:bg-orange-200 text-orange-400 hover:text-orange-700 rounded-lg transition-all"
-                                    title="Svuota Staging Lab"
+                                    className="p-2 hover:bg-orange-200 text-orange-400 hover:text-orange-700 rounded-xl transition-all"
+                                    title="Svuota Staging Lab (rimuove tutti i listini)"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                 </button>
