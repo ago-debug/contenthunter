@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         const overwriteSeoAi: boolean = overwrite?.seoAiText === true;
         const overwritePrice: boolean = overwrite?.price === true;
         const overwriteExtras: boolean = overwrite?.extras === true;
+        const overwriteImages: boolean = overwrite?.images === true;
 
         // 1. Find existing product by EAN or SKU (scoped by company)
         let existingProduct = null;
@@ -328,7 +329,9 @@ export async function POST(req: NextRequest) {
         }
 
         // 9. Handle Images
-        if (images && Array.isArray(images)) {
+        // - Nuovi prodotti: sempre scriviamo le immagini se presenti
+        // - Prodotti esistenti: scriviamo SOLO se esplicitamente richiesto (overwriteImages === true)
+        if (images && Array.isArray(images) && (!existingProduct || overwriteImages)) {
             await prisma.productImage.deleteMany({
                 where: { productId: product.id }
             });

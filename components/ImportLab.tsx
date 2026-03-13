@@ -149,6 +149,7 @@ export default function ImportLab() {
     const [pushOverwriteSeo, setPushOverwriteSeo] = useState(false);
     const [pushOverwritePrice, setPushOverwritePrice] = useState(false);
     const [pushOverwriteExtras, setPushOverwriteExtras] = useState(false);
+    const [pushOverwriteImages, setPushOverwriteImages] = useState(false);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -481,6 +482,7 @@ export default function ImportLab() {
                             seoAiText: pushOverwriteSeo,
                             price: pushOverwritePrice,
                             extras: pushOverwriteExtras,
+                            images: pushOverwriteImages,
                         },
                     });
 
@@ -1956,6 +1958,21 @@ export default function ImportLab() {
                                                     <div className="font-bold text-slate-800">Campi extra</div>
                                                     <div className="text-xs text-slate-500">
                                                         Dimensioni, peso, materiale e tutti gli altri campi extra (incluso stock, status, ecc.).
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteImages}
+                                                    onChange={(e) => setPushOverwriteImages(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Immagini</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Sovrascrivi completamente le immagini del prodotto con quelle presenti nell&apos;Import Lab.
                                                     </div>
                                                 </div>
                                             </label>
