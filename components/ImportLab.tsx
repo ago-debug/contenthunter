@@ -1587,11 +1587,11 @@ export default function ImportLab() {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Magazzino locale</label>
                                                 <input
-                                                    value={selectedProduct.extra?.stockLocal || ""}
+                                                    value={(selectedProduct as any).extra?.stockLocal || ""}
                                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
                                                     onChange={e => {
-                                                        const p = { ...selectedProduct, extra: { ...(selectedProduct.extra || {}) } as any };
-                                                        (p.extra as any).stockLocal = e.target.value;
+                                                        const p: any = { ...selectedProduct, extra: { ...((selectedProduct as any).extra || {}) } };
+                                                        p.extra.stockLocal = e.target.value;
                                                         setSelectedProduct(p);
                                                     }}
                                                 />
@@ -1599,11 +1599,11 @@ export default function ImportLab() {
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Magazzino fornitore</label>
                                                 <input
-                                                    value={selectedProduct.extra?.stockSupplier || ""}
+                                                    value={(selectedProduct as any).extra?.stockSupplier || ""}
                                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
                                                     onChange={e => {
-                                                        const p = { ...selectedProduct, extra: { ...(selectedProduct.extra || {}) } as any };
-                                                        (p.extra as any).stockSupplier = e.target.value;
+                                                        const p: any = { ...selectedProduct, extra: { ...((selectedProduct as any).extra || {}) } };
+                                                        p.extra.stockSupplier = e.target.value;
                                                         setSelectedProduct(p);
                                                     }}
                                                 />
