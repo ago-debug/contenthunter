@@ -113,11 +113,13 @@ export async function POST(
                     }
                 }
 
-                // Campi extra Master ERP (dimensioni, peso, materiale, ecc.)
+                // Campi extra Master ERP (dimensioni, peso, materiale, stock, ecc.)
                 const extras: { key: string; value: any }[] = [
                     { key: "dimensions", value: p.dimensions },
                     { key: "weight", value: p.weight },
                     { key: "material", value: p.material },
+                    { key: "stockLocal", value: p.stockLocal },
+                    { key: "stockSupplier", value: p.stockSupplier },
                 ];
 
                 for (const ex of extras) {

@@ -124,6 +124,8 @@ export default function ImportLab() {
         weight: "",
         material: "",
         seoText: "",
+        stockLocal: "",
+        stockSupplier: "",
     });
     const [currentImportFile, setCurrentImportFile] = useState<string>("");
     const [isSavingStaging, setIsSavingStaging] = useState(false);
@@ -773,6 +775,8 @@ export default function ImportLab() {
                     weight: getVal("weight"),
                     material: getVal("material"),
                     seoText: getVal("seoText"),
+                    stockLocal: getVal("stockLocal"),
+                    stockSupplier: getVal("stockSupplier"),
                 };
             }).filter(p => p.sku);
 
@@ -1579,6 +1583,33 @@ export default function ImportLab() {
                                             </div>
                                         </div>
 
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Magazzino locale</label>
+                                                <input
+                                                    value={selectedProduct.extra?.stockLocal || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => {
+                                                        const p = { ...selectedProduct, extra: { ...(selectedProduct.extra || {}) } as any };
+                                                        (p.extra as any).stockLocal = e.target.value;
+                                                        setSelectedProduct(p);
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Magazzino fornitore</label>
+                                                <input
+                                                    value={selectedProduct.extra?.stockSupplier || ""}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => {
+                                                        const p = { ...selectedProduct, extra: { ...(selectedProduct.extra || {}) } as any };
+                                                        (p.extra as any).stockSupplier = e.target.value;
+                                                        setSelectedProduct(p);
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione</label>
                                             <textarea
@@ -1712,6 +1743,8 @@ export default function ImportLab() {
                                         if (field === 'weight') label = 'Peso';
                                         if (field === 'material') label = 'Materiale';
                                         if (field === 'seoText') label = 'Testo SEO AI / Extra';
+                                        if (field === 'stockLocal') label = 'Magazzino locale (Q.tà)';
+                                        if (field === 'stockSupplier') label = 'Magazzino fornitore (Q.tà)';
 
                                         return (
                                             <div key={field} className="space-y-3">
