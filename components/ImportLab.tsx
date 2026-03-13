@@ -482,6 +482,12 @@ export default function ImportLab() {
                     const baseText = (p.texts && p.texts[0]) || {};
                     const basePrice = (p.prices && p.prices[0]) || {};
 
+                    // Master ERP richiede SKU univoco: se manca o è NO-SKU usiamo EAN o id staging
+                    const rawSku = (p.sku || "").toString().trim();
+                    const effectiveSku = (rawSku && rawSku !== "NO-SKU")
+                        ? rawSku
+                        : (p.ean ? `EAN-${String(p.ean).trim()}` : `STG-${p.id}`);
+
                     const extraObj: Record<string, string> = {};
                     (p.extraFields || []).forEach((ex: any) => {
                         if (ex.key) {
@@ -494,14 +500,16 @@ export default function ImportLab() {
                     }));
 
                     await axios.post("/api/products", {
-                        sku: p.sku,
+                        sku: effectiveSku,
                         ean: p.ean,
                         parentSku: p.parentSku,
                         brand: p.brand,
                         category: p.category,
                         title: baseText.title,
                         description: baseText.description,
+                        docDescription: baseText.docDescription,
                         bulletPoints: baseText.bulletPoints,
+                        seoAiText: baseText.seoAiText,
                         price: basePrice.price,
                         images,
                         extraFields: extraObj,
