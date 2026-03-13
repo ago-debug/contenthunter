@@ -280,12 +280,28 @@ export default function ImportLab() {
         }
     };
 
+    const getExtra = (p: StagingProduct, key: string): string => {
+        const ex = (p.extraFields || []).find((e: any) => e.key === key);
+        return ex?.value ?? "";
+    };
+    const setExtra = (p: StagingProduct, key: string, value: string): void => {
+        const extra = [...(p.extraFields || [])];
+        const i = extra.findIndex((e: any) => e.key === key);
+        if (i >= 0) extra[i] = { ...extra[i], value };
+        else extra.push({ key, value });
+        setSelectedProduct({ ...p, extraFields: extra });
+    };
+
     const handleSaveProductChange = async () => {
         if (!selectedProduct || !catalogIdParam) return;
 
         const toastId = toast.loading("Salvataggio modifiche...");
         try {
-            await axios.put("/api/repositories/" + catalogIdParam + "/staging/" + selectedProduct.id, selectedProduct);
+            const payload = {
+                ...selectedProduct,
+                listName: repository?.lastListinoName || "default"
+            };
+            await axios.put("/api/repositories/" + catalogIdParam + "/staging/" + selectedProduct.id, payload);
             toast.update(toastId, { render: "Prodotto aggiornato!", type: "success", isLoading: false, autoClose: 2000 });
             fetchRepository(parseInt(catalogIdParam));
             setIsProductModalOpen(false);
@@ -1613,33 +1629,51 @@ export default function ImportLab() {
 
                                         <div className="grid grid-cols-2 gap-6">
                                             <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Dimensioni</label>
+                                                <input
+                                                    value={getExtra(selectedProduct, "dimensions")}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => setExtra(selectedProduct, "dimensions", e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Peso</label>
+                                                <input
+                                                    value={getExtra(selectedProduct, "weight")}
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                    onChange={e => setExtra(selectedProduct, "weight", e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Materiale</label>
+                                            <input
+                                                value={getExtra(selectedProduct, "material")}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                onChange={e => setExtra(selectedProduct, "material", e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Magazzino locale</label>
                                                 <input
-                                                    value={(selectedProduct as any).extra?.stockLocal || ""}
+                                                    value={getExtra(selectedProduct, "stockLocal")}
                                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
-                                                    onChange={e => {
-                                                        const p: any = { ...selectedProduct, extra: { ...((selectedProduct as any).extra || {}) } };
-                                                        p.extra.stockLocal = e.target.value;
-                                                        setSelectedProduct(p);
-                                                    }}
+                                                    onChange={e => setExtra(selectedProduct, "stockLocal", e.target.value)}
                                                 />
                                             </div>
                                             <div className="space-y-2">
                                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Magazzino fornitore</label>
                                                 <input
-                                                    value={(selectedProduct as any).extra?.stockSupplier || ""}
+                                                    value={getExtra(selectedProduct, "stockSupplier")}
                                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
-                                                    onChange={e => {
-                                                        const p: any = { ...selectedProduct, extra: { ...((selectedProduct as any).extra || {}) } };
-                                                        p.extra.stockSupplier = e.target.value;
-                                                        setSelectedProduct(p);
-                                                    }}
+                                                    onChange={e => setExtra(selectedProduct, "stockSupplier", e.target.value)}
                                                 />
                                             </div>
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione (lunga)</label>
                                             <textarea
                                                 value={selectedProduct.texts[0]?.description || ""}
                                                 rows={4}
@@ -1663,6 +1697,34 @@ export default function ImportLab() {
                                                     const p = { ...selectedProduct };
                                                     if (!p.texts[0]) p.texts[0] = { language: 'it' };
                                                     p.texts[0].bulletPoints = e.target.value;
+                                                    setSelectedProduct(p);
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione breve / Documentale</label>
+                                            <textarea
+                                                value={selectedProduct.texts[0]?.docDescription || ""}
+                                                rows={2}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold resize-none"
+                                                onChange={e => {
+                                                    const p = { ...selectedProduct };
+                                                    if (!p.texts[0]) p.texts[0] = { language: 'it' };
+                                                    p.texts[0].docDescription = e.target.value;
+                                                    setSelectedProduct(p);
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Testo SEO / Copywriting breve</label>
+                                            <textarea
+                                                value={selectedProduct.texts[0]?.seoAiText || ""}
+                                                rows={2}
+                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold resize-none"
+                                                onChange={e => {
+                                                    const p = { ...selectedProduct };
+                                                    if (!p.texts[0]) p.texts[0] = { language: 'it' };
+                                                    p.texts[0].seoAiText = e.target.value;
                                                     setSelectedProduct(p);
                                                 }}
                                             />
