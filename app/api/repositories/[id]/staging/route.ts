@@ -50,18 +50,28 @@ export async function POST(
         // Update Catalog with last listino name (usato anche come listName per il prezzo)
         if (lastListinoName) {
             const normalizedName = String(lastListinoName);
-            await prisma.$transaction([
-                prisma.catalog.update({
-                    where: { id: catalogId },
-                    data: { lastListinoName: normalizedName }
-                }),
-                prisma.catalogListinoFile.create({
+
+            await prisma.catalog.update({
+                where: { id: catalogId },
+                data: { lastListinoName: normalizedName }
+            });
+
+            const existingListino = await prisma.catalogListinoFile.findFirst({
+                where: {
+                    catalogId,
+                    fileName: normalizedName
+                }
+            });
+
+            // Evita duplicati in CatalogListinoFile per stesso catalogo+file
+            if (!existingListino) {
+                await prisma.catalogListinoFile.create({
                     data: {
                         catalogId,
                         fileName: normalizedName
                     }
-                })
-            ]);
+                });
+            }
         }
 
         const listName = (lastListinoName && String(lastListinoName)) || "default";
@@ -313,6 +323,10 @@ export async function DELETE(
         await prisma.catalog.update({
             where: { id: catalogId },
             data: { lastListinoName: null }
+        });
+        // Rimuove anche la cronologia dei listini caricati per questo repository
+        await prisma.catalogListinoFile.deleteMany({
+            where: { catalogId }
         });
 
         return NextResponse.json({ success: true });
