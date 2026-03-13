@@ -135,17 +135,35 @@ export async function POST(
             if (!product.sku) continue;
 
             const sku = product.sku.toLowerCase();
-            const matches = imageMap[sku] || [];
 
-            // Also try to find if any image filename *contains* the SKU (partial match)
-            // This is slower but covers more cases (e.g. SKU_top.jpg)
-            if (matches.length === 0) {
-                for (const imgName in imageMap) {
-                    if (imgName.includes(sku)) {
-                        matches.push(...imageMap[imgName]);
-                    }
-                }
+            // Convenzione:
+            // - primaria:  SKU.jpg
+            // - secondarie: SKU_2.jpg, SKU_3.jpg, ...
+            const primaryKey = sku;
+            const secondaryPrefix = sku + "_";
+
+            const matches: string[] = [];
+
+            // 3.1 Immagini primarie (nome esatto = SKU)
+            if (imageMap[primaryKey]) {
+                matches.push(...imageMap[primaryKey]);
             }
+
+            // 3.2 Immagini secondarie (SKU_X dove X è numero)
+            const secondaryEntries: { index: number; paths: string[] }[] = [];
+            for (const key of Object.keys(imageMap)) {
+                if (!key.startsWith(secondaryPrefix)) continue;
+                const suffix = key.substring(secondaryPrefix.length);
+                const num = parseInt(suffix, 10);
+                if (!Number.isFinite(num)) continue;
+                secondaryEntries.push({ index: num, paths: imageMap[key] });
+            }
+
+            secondaryEntries
+                .sort((a, b) => a.index - b.index)
+                .forEach(entry => {
+                    matches.push(...entry.paths);
+                });
 
             if (matches.length > 0) {
                 // Clear existing staging images if we are re-associating? 

@@ -144,17 +144,27 @@ export async function GET(
                 }
             };
 
-            // Exact key match
-            if (imageMap[skuLower]) {
-                pushMatches(imageMap[skuLower]);
+            const primaryKey = skuLower;
+            const secondaryPrefix = skuLower + "_";
+
+            // Primaria: nome esatto = SKU
+            if (imageMap[primaryKey]) {
+                pushMatches(imageMap[primaryKey]);
             }
 
-            // Partial match on filename key
+            // Secondarie: SKU_X con X numerico, ordinate per X
+            const secondaryEntries: { index: number; paths: string[] }[] = [];
             for (const key of Object.keys(imageMap)) {
-                if (key.includes(skuLower) && key !== skuLower) {
-                    pushMatches(imageMap[key]);
-                }
+                if (!key.startsWith(secondaryPrefix)) continue;
+                const suffix = key.substring(secondaryPrefix.length);
+                const num = parseInt(suffix, 10);
+                if (!Number.isFinite(num)) continue;
+                secondaryEntries.push({ index: num, paths: imageMap[key] });
             }
+
+            secondaryEntries
+                .sort((a, b) => a.index - b.index)
+                .forEach(entry => pushMatches(entry.paths));
         } else {
             // No SKU: return a capped flat list
             const limit = 100;
