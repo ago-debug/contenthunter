@@ -289,13 +289,14 @@ export default function CataloguesPage() {
                                         </div>
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Brand (per cartella immagini: nomeBrand/images)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Brand (dalla tabella marchi)</label>
+                                        <p className="text-[11px] text-slate-500 font-medium">Collega il progetto a un marchio: i prodotti pushati al Master ERP saranno associati a questo brand.</p>
                                         <select
                                             value={newRepo.brandId}
                                             onChange={e => setNewRepo({ ...newRepo, brandId: e.target.value })}
                                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
                                         >
-                                            <option value="">Nessuno</option>
+                                            <option value="">— Nessuno —</option>
                                             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     </div>
@@ -461,13 +462,13 @@ export default function CataloguesPage() {
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Brand (cartella export: nomeBrand/images)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 block ml-1">Brand (dalla tabella marchi)</label>
                                         <select
                                             value={settingsForm.brandId}
                                             onChange={e => setSettingsForm({ ...settingsForm, brandId: e.target.value })}
                                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all"
                                         >
-                                            <option value="">Nessuno</option>
+                                            <option value="">— Nessuno —</option>
                                             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                         </select>
                                     </div>
