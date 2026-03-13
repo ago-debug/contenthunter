@@ -40,7 +40,7 @@ export async function POST(
             return NextResponse.json({ error: "Products array is required" }, { status: 400 });
         }
 
-        // Update Catalog with last listino name
+        // Update Catalog with last listino name (usato anche come listName per il prezzo)
         if (lastListinoName) {
             await prisma.catalog.update({
                 where: { id: catalogId },
@@ -48,38 +48,115 @@ export async function POST(
             });
         }
 
-        // Cleanup previous staging data for questo catalogo
-        await prisma.stagingProduct.deleteMany({ where: { catalogId } });
+        const listName = (lastListinoName && String(lastListinoName)) || "default";
+
+        const normalizeSku = (v: any) =>
+            (v ? String(v).trim().toUpperCase() : "") || "";
+        const normalizeEan = (v: any) =>
+            (v ? String(v).replace(/[^\d]/g, "") : "") || "";
 
         for (const p of products) {
             try {
-                if (!p.sku) continue; // Skip rows without SKU
+                if (!p.sku && !p.ean && !p.title) continue; // Skip righe senza chiavi minime
 
-                const staging = await prisma.stagingProduct.create({
-                    data: {
+                const skuNorm = normalizeSku(p.sku);
+                const eanNorm = normalizeEan(p.ean);
+
+                // 1) Prova a trovare un prodotto di staging esistente per questo catalogo
+                let staging = await prisma.stagingProduct.findFirst({
+                    where: {
                         catalogId,
-                        sku: String(p.sku),
-                        ean: p.ean ? String(p.ean) : null,
-                        parentSku: p.parentSku ? String(p.parentSku) : null,
-                        brand: p.brand ? String(p.brand) : null,
-                        category: p.category ? String(p.category) : null,
-                    }
+                        OR: [
+                            skuNorm ? { sku: skuNorm } : undefined,
+                            eanNorm ? { ean: eanNorm } : undefined,
+                        ].filter(Boolean) as any,
+                    },
                 });
+
+                // 2) Fallback: match per titolo esatto, se presente e non trovato via SKU/EAN
+                if (!staging && p.title) {
+                    staging = await prisma.stagingProduct.findFirst({
+                        where: {
+                            catalogId,
+                            texts: {
+                                some: {
+                                    language: "it",
+                                    title: String(p.title),
+                                },
+                            },
+                        },
+                    });
+                }
+
+                // 3) Se non esiste ancora, crealo
+                if (!staging) {
+                    staging = await prisma.stagingProduct.create({
+                        data: {
+                            catalogId,
+                            sku: skuNorm || (p.sku ? String(p.sku) : "NO-SKU"),
+                            ean: eanNorm || (p.ean ? String(p.ean) : null),
+                            parentSku: p.parentSku ? String(p.parentSku) : null,
+                            brand: p.brand ? String(p.brand) : null,
+                            category: p.category ? String(p.category) : null,
+                        },
+                    });
+                } else {
+                    // aggiorna campi base solo se arrivano valori non vuoti
+                    await prisma.stagingProduct.update({
+                        where: { id: staging.id },
+                        data: {
+                            sku: skuNorm || staging.sku,
+                            ean: eanNorm || staging.ean,
+                            parentSku: p.parentSku ? String(p.parentSku) : staging.parentSku,
+                            brand: p.brand ? String(p.brand) : staging.brand,
+                            category: p.category ? String(p.category) : staging.category,
+                        },
+                    });
+                }
 
                 // Testi (scheda prodotto) – includono anche descrizione breve / SEO
-                await prisma.stagingProductText.create({
-                    data: {
-                        stagingProductId: staging.id,
-                        language: "it",
-                        title: p.title ? String(p.title) : null,
-                        description: p.description ? String(p.description) : null,
-                        docDescription: p.shortDescription ? String(p.shortDescription) : null,
-                        bulletPoints: p.bulletPoints ? String(p.bulletPoints) : null,
-                        seoAiText: p.seoText ? String(p.seoText) : null,
-                    }
+                const existingText = await prisma.stagingProductText.findFirst({
+                    where: { stagingProductId: staging.id, language: "it" },
                 });
 
-                // Prezzo
+                const newTitle = p.title ? String(p.title) : null;
+                const newDesc = p.description ? String(p.description) : null;
+                const newDoc = p.shortDescription ? String(p.shortDescription) : null;
+                const newBullets = p.bulletPoints ? String(p.bulletPoints) : null;
+                const newSeo = p.seoText ? String(p.seoText) : null;
+
+                const finalTitle = existingText?.title || newTitle;
+                const finalDesc = existingText?.description || newDesc;
+                const finalDoc = existingText?.docDescription || newDoc;
+                const finalBullets = existingText?.bulletPoints || newBullets;
+                const finalSeo = existingText?.seoAiText || newSeo;
+
+                await prisma.stagingProductText.upsert({
+                    where: {
+                        stagingProductId_language: {
+                            stagingProductId: staging.id,
+                            language: "it",
+                        },
+                    },
+                    update: {
+                        title: finalTitle,
+                        description: finalDesc,
+                        docDescription: finalDoc,
+                        bulletPoints: finalBullets,
+                        seoAiText: finalSeo,
+                    },
+                    create: {
+                        stagingProductId: staging.id,
+                        language: "it",
+                        title: finalTitle,
+                        description: finalDesc,
+                        docDescription: finalDoc,
+                        bulletPoints: finalBullets,
+                        seoAiText: finalSeo,
+                    },
+                });
+
+                // Prezzo per questo listino (listName)
                 if (p.price) {
                     // Robust price parsing:
                     // 1. Remove currency symbols and other non-digit/dot/comma chars (except sign)
@@ -104,11 +181,19 @@ export async function POST(
 
                     const parsedPrice = parseFloat(priceStr);
                     if (!isNaN(parsedPrice)) {
-                        await prisma.stagingProductPrice.create({
-                            data: {
+                        await prisma.stagingProductPrice.upsert({
+                            where: {
+                                stagingProductId_listName: {
+                                    stagingProductId: staging.id,
+                                    listName,
+                                },
+                            },
+                            update: { price: parsedPrice },
+                            create: {
                                 stagingProductId: staging.id,
-                                price: parsedPrice
-                            }
+                                listName,
+                                price: parsedPrice,
+                            },
                         });
                     }
                 }
@@ -124,8 +209,15 @@ export async function POST(
 
                 for (const ex of extras) {
                     if (!ex.value) continue;
-                    await prisma.stagingProductExtra.create({
-                        data: {
+                    await prisma.stagingProductExtra.upsert({
+                        where: {
+                            stagingProductId_key: {
+                                stagingProductId: staging.id,
+                                key: ex.key,
+                            },
+                        },
+                        update: { value: String(ex.value) },
+                        create: {
                             stagingProductId: staging.id,
                             key: ex.key,
                             value: String(ex.value),
