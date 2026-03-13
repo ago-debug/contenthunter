@@ -29,7 +29,7 @@ export async function GET(
                         product: {
                             include: {
                                 texts: { where: { language: "it" } },
-                                prices: { where: { listName: "default" } },
+                                prices: true,
                                 extraFields: true,
                                 images: true
                             }
@@ -38,7 +38,10 @@ export async function GET(
                     orderBy: { productId: 'desc' }
                 },
                 searchSources: true,
-                pdfs: true
+                pdfs: true,
+                listinoFiles: {
+                    orderBy: { uploadedAt: 'desc' }
+                }
             }
         });
 
@@ -74,7 +77,7 @@ export async function GET(
                 description: itText.description || "",
                 docDescription: itText.docDescription || "",
                 bulletPoints: itText.bulletPoints || "",
-                price: defPrice.price !== undefined ? String(defPrice.price) : "",
+                price: defPrice?.price !== undefined ? String(defPrice.price) : "",
                 dimensions,
                 weight,
                 material,

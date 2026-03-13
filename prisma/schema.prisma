@@ -93,6 +93,17 @@ model SearchSource {
   @@index([catalogId], map: "SearchSource_catalogId_fkey")
 }
 
+model CatalogListinoFile {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  fileName  String
+  uploadedAt DateTime @default(now())
+
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
 model Template {
   id        Int       @id @default(autoincrement())
   companyId Int

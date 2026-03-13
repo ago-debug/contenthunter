@@ -778,7 +778,7 @@ export default function ImportLab() {
                     stockLocal: getVal("stockLocal"),
                     stockSupplier: getVal("stockSupplier"),
                 };
-            }).filter(p => p.sku);
+            }).filter(p => p.sku || p.ean || p.title);
 
             await axios.post("/api/repositories/" + catalogIdParam + "/staging", {
                 products: productsToImport,

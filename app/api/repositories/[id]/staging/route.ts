@@ -9,11 +9,18 @@ export async function GET(
         const { id } = await params;
         const catalogId = parseInt(id);
 
+        const catalog = await prisma.catalog.findUnique({
+            where: { id: catalogId },
+            select: { lastListinoName: true }
+        });
+
+        const listName = (catalog?.lastListinoName && String(catalog.lastListinoName)) || "default";
+
         const products = await prisma.stagingProduct.findMany({
             where: { catalogId },
             include: {
                 texts: { where: { language: "it" } },
-                prices: { where: { listName: "default" } },
+                prices: { where: { listName } },
                 extraFields: true,
                 images: true
             },
@@ -42,10 +49,19 @@ export async function POST(
 
         // Update Catalog with last listino name (usato anche come listName per il prezzo)
         if (lastListinoName) {
-            await prisma.catalog.update({
-                where: { id: catalogId },
-                data: { lastListinoName }
-            });
+            const normalizedName = String(lastListinoName);
+            await prisma.$transaction([
+                prisma.catalog.update({
+                    where: { id: catalogId },
+                    data: { lastListinoName: normalizedName }
+                }),
+                prisma.catalogListinoFile.create({
+                    data: {
+                        catalogId,
+                        fileName: normalizedName
+                    }
+                })
+            ]);
         }
 
         const listName = (lastListinoName && String(lastListinoName)) || "default";
