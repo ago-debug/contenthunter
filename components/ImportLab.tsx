@@ -110,7 +110,20 @@ export default function ImportLab() {
     const [rawHeaders, setRawHeaders] = useState<string[]>([]);
     const [rawRows, setRawRows] = useState<any[][]>([]);
     const [mapping, setMapping] = useState<Record<string, string>>({
-        sku: "", ean: "", parentSku: "", title: "", price: "", brand: "", category: "", description: "", bulletPoints: ""
+        sku: "",
+        ean: "",
+        parentSku: "",
+        title: "",
+        description: "",
+        shortDescription: "",
+        bulletPoints: "",
+        price: "",
+        brand: "",
+        category: "",
+        dimensions: "",
+        weight: "",
+        material: "",
+        seoText: "",
     });
     const [currentImportFile, setCurrentImportFile] = useState<string>("");
     const [isSavingStaging, setIsSavingStaging] = useState(false);
@@ -750,11 +763,16 @@ export default function ImportLab() {
                     ean: getVal("ean"),
                     parentSku: getVal("parentSku"),
                     title: getVal("title"),
+                    description: getVal("description"),
+                    shortDescription: getVal("shortDescription"),
                     price: getVal("price"),
                     brand: getVal("brand"),
                     category: getVal("category"),
-                    description: getVal("description"),
-                    bulletPoints: getVal("bulletPoints")
+                    bulletPoints: getVal("bulletPoints"),
+                    dimensions: getVal("dimensions"),
+                    weight: getVal("weight"),
+                    material: getVal("material"),
+                    seoText: getVal("seoText"),
                 };
             }).filter(p => p.sku);
 
@@ -1688,6 +1706,12 @@ export default function ImportLab() {
                                         if (field === 'price') label = 'Prezzo di Listino';
                                         if (field === 'title') label = 'Titolo Prodotto';
                                         if (field === 'bulletPoints') label = 'Caratteristiche (Bullet)';
+                                        if (field === 'description') label = 'Descrizione Lunga';
+                                        if (field === 'shortDescription') label = 'Descrizione Breve / SEO';
+                                        if (field === 'dimensions') label = 'Dimensioni';
+                                        if (field === 'weight') label = 'Peso';
+                                        if (field === 'material') label = 'Materiale';
+                                        if (field === 'seoText') label = 'Testo SEO AI / Extra';
 
                                         return (
                                             <div key={field} className="space-y-3">
