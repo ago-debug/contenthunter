@@ -1,32 +1,25 @@
-import { NextResponse } from 'next/server';
-import axios from 'axios';
-import * as cheerio from 'cheerio';
+import { NextRequest, NextResponse } from "next/server";
 
-// Simulate a browser request to avoid bot detection
-const BROWSER_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-    'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache',
-};
+/**
+ * TEMPORARY STUB
+ *
+ * Su alcuni ambienti Node di produzione l'implementazione completa
+ * di web scraping / Google Images generava un errore
+ * `ReferenceError: File is not defined` durante la build di Next.js.
+ *
+ * Per garantire che il deploy del PIM / Master ERP sia sempre stabile,
+ * per ora questa route restituisce semplicemente un array vuoto.
+ * La UI che la utilizza gestisce già correttamente il caso `images: []`.
+ */
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const query = searchParams.get("q");
 
-interface ScrapedImage {
-    id: string;
-    url: string;
-    title?: string;
-    source?: string;
-    productData?: {
-        price?: string;
-        description?: string;
-        title?: string;
-        brand?: string;
-        category?: string;
-        weight?: string;
-        dimensions?: string;
-        material?: string;
-    };
+    if (!query) {
+        return NextResponse.json({ images: [] });
+    }
+
+    return NextResponse.json({ images: [] });
 }
 
 /**
