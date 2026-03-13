@@ -41,7 +41,7 @@ export async function POST(
         const { id } = await params;
         const catalogId = parseInt(id);
         const body = await req.json();
-        const { products, lastListinoName } = body;
+        const { products, lastListinoName, overwrite } = body;
 
         if (!Array.isArray(products)) {
             return NextResponse.json({ error: "Products array is required" }, { status: 400 });
@@ -65,6 +65,13 @@ export async function POST(
         }
 
         const listName = (lastListinoName && String(lastListinoName)) || "default";
+
+        const overwriteOptions = {
+            base: overwrite?.base !== undefined ? !!overwrite.base : true,
+            texts: overwrite?.texts !== undefined ? !!overwrite.texts : true,
+            price: overwrite?.price !== undefined ? !!overwrite.price : true,
+            extras: overwrite?.extras !== undefined ? !!overwrite.extras : true,
+        };
 
         const normalizeSku = (v: any) =>
             (v ? String(v).trim().toUpperCase() : "") || "";
@@ -118,16 +125,18 @@ export async function POST(
                     });
                 } else {
                     // aggiorna campi base solo se arrivano valori non vuoti
-                    await prisma.stagingProduct.update({
-                        where: { id: staging.id },
-                        data: {
-                            sku: skuNorm || staging.sku,
-                            ean: eanNorm || staging.ean,
-                            parentSku: p.parentSku ? String(p.parentSku) : staging.parentSku,
-                            brand: p.brand ? String(p.brand) : staging.brand,
-                            category: p.category ? String(p.category) : staging.category,
-                        },
-                    });
+                    if (overwriteOptions.base) {
+                        await prisma.stagingProduct.update({
+                            where: { id: staging.id },
+                            data: {
+                                sku: skuNorm || staging.sku,
+                                ean: eanNorm || staging.ean,
+                                parentSku: p.parentSku ? String(p.parentSku) : staging.parentSku,
+                                brand: p.brand ? String(p.brand) : staging.brand,
+                                category: p.category ? String(p.category) : staging.category,
+                            },
+                        });
+                    }
                 }
 
                 // Testi (scheda prodotto) – includono anche descrizione breve / SEO
@@ -141,11 +150,21 @@ export async function POST(
                 const newBullets = p.bulletPoints ? String(p.bulletPoints) : null;
                 const newSeo = p.seoText ? String(p.seoText) : null;
 
-                const finalTitle = existingText?.title || newTitle;
-                const finalDesc = existingText?.description || newDesc;
-                const finalDoc = existingText?.docDescription || newDoc;
-                const finalBullets = existingText?.bulletPoints || newBullets;
-                const finalSeo = existingText?.seoAiText || newSeo;
+                const finalTitle = overwriteOptions.texts
+                    ? (newTitle ?? existingText?.title ?? null)
+                    : (existingText?.title ?? newTitle ?? null);
+                const finalDesc = overwriteOptions.texts
+                    ? (newDesc ?? existingText?.description ?? null)
+                    : (existingText?.description ?? newDesc ?? null);
+                const finalDoc = overwriteOptions.texts
+                    ? (newDoc ?? existingText?.docDescription ?? null)
+                    : (existingText?.docDescription ?? newDoc ?? null);
+                const finalBullets = overwriteOptions.texts
+                    ? (newBullets ?? existingText?.bulletPoints ?? null)
+                    : (existingText?.bulletPoints ?? newBullets ?? null);
+                const finalSeo = overwriteOptions.texts
+                    ? (newSeo ?? existingText?.seoAiText ?? null)
+                    : (existingText?.seoAiText ?? newSeo ?? null);
 
                 await prisma.stagingProductText.upsert({
                     where: {
@@ -197,20 +216,34 @@ export async function POST(
 
                     const parsedPrice = parseFloat(priceStr);
                     if (!isNaN(parsedPrice)) {
-                        await prisma.stagingProductPrice.upsert({
+                        const existingPrice = await prisma.stagingProductPrice.findUnique({
                             where: {
                                 stagingProductId_listName: {
                                     stagingProductId: staging.id,
                                     listName,
                                 },
                             },
-                            update: { price: parsedPrice },
-                            create: {
-                                stagingProductId: staging.id,
-                                listName,
-                                price: parsedPrice,
-                            },
                         });
+
+                        if (!existingPrice) {
+                            await prisma.stagingProductPrice.create({
+                                data: {
+                                    stagingProductId: staging.id,
+                                    listName,
+                                    price: parsedPrice,
+                                },
+                            });
+                        } else if (overwriteOptions.price) {
+                            await prisma.stagingProductPrice.update({
+                                where: {
+                                    stagingProductId_listName: {
+                                        stagingProductId: staging.id,
+                                        listName,
+                                    },
+                                },
+                                data: { price: parsedPrice },
+                            });
+                        }
                     }
                 }
 
@@ -225,20 +258,35 @@ export async function POST(
 
                 for (const ex of extras) {
                     if (!ex.value) continue;
-                    await prisma.stagingProductExtra.upsert({
+
+                    const existingExtra = await prisma.stagingProductExtra.findUnique({
                         where: {
                             stagingProductId_key: {
                                 stagingProductId: staging.id,
                                 key: ex.key,
                             },
                         },
-                        update: { value: String(ex.value) },
-                        create: {
-                            stagingProductId: staging.id,
-                            key: ex.key,
-                            value: String(ex.value),
-                        },
                     });
+
+                    if (!existingExtra) {
+                        await prisma.stagingProductExtra.create({
+                            data: {
+                                stagingProductId: staging.id,
+                                key: ex.key,
+                                value: String(ex.value),
+                            },
+                        });
+                    } else if (overwriteOptions.extras) {
+                        await prisma.stagingProductExtra.update({
+                            where: {
+                                stagingProductId_key: {
+                                    stagingProductId: staging.id,
+                                    key: ex.key,
+                                },
+                            },
+                            data: { value: String(ex.value) },
+                        });
+                    }
                 }
             } catch (perRowErr: any) {
                 console.error("Staging POST row error (SKU:", p.sku, "):", perRowErr);
