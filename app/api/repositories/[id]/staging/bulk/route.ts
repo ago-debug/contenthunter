@@ -31,24 +31,81 @@ export async function POST(
 
         const cleanValue = value.trim();
 
-        const where: any = { catalogId };
-        if (onlyEmpty) {
-            where.OR = [
-                { [field]: null },
-                { [field]: "" }
-            ];
+        // Campi diretti sullo stagingProduct (brand / category)
+        if (field === "brand" || field === "category") {
+            const where: any = { catalogId };
+            if (onlyEmpty) {
+                where.OR = [
+                    { [field]: null },
+                    { [field]: "" }
+                ];
+            }
+
+            const result = await prisma.stagingProduct.updateMany({
+                where,
+                data: {
+                    [field]: cleanValue
+                }
+            });
+
+            return NextResponse.json({
+                success: true,
+                updatedCount: result.count
+            });
         }
 
-        const result = await prisma.stagingProduct.updateMany({
-            where,
-            data: {
-                [field]: cleanValue
-            }
+        // Campi extra (magazzino interno / fornitore) salvati in StagingProductExtra
+        const targetKey = field === "stockLocal" ? "stockLocal" : "stockSupplier";
+
+        const products = await prisma.stagingProduct.findMany({
+            where: { catalogId },
+            select: { id: true }
         });
+
+        let updatedCount = 0;
+
+        for (const prod of products) {
+            const existing = await prisma.stagingProductExtra.findUnique({
+                where: {
+                    stagingProductId_key: {
+                        stagingProductId: prod.id,
+                        key: targetKey
+                    }
+                }
+            });
+
+            if (onlyEmpty && existing && existing.value && existing.value.trim().length > 0) {
+                continue;
+            }
+
+            if (!existing) {
+                await prisma.stagingProductExtra.create({
+                    data: {
+                        stagingProductId: prod.id,
+                        key: targetKey,
+                        value: cleanValue
+                    }
+                });
+                updatedCount++;
+            } else {
+                await prisma.stagingProductExtra.update({
+                    where: {
+                        stagingProductId_key: {
+                            stagingProductId: prod.id,
+                            key: targetKey
+                        }
+                    },
+                    data: {
+                        value: cleanValue
+                    }
+                });
+                updatedCount++;
+            }
+        }
 
         return NextResponse.json({
             success: true,
-            updatedCount: result.count
+            updatedCount
         });
     } catch (err: any) {
         console.error("Staging bulk update error:", err);
