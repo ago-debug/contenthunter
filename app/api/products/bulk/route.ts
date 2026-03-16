@@ -140,37 +140,36 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ success: true, count: 0 });
             }
 
-            const updates = texts
-                .map((t) => {
-                    const currentTitle = (t.title || "").toString();
-                    let newTitle = currentTitle;
+            let updatedCount = 0;
 
-                    if (cleanSearch) {
-                        newTitle = newTitle.split(cleanSearch).join(cleanReplace);
-                    }
+            for (const t of texts) {
+                const currentTitle = (t.title || "").toString();
+                let newTitle = currentTitle;
 
-                    if (!newTitle.toLowerCase().includes(cleanReplace.toLowerCase())) {
-                        newTitle = (newTitle ? newTitle + " " : "") + cleanReplace;
-                    }
+                if (cleanSearch) {
+                    newTitle = newTitle.split(cleanSearch).join(cleanReplace);
+                }
 
-                    if (newTitle === currentTitle) {
-                        return null;
-                    }
+                if (!newTitle.toLowerCase().includes(cleanReplace.toLowerCase())) {
+                    newTitle = (newTitle ? newTitle + " " : "") + cleanReplace;
+                }
 
-                    return prisma.productText.update({
+                if (newTitle === currentTitle) {
+                    continue;
+                }
+
+                try {
+                    await prisma.productText.update({
                         where: { id: t.id },
                         data: { title: newTitle }
                     });
-                })
-                .filter(Boolean) as any[];
-
-            if (updates.length === 0) {
-                return NextResponse.json({ success: true, count: 0 });
+                    updatedCount++;
+                } catch (e) {
+                    console.error("Bulk replace_title_part single update error:", e);
+                }
             }
 
-            await prisma.$transaction(updates);
-
-            return NextResponse.json({ success: true, count: updates.length });
+            return NextResponse.json({ success: true, count: updatedCount });
         }
 
         return NextResponse.json({ error: "Invalid bulk action" }, { status: 400 });
