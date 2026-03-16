@@ -150,6 +150,9 @@ export default function ImportLab() {
     const [bulkValue, setBulkValue] = useState<string>("");
     const [bulkOnlyEmpty, setBulkOnlyEmpty] = useState<boolean>(true);
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+    const [bulkTitleSearch, setBulkTitleSearch] = useState<string>("");
+    const [bulkTitleReplace, setBulkTitleReplace] = useState<string>("");
+    const [isBulkTitleUpdating, setIsBulkTitleUpdating] = useState(false);
     const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
     const [imagePickerItems, setImagePickerItems] = useState<{ fileName: string; relativePath: string; url: string }[]>([]);
     const [imagePickerLoading, setImagePickerLoading] = useState(false);
@@ -364,6 +367,57 @@ export default function ImportLab() {
             });
         } finally {
             setIsBulkUpdating(false);
+        }
+    };
+
+    const handleBulkTitleUpdate = async () => {
+        if (!catalogIdParam) {
+            toast.warning("Seleziona prima un repository per applicare modifiche ai titoli.");
+            return;
+        }
+        if (!bulkTitleReplace.trim()) {
+            toast.warning("Inserisci il testo da inserire nel titolo.");
+            return;
+        }
+        if (!products.length) {
+            toast.info("Non ci sono prodotti in staging su cui applicare la modifica al titolo.");
+            return;
+        }
+
+        const msgBase = bulkTitleSearch
+            ? `Sostituire "${bulkTitleSearch}" con "${bulkTitleReplace}" nei titoli e aggiungerlo se non presente`
+            : `Aggiungere "${bulkTitleReplace}" ai titoli dove non presente`;
+
+        if (!confirm(msgBase + " per " + products.length + " prodotti?")) {
+            return;
+        }
+
+        setIsBulkTitleUpdating(true);
+        const toastId = toast.loading("Aggiornamento massivo dei titoli in corso...");
+        try {
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/staging/bulk-title", {
+                search: bulkTitleSearch,
+                replace: bulkTitleReplace,
+            });
+
+            toast.update(toastId, {
+                render: "Aggiornati " + (res.data.updatedCount || 0) + " titoli prodotti.",
+                type: "success",
+                isLoading: false,
+                autoClose: 3000,
+            });
+
+            fetchRepository(parseInt(catalogIdParam));
+        } catch (err: any) {
+            console.error("Bulk title update error:", err);
+            toast.update(toastId, {
+                render: "Errore durante l'aggiornamento massivo dei titoli.",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000,
+            });
+        } finally {
+            setIsBulkTitleUpdating(false);
         }
     };
 
@@ -1206,6 +1260,36 @@ export default function ImportLab() {
                                 {isBulkUpdating ? "In corso..." : "Applica a tutti"}
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                {/* Row: bulk title edit (sostituisci/aggiungi) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                        <span>Modifica massiva titolo prodotto</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                        <input
+                            type="text"
+                            placeholder='Parte da sostituire (es. "IPLEX Design") - opzionale'
+                            value={bulkTitleSearch}
+                            onChange={(e) => setBulkTitleSearch(e.target.value)}
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white min-w-[200px]"
+                        />
+                        <input
+                            type="text"
+                            placeholder='Nuovo testo da usare / aggiungere nel titolo'
+                            value={bulkTitleReplace}
+                            onChange={(e) => setBulkTitleReplace(e.target.value)}
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white min-w-[220px]"
+                        />
+                        <button
+                            onClick={handleBulkTitleUpdate}
+                            disabled={isBulkTitleUpdating}
+                            className="px-3 py-1.5 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest border border-slate-900 hover:bg-black disabled:opacity-50"
+                        >
+                            {isBulkTitleUpdating ? "Titoli in corso..." : "Applica su tutti i titoli"}
+                        </button>
                     </div>
                 </div>
 
