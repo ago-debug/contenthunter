@@ -146,7 +146,7 @@ export default function ImportLab() {
     // V4 DISMANTLER STATES
     const [isVisualMode, setIsVisualMode] = useState(false);
     const [selectedMapping, setSelectedMapping] = useState<any | null>(null);
-    const [bulkField, setBulkField] = useState<"brand" | "category">("brand");
+    const [bulkField, setBulkField] = useState<"brand" | "category" | "stockLocal" | "stockSupplier">("brand");
     const [bulkValue, setBulkValue] = useState<string>("");
     const [bulkOnlyEmpty, setBulkOnlyEmpty] = useState<boolean>(true);
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
@@ -316,7 +316,7 @@ export default function ImportLab() {
             return;
         }
         if (!bulkValue.trim()) {
-            toast.warning("Inserisci un valore da applicare (es. Brand).");
+            toast.warning("Inserisci un valore da applicare.");
             return;
         }
         if (!products.length) {
@@ -324,7 +324,14 @@ export default function ImportLab() {
             return;
         }
 
-        const label = bulkField === "brand" ? "Brand" : "Categoria";
+        const label =
+            bulkField === "brand"
+                ? "Brand"
+                : bulkField === "category"
+                ? "Categoria"
+                : bulkField === "stockLocal"
+                ? "Magazzino interno"
+                : "Magazzino fornitore";
         if (!confirm("Applicare il valore \"" + bulkValue.trim() + "\" al campo " + label + " su " + products.length + " prodotti" + (bulkOnlyEmpty ? " solo dove vuoto" : "") + "?")) {
             return;
         }
@@ -1158,15 +1165,26 @@ export default function ImportLab() {
                         <div className="flex flex-wrap items-center gap-2 text-[10px]">
                             <select
                                 value={bulkField}
-                                onChange={(e) => setBulkField(e.target.value as "brand" | "category")}
+                                onChange={(e) => setBulkField(e.target.value as "brand" | "category" | "stockLocal" | "stockSupplier")}
                                 className="px-2 py-1 rounded-lg border border-slate-200 bg-white font-black uppercase tracking-widest text-slate-500"
                             >
                                 <option value="brand">Brand</option>
                                 <option value="category">Categoria</option>
+                                <option value="stockLocal">Magazzino interno</option>
+                                <option value="stockSupplier">Magazzino fornitore</option>
                             </select>
                             <input
                                 type="text"
-                                placeholder={"Valore " + (bulkField === "brand" ? "Brand" : "Categoria")}
+                                placeholder={
+                                    "Valore " +
+                                    (bulkField === "brand"
+                                        ? "Brand"
+                                        : bulkField === "category"
+                                        ? "Categoria"
+                                        : bulkField === "stockLocal"
+                                        ? "Magazzino interno"
+                                        : "Magazzino fornitore")
+                                }
                                 value={bulkValue}
                                 onChange={(e) => setBulkValue(e.target.value)}
                                 className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white min-w-[140px]"

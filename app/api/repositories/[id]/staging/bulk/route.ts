@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-type BulkField = "brand" | "category";
+type BulkField = "brand" | "category" | "stockLocal" | "stockSupplier";
 
 export async function POST(
     req: NextRequest,
@@ -21,7 +21,7 @@ export async function POST(
             onlyEmpty?: boolean;
         };
 
-        if (!field || !["brand", "category"].includes(field)) {
+        if (!field || !["brand", "category", "stockLocal", "stockSupplier"].includes(field)) {
             return NextResponse.json({ error: "Campo non supportato per l'aggiornamento massivo." }, { status: 400 });
         }
 
