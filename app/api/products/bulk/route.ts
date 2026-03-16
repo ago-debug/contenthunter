@@ -142,6 +142,8 @@ export async function POST(req: NextRequest) {
 
             let updatedCount = 0;
 
+            const replaceLower = cleanReplace.toLowerCase();
+
             for (const t of texts) {
                 const currentTitle = (t.title || "").toString();
                 let newTitle = currentTitle;
@@ -150,11 +152,15 @@ export async function POST(req: NextRequest) {
                     newTitle = newTitle.split(cleanSearch).join(cleanReplace);
                 }
 
-                if (!newTitle.toLowerCase().includes(cleanReplace.toLowerCase())) {
-                    newTitle = (newTitle ? newTitle + " " : "") + cleanReplace;
+                // Aggiungi "replace" in coda se il titolo non lo contiene già (case-insensitive, ignorando spazi multipli)
+                const normalizedForCheck = newTitle.trim().replace(/\s+/g, " ").toLowerCase();
+                if (!normalizedForCheck.includes(replaceLower)) {
+                    const base = newTitle.trimEnd();
+                    newTitle = base ? base + " " + cleanReplace : cleanReplace;
                 }
 
-                if (newTitle === currentTitle) {
+                newTitle = newTitle.trim();
+                if (newTitle === currentTitle.trim()) {
                     continue;
                 }
 
