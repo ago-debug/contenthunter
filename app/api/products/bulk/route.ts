@@ -152,11 +152,16 @@ export async function POST(req: NextRequest) {
                     newTitle = newTitle.split(cleanSearch).join(cleanReplace);
                 }
 
-                // Aggiungi "replace" in coda se il titolo non lo contiene già (case-insensitive, ignorando spazi multipli)
-                const normalizedForCheck = newTitle.trim().replace(/\s+/g, " ").toLowerCase();
+                // Assicura che "replace" sia all'inizio del titolo: se manca lo aggiungi davanti, se c'è ma non in testa spostalo in testa
+                const base = newTitle.trim().replace(/\s+/g, " ");
+                const normalizedForCheck = base.toLowerCase();
                 if (!normalizedForCheck.includes(replaceLower)) {
-                    const base = newTitle.trimEnd();
-                    newTitle = base ? base + " " + cleanReplace : cleanReplace;
+                    newTitle = base ? cleanReplace + " " + base : cleanReplace;
+                } else if (!normalizedForCheck.startsWith(replaceLower)) {
+                    // Contiene già il testo ma non in testa: rimuovi un'occorrenza e metti in testa
+                    const escaped = cleanReplace.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                    const withoutOne = base.replace(new RegExp(escaped, "gi"), "").trim().replace(/\s+/g, " ");
+                    newTitle = withoutOne ? cleanReplace + " " + withoutOne : cleanReplace;
                 }
 
                 newTitle = newTitle.trim();
