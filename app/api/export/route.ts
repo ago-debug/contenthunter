@@ -4,6 +4,7 @@ import { requireCompanyId } from "@/lib/auth-api";
 import * as XLSX from "xlsx";
 
 // Tutti i campi presenti nella scheda prodotto (Master ERP)
+// Ogni informazione va in una colonna distinta (niente valori aggregati)
 const EXPORT_FIELDS: { key: string; label: string }[] = [
     { key: "sku", label: "SKU" },
     { key: "ean", label: "EAN" },
@@ -17,20 +18,19 @@ const EXPORT_FIELDS: { key: string; label: string }[] = [
     { key: "price", label: "Prezzo listino (€)" },
     { key: "weight", label: "Peso (kg)" },
     { key: "status", label: "Status ERP" },
-    { key: "stock", label: "Quantità stock" },
+    { key: "stockLocal", label: "Magazzino locale (Q.tà)" },
+    { key: "stockSupplier", label: "Magazzino fornitore (Q.tà)" },
     { key: "image1", label: "Immagine 1 (link)" },
     { key: "image2", label: "Immagine 2 (link)" },
     { key: "image3", label: "Immagine 3 (link)" },
     { key: "image4", label: "Immagine 4 (link)" },
     { key: "image5", label: "Immagine 5 (link)" },
-    { key: "images", label: "Immagini (tutte, link)" },
     { key: "seoAiText", label: "Copywriting breve / SEO" },
     { key: "description", label: "Descrizione lunga" },
     { key: "docDescription", label: "Sorgente dati tecnici" },
     { key: "bulletPoints", label: "Punti elenco" },
     { key: "material", label: "Materiale" },
     { key: "dimensions", label: "Dimensioni / Calibro" },
-    { key: "extraFields", label: "Altri attributi" },
 ];
 
 function buildWhere(filters: {
@@ -82,18 +82,26 @@ export async function GET(req: NextRequest) {
             const itText = p.texts?.[0] || {};
             const defPrice = p.prices?.[0] || {};
             const extra: Record<string, string> = {};
-            let dimensions = "", weight = "", material = "", status = "", stock = "";
+            let dimensions = "",
+                weight = "",
+                material = "",
+                status = "",
+                stockLocal = "",
+                stockSupplier = "";
+
             (p.extraFields || []).forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
                 else if (ex.key === "status") status = ex.value;
-                else if (ex.key === "stock") stock = ex.value;
+                else if (ex.key === "stockLocal") stockLocal = ex.value;
+                else if (ex.key === "stockSupplier") stockSupplier = ex.value;
                 else extra[ex.key] = ex.value;
             });
-            const extraFieldsStr = Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join("\n");
+
             const imageLinks = (p.images || []).map((img: any) => img.imageUrl).filter(Boolean);
             const tagNames = (p.tags || []).map((pt: any) => pt.tag?.name).filter(Boolean).join(", ");
+
             return {
                 SKU: p.sku,
                 EAN: p.ean || "",
@@ -107,15 +115,19 @@ export async function GET(req: NextRequest) {
                 "Prezzo listino (€)": defPrice.price !== undefined ? String(defPrice.price) : "",
                 "Peso (kg)": weight,
                 "Status ERP": status,
-                "Quantità stock": stock,
-                "Immagini (link)": imageLinks.join("\n"),
+                "Magazzino locale (Q.tà)": stockLocal,
+                "Magazzino fornitore (Q.tà)": stockSupplier,
+                "Immagine 1 (link)": imageLinks[0] || "",
+                "Immagine 2 (link)": imageLinks[1] || "",
+                "Immagine 3 (link)": imageLinks[2] || "",
+                "Immagine 4 (link)": imageLinks[3] || "",
+                "Immagine 5 (link)": imageLinks[4] || "",
                 "Copywriting breve / SEO": itText.seoAiText || "",
                 "Descrizione lunga": itText.description || "",
                 "Sorgente dati tecnici": itText.docDescription || "",
                 "Punti elenco": itText.bulletPoints || "",
                 Materiale: material,
                 "Dimensioni / Calibro": dimensions,
-                "Altri attributi": extraFieldsStr,
             };
         });
 
@@ -193,9 +205,6 @@ export async function POST(req: NextRequest) {
                 else if (ex.key === "stock") stock = ex.value;
                 else extra[ex.key] = ex.value;
             });
-            const extraFieldsStr = Object.entries(extra)
-                .map(([k, v]) => `${k}: ${v}`)
-                .join("\n");
             const imageLinks = (p.images || []).map((img: any) => img.imageUrl).filter(Boolean);
             const tagNames = (p.tags || [])
                 .map((pt: any) => pt.tag?.name)
@@ -253,8 +262,11 @@ export async function POST(req: NextRequest) {
                     case "status":
                         row[label] = status;
                         break;
-                    case "stock":
-                        row[label] = stock;
+                    case "stockLocal":
+                        row[label] = stockLocal;
+                        break;
+                    case "stockSupplier":
+                        row[label] = stockSupplier;
                         break;
                     case "image1":
                         row[label] = imageLinks[0] || "";
@@ -279,12 +291,6 @@ export async function POST(req: NextRequest) {
                         break;
                     case "seoAiText":
                         row[label] = itText.seoAiText || "";
-                        break;
-                    case "images":
-                        row[label] = imageLinks.join("\n");
-                        break;
-                    case "extraFields":
-                        row[label] = extraFieldsStr;
                         break;
                     default:
                         row[label] = "";

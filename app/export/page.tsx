@@ -7,6 +7,7 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 
 // Stessi campi della scheda prodotto (Master ERP)
+// Ogni informazione va in una colonna distinta (niente valori aggregati)
 const EXPORT_FIELD_OPTIONS: { key: string; label: string }[] = [
     { key: "sku", label: "SKU" },
     { key: "ean", label: "EAN" },
@@ -20,20 +21,19 @@ const EXPORT_FIELD_OPTIONS: { key: string; label: string }[] = [
     { key: "price", label: "Prezzo listino (€)" },
     { key: "weight", label: "Peso (kg)" },
     { key: "status", label: "Status ERP" },
-    { key: "stock", label: "Quantità stock" },
+    { key: "stockLocal", label: "Magazzino locale (Q.tà)" },
+    { key: "stockSupplier", label: "Magazzino fornitore (Q.tà)" },
     { key: "image1", label: "Immagine 1 (link)" },
     { key: "image2", label: "Immagine 2 (link)" },
     { key: "image3", label: "Immagine 3 (link)" },
     { key: "image4", label: "Immagine 4 (link)" },
     { key: "image5", label: "Immagine 5 (link)" },
-    { key: "images", label: "Immagini (tutte, link)" },
     { key: "seoAiText", label: "Copywriting breve / SEO" },
     { key: "description", label: "Descrizione lunga" },
     { key: "docDescription", label: "Sorgente dati tecnici" },
     { key: "bulletPoints", label: "Punti elenco" },
     { key: "material", label: "Materiale" },
     { key: "dimensions", label: "Dimensioni / Calibro" },
-    { key: "extraFields", label: "Altri attributi" },
 ];
 
 export default function ExportPage() {
