@@ -196,13 +196,16 @@ export async function POST(req: NextRequest) {
                 weight = "",
                 material = "",
                 status = "",
-                stock = "";
+                stockLocal = "",
+                stockSupplier = "";
+
             (p.extraFields || []).forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
                 else if (ex.key === "status") status = ex.value;
-                else if (ex.key === "stock") stock = ex.value;
+                else if (ex.key === "stockLocal") stockLocal = ex.value;
+                else if (ex.key === "stockSupplier") stockSupplier = ex.value;
                 else extra[ex.key] = ex.value;
             });
             const imageLinks = (p.images || []).map((img: any) => img.imageUrl).filter(Boolean);
