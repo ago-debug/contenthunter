@@ -41,10 +41,12 @@ function normalizeTitle(raw: string | null | undefined): string {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { ids, action, prefix } = body as {
+        const { ids, action, prefix, search, replace } = body as {
             ids: number[];
             action: string;
             prefix?: string;
+            search?: string;
+            replace?: string;
         };
 
         if (!ids || !Array.isArray(ids) || ids.length === 0) {
@@ -115,6 +117,60 @@ export async function POST(req: NextRequest) {
             );
 
             return NextResponse.json({ success: true, count: texts.length });
+        }
+
+        // Bulk replace a part of the Italian title and ensure the new text is present
+        if (action === "replace_title_part") {
+            const cleanReplace = (replace ?? "").trim();
+            const cleanSearch = (search ?? "").toString();
+
+            if (!cleanReplace) {
+                return NextResponse.json({ error: "Replace text is required" }, { status: 400 });
+            }
+
+            const texts = await prisma.productText.findMany({
+                where: {
+                    productId: { in: ids },
+                    language: "it"
+                },
+                select: { id: true, title: true }
+            });
+
+            if (texts.length === 0) {
+                return NextResponse.json({ success: true, count: 0 });
+            }
+
+            const updates = texts
+                .map((t) => {
+                    const currentTitle = (t.title || "").toString();
+                    let newTitle = currentTitle;
+
+                    if (cleanSearch) {
+                        newTitle = newTitle.split(cleanSearch).join(cleanReplace);
+                    }
+
+                    if (!newTitle.toLowerCase().includes(cleanReplace.toLowerCase())) {
+                        newTitle = (newTitle ? newTitle + " " : "") + cleanReplace;
+                    }
+
+                    if (newTitle === currentTitle) {
+                        return null;
+                    }
+
+                    return prisma.productText.update({
+                        where: { id: t.id },
+                        data: { title: newTitle }
+                    });
+                })
+                .filter(Boolean) as any[];
+
+            if (updates.length === 0) {
+                return NextResponse.json({ success: true, count: 0 });
+            }
+
+            await prisma.$transaction(updates);
+
+            return NextResponse.json({ success: true, count: updates.length });
         }
 
         return NextResponse.json({ error: "Invalid bulk action" }, { status: 400 });

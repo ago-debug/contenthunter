@@ -499,6 +499,55 @@ export default function ErpTable() {
         }
     };
 
+    const handleBulkReplaceTitlePart = async () => {
+        if (selectedIds.length === 0) return;
+
+        const search = window.prompt('Testo da sostituire nel titolo (es. "IPLEX Design") - opzionale:');
+        if (search === null) return;
+
+        const replace = window.prompt('Nuovo testo da usare / assicurare nel titolo (obbligatorio):');
+        if (replace === null) return;
+
+        const cleanReplace = replace.trim();
+        if (!cleanReplace) {
+            toast.info("Nessun testo valido inserito.");
+            return;
+        }
+
+        const confirmMsg = search && search.trim()
+            ? `Sostituire "${search}" con "${cleanReplace}" nei titoli dei ${selectedIds.length} prodotti selezionati e aggiungerlo se non presente?`
+            : `Aggiungere "${cleanReplace}" ai titoli dei ${selectedIds.length} prodotti selezionati dove non presente?`;
+
+        if (!window.confirm(confirmMsg)) return;
+
+        setIsBulkWorking(true);
+        const toastId = toast.loading("Aggiornamento massivo titoli (Master ERP) in corso...");
+        try {
+            await axios.post("/api/products/bulk", {
+                ids: selectedIds,
+                action: "replace_title_part",
+                search: search ?? "",
+                replace: cleanReplace
+            });
+            toast.update(toastId, {
+                render: "Titoli aggiornati correttamente sui prodotti selezionati",
+                type: "success",
+                isLoading: false,
+                autoClose: 3000
+            });
+            fetchProducts();
+        } catch (err) {
+            toast.update(toastId, {
+                render: "Errore durante l'aggiornamento massivo dei titoli (Master ERP)",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } finally {
+            setIsBulkWorking(false);
+        }
+    };
+
     const handleBulkGenerateSeoAi = async (overwriteExisting: boolean) => {
         if (selectedIds.length === 0) return;
         setShowBulkSeoModal(false);
@@ -2793,6 +2842,14 @@ export default function ErpTable() {
                                 >
                                     <Plus className="w-4 h-4" />
                                     Aggiungi Testo al Titolo
+                                </button>
+                                <button
+                                    onClick={handleBulkReplaceTitlePart}
+                                    disabled={isBulkWorking}
+                                    className="flex items-center gap-2 text-cyan-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    <Wand2 className="w-4 h-4" />
+                                    Trova/Sostituisci + Agg. Titolo
                                 </button>
                                 <button
                                     onClick={() => setShowBulkSeoModal(true)}
