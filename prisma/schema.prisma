@@ -23,6 +23,7 @@ model Company {
   bulletPoints BulletPoint[]
   templates Template[]
   scrapeProjects ScrapeProject[]
+  extraFieldTemplates ExtraFieldTemplate[]
 }
 
 model Catalog {
@@ -49,6 +50,7 @@ model Catalog {
   pages         PdfPage[]
   stagingProducts StagingProduct[]
   listinoFiles  CatalogListinoFile[]
+  extraFieldTemplates ExtraFieldTemplate[]
 
   lastListinoName String?      @db.Text
 
