@@ -222,6 +222,25 @@ model ProductExtra {
   @@index([productId], map: "ProductExtra_productId_fkey")
 }
 
+/// Definizione di campi extra personalizzati per listini / prodotti
+model ExtraFieldTemplate {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  catalogId Int?
+
+  key       String
+  label     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  catalog   Catalog? @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, key])
+  @@index([companyId])
+}
+
 model ProductImage {
   id        Int      @id @default(autoincrement())
   productId Int

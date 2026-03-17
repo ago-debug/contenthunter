@@ -266,6 +266,13 @@ export async function POST(
                     { key: "stockSupplier", value: p.stockSupplier },
                 ];
 
+                // Eventuali extra dinamici mappati a runtime (extraFields: { [key]: value })
+                if (p.extraFields && typeof p.extraFields === "object") {
+                    for (const [k, v] of Object.entries(p.extraFields)) {
+                        extras.push({ key: k, value: v });
+                    }
+                }
+
                 for (const ex of extras) {
                     if (!ex.value) continue;
 

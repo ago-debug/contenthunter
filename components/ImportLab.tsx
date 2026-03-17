@@ -127,6 +127,9 @@ export default function ImportLab() {
         stockLocal: "",
         stockSupplier: "",
     });
+    const [extraFieldTemplates, setExtraFieldTemplates] = useState<{ id: number; key: string; label: string }[]>([]);
+    const [extraFieldMapping, setExtraFieldMapping] = useState<Record<string, string>>({});
+    const [newExtraLabel, setNewExtraLabel] = useState<string>("");
     const [overwriteBaseInfo, setOverwriteBaseInfo] = useState(true);
     const [overwriteTexts, setOverwriteTexts] = useState(true);
     const [overwritePrice, setOverwritePrice] = useState(true);
@@ -205,12 +208,14 @@ export default function ImportLab() {
         if (id == null || isNaN(id)) return;
         setLoading(true);
         try {
-            const [repoRes, productsRes] = await Promise.all([
+            const [repoRes, productsRes, extraFieldsRes] = await Promise.all([
                 axios.get("/api/catalogues/" + id),
-                axios.get("/api/repositories/" + id + "/staging")
+                axios.get("/api/repositories/" + id + "/staging"),
+                axios.get("/api/catalogues/" + id + "/extra-fields")
             ]);
             setRepository(repoRes.data);
             setProducts(productsRes.data);
+            setExtraFieldTemplates(extraFieldsRes.data || []);
 
             // If there are PDFs, load the first one's pages if needed
             if (repoRes.data.pdfs?.length > 0) {
@@ -851,7 +856,7 @@ export default function ImportLab() {
                     return val !== undefined && val !== null ? String(val) : null;
                 };
 
-                return {
+                const base: any = {
                     sku: getVal("sku"),
                     ean: getVal("ean"),
                     parentSku: getVal("parentSku"),
@@ -869,6 +874,23 @@ export default function ImportLab() {
                     stockLocal: getVal("stockLocal"),
                     stockSupplier: getVal("stockSupplier"),
                 };
+
+                // Costruisci oggetto con campi extra dinamici
+                const extrasObj: Record<string, string> = {};
+                extraFieldTemplates.forEach((tpl) => {
+                    const col = extraFieldMapping[tpl.key];
+                    if (!col) return;
+                    const idx = rawHeaders.indexOf(col);
+                    const val = idx > -1 ? row[idx] : null;
+                    if (val !== undefined && val !== null && String(val).trim() !== "") {
+                        extrasObj[tpl.key] = String(val);
+                    }
+                });
+                if (Object.keys(extrasObj).length > 0) {
+                    base.extraFields = extrasObj;
+                }
+
+                return base;
             }).filter(p => p.sku || p.ean || p.title);
 
             await axios.post("/api/repositories/" + catalogIdParam + "/staging", {
@@ -1972,6 +1994,82 @@ export default function ImportLab() {
                                             </div>
                                         );
                                     })}
+                                </div>
+
+                                {/* Sezione campi extra dinamici */}
+                                <div className="mt-10 border-t border-slate-100 pt-8">
+                                    <div className="flex items-center justify-between mb-4 px-1">
+                                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                            Campi Extra Personalizzati
+                                        </h3>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-x-12 gap-y-8">
+                                        {extraFieldTemplates.map((tpl) => (
+                                            <div key={tpl.id} className="space-y-3">
+                                                <div className="flex items-center justify-between px-1">
+                                                    <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                                        {tpl.label}
+                                                    </label>
+                                                    {extraFieldMapping[tpl.key] && (
+                                                        <span className="text-[9px] font-bold text-green-500 flex items-center gap-1">
+                                                            <Check className="w-3 h-3" /> Collegato
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <select
+                                                    value={extraFieldMapping[tpl.key] || ""}
+                                                    onChange={(e) =>
+                                                        setExtraFieldMapping({
+                                                            ...extraFieldMapping,
+                                                            [tpl.key]: e.target.value,
+                                                        })
+                                                    }
+                                                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">-- Seleziona Colonna --</option>
+                                                    {rawHeaders.map((h, i) => (
+                                                        <option key={i} value={h}>
+                                                            {h}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Aggiunta nuovo campo extra */}
+                                    <div className="mt-8 flex flex-col sm:flex-row sm:items-center gap-3 px-1">
+                                        <input
+                                            type="text"
+                                            value={newExtraLabel}
+                                            onChange={(e) => setNewExtraLabel(e.target.value)}
+                                            placeholder="Nome nuovo campo extra (es. Colore interno)"
+                                            className="flex-1 px-4 py-3 rounded-2xl border border-slate-200 text-sm font-bold text-slate-700 bg-slate-50"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                const label = newExtraLabel.trim();
+                                                if (!label || !catalogIdParam) return;
+                                                try {
+                                                    const res = await axios.post(
+                                                        "/api/catalogues/" + catalogIdParam + "/extra-fields",
+                                                        { label }
+                                                    );
+                                                    const created = res.data;
+                                                    setExtraFieldTemplates((prev) => [...prev, created]);
+                                                    setNewExtraLabel("");
+                                                } catch (err) {
+                                                    console.error("Create extra field template error:", err);
+                                                    toast.error("Errore nella creazione del campo extra.");
+                                                }
+                                            }}
+                                            className="px-5 py-3 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black transition-colors"
+                                        >
+                                            Aggiungi Campo Extra
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="mt-12">
