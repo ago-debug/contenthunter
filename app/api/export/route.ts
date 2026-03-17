@@ -188,6 +188,20 @@ export async function POST(req: NextRequest) {
         });
 
         const colOrder = EXPORT_FIELDS.filter((f) => fields.includes(f.key));
+
+        // Raccogli tutte le chiavi extra presenti sui prodotti per esportarle sempre come colonne dedicate
+        const allExtraKeys = new Set<string>();
+        products.forEach((p: any) => {
+            (p.extraFields || []).forEach((ex: any) => {
+                if (
+                    ex?.key &&
+                    !["dimensions", "weight", "material", "status", "stockLocal", "stockSupplier"].includes(ex.key)
+                ) {
+                    allExtraKeys.add(ex.key);
+                }
+            });
+        });
+
         const data = products.map((p: any) => {
             const itText = p.texts?.[0] || {};
             const defPrice = p.prices?.[0] || {};
@@ -299,6 +313,19 @@ export async function POST(req: NextRequest) {
                         row[label] = "";
                 }
             });
+
+            // Aggiungi sempre tutte le colonne extra disponibili (una colonna per chiave)
+            const otherExtras: Record<string, string> = {};
+            (p.extraFields || []).forEach((ex: any) => {
+                if (ex.key && extra[ex.key] !== undefined) {
+                    otherExtras[ex.key] = String(extra[ex.key] ?? "");
+                }
+            });
+            allExtraKeys.forEach((k) => {
+                const headerLabel = k;
+                row[headerLabel] = otherExtras[k] || "";
+            });
+
             return row;
         });
 
