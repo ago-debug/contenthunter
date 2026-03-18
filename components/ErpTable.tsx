@@ -98,6 +98,7 @@ export default function ErpTable() {
     const [isImportingWoo, setIsImportingWoo] = useState(false);
     const [isMassExportingWoo, setIsMassExportingWoo] = useState(false);
     const [isBulkTranslatingTitle, setIsBulkTranslatingTitle] = useState(false);
+    const [isExportingSelectedFile, setIsExportingSelectedFile] = useState(false);
     const [showBrandsPanel, setShowBrandsPanel] = useState(false);
     const [selectedBrandForEdit, setSelectedBrandForEdit] = useState<any | null>(null);
     const [brandEditForm, setBrandEditForm] = useState({ aiContentGuidelines: "", producerDomain: "", logoUrl: "" });
@@ -515,6 +516,69 @@ export default function ErpTable() {
             });
             setIsBulkTranslatingTitle(false);
             fetchProducts();
+        }
+    };
+
+    const exportSelectedToFile = async (requestedFormat?: "excel" | "csv") => {
+        if (!selectedIds.length) {
+            toast.warning("Seleziona prima almeno un prodotto.");
+            return;
+        }
+
+        const picked =
+            requestedFormat ||
+            (() => {
+                const v = window.prompt('Formato export: scrivi "excel" oppure "csv"', "excel");
+                if (v === null) return null;
+                const n = v.toString().trim().toLowerCase();
+                return n === "csv" ? "csv" : "excel";
+            })();
+
+        if (!picked) return;
+
+        setIsExportingSelectedFile(true);
+        const toastId = toast.loading(`Esportazione prodotti selezionati (${picked.toUpperCase()})...`);
+        try {
+            const res = await fetch("/api/products/export-selected", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ ids: selectedIds, format: picked }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error || "Export fallito");
+            }
+
+            const blob = await res.blob();
+            const cd = res.headers.get("content-disposition") || "";
+            const fileMatch = cd.match(/filename="?([^"]+)"?/i);
+            const fileName = fileMatch?.[1] || `products-selected.${picked === "csv" ? "csv" : "xlsx"}`;
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            window.URL.revokeObjectURL(url);
+
+            toast.update(toastId, {
+                render: "Export completato!",
+                type: "success",
+                isLoading: false,
+                autoClose: 3000,
+            });
+        } catch (err: any) {
+            console.error("Export selected error:", err);
+            toast.update(toastId, {
+                render: err?.message || "Errore export selezionati",
+                type: "error",
+                isLoading: false,
+                autoClose: 5000,
+            });
+        } finally {
+            setIsExportingSelectedFile(false);
         }
     };
 
@@ -1376,6 +1440,18 @@ export default function ErpTable() {
                             <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
                         ) : (
                             `Traduci titolo (${editLang.toUpperCase()})`
+                        )}
+                    </button>
+
+                    <button
+                        onClick={() => exportSelectedToFile()}
+                        disabled={isExportingSelectedFile || selectedIds.length === 0}
+                        className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                    >
+                        {isExportingSelectedFile ? (
+                            <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                        ) : (
+                            "Esporta selezionati (Excel/CSV)"
                         )}
                     </button>
                 </div>
