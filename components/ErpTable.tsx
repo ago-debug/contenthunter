@@ -2080,7 +2080,7 @@ export default function ErpTable() {
                                                     <Globe className="w-3 h-3 text-slate-900" /> Web Scraper Engine
                                                 </h4>
                                                 <button
-                                                    onClick={() => searchWebImages(`${selectedProduct.brand || ''} ${selectedProduct.sku}`.trim() || selectedProduct.title)}
+                                                    onClick={() => searchWebImages(`${selectedProduct.brand || ''} ${selectedProduct.sku || ''} ${selectedProduct.ean || ''}`.trim() || selectedProduct.title)}
                                                     disabled={isSearchingWeb}
                                                     className="w-full flex justify-center items-center gap-3 px-6 py-4 bg-gray-50 border border-gray-200 text-slate-900 rounded-xl font-black shadow-sm disabled:opacity-50 hover:bg-white hover:border-slate-400 hover:text-slate-900 transition-all uppercase text-[10px] tracking-widest"
                                                 >

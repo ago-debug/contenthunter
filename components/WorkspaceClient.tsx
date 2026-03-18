@@ -459,7 +459,8 @@ export default function WorkspaceClient() {
 
             const sourcesQuery = searchSources.map(s => s.url).join(',');
             // Enable shopping forcefully if useGoogleShopping is true globally
-            const response = await axios.get(`/api/search-images?q=${encodeURIComponent(product.sku)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${useGoogleShopping}`);
+            const qForSearch = `${product.sku || ""} ${product.ean || ""}`.trim();
+            const response = await axios.get(`/api/search-images?q=${encodeURIComponent(qForSearch)}&sources=${encodeURIComponent(sourcesQuery)}&shopping=${useGoogleShopping}`);
             const images = response.data.images || [];
 
             // Find the best data from all image results
