@@ -1245,6 +1245,39 @@ export default function ErpTable() {
                     )}
                 </div>
 
+                {/* Azioni massivo WooCommerce sotto i filtri */}
+                <div className="px-1 sm:px-0 mt-3 flex flex-wrap gap-3 items-center">
+                    <button
+                        onClick={importFromWoo}
+                        disabled={
+                            isImportingWoo ||
+                            !wooConfig.domain ||
+                            !wooConfig.key ||
+                            !wooConfig.secret
+                        }
+                        className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                    >
+                        {isImportingWoo ? <RefreshCw className="w-4 h-4 animate-spin mx-auto" /> : "Import WooCommerce"}
+                    </button>
+
+                    <button
+                        onClick={exportSelectedToWoo}
+                        disabled={
+                            isMassExportingWoo ||
+                            selectedIds.length === 0 ||
+                            !wooConfig.domain ||
+                            !wooConfig.key
+                        }
+                        className="px-4 py-2 bg-[#111827] text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-black transition-all border border-[#111827] disabled:opacity-50"
+                    >
+                        {isMassExportingWoo ? (
+                            <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                        ) : (
+                            `Push massivo (${selectedIds.length})`
+                        )}
+                    </button>
+                </div>
+
                 {/* Status bar - compatto su mobile */}
                 <div className="px-3 sm:px-5 py-2 sm:py-2.5 bg-white/40 backdrop-blur-xl border border-gray-200/60 rounded-t-2xl flex items-center shadow-sm -mb-[1px]">
                     <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse shrink-0" />
@@ -2164,33 +2197,7 @@ export default function ErpTable() {
                                                 </button>
                                             </div>
 
-                                            <div className="mt-6">
-                                                <button
-                                                    onClick={importFromWoo}
-                                                    disabled={isImportingWoo}
-                                                    className="w-full bg-white text-slate-900 p-4 rounded-3xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
-                                                >
-                                                    {isImportingWoo ? (
-                                                        <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
-                                                    ) : (
-                                                        "Import from WooCommerce"
-                                                    )}
-                                                </button>
-                                            </div>
-
-                                            <div className="mt-4">
-                                                <button
-                                                    onClick={exportSelectedToWoo}
-                                                    disabled={isMassExportingWoo}
-                                                    className="w-full bg-white text-slate-900 p-4 rounded-3xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
-                                                >
-                                                    {isMassExportingWoo ? (
-                                                        <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
-                                                    ) : (
-                                                        "Push massivo (selezionati)"
-                                                    )}
-                                                </button>
-                                            </div>
+                                            {/* Mass actions ora sono sotto i filtri */}
                                         </div>
 
                                         <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
