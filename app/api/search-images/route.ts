@@ -476,8 +476,9 @@ export async function GET(req: NextRequest) {
         .filter(Boolean);
 
     const candidates = extractCandidatesFromQuery(query);
-    const ean = candidates.ean;
-    const skuToken = candidates.skuToken;
+    // Be explicit: avoid `undefined` propagating to scoring helpers during Next.js type-check.
+    const ean: string | null = candidates.ean ?? null;
+    const skuToken: string | null = candidates.skuToken ?? null;
 
     const serpApiKey = process.env.SERPAPI_KEY || process.env.SERPAPI || "";
 
