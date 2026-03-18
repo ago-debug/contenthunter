@@ -206,6 +206,8 @@ export default function ImportLab() {
 
     const fetchRepository = async (id: number) => {
         if (id == null || isNaN(id)) return;
+        // Se la scheda prodotto è aperta, dopo il refresh vogliamo ricaricare anche i campi correnti.
+        const currentSelectedId = selectedProduct?.id;
         setLoading(true);
         try {
             const [repoRes, productsRes, extraFieldsRes] = await Promise.all([
@@ -216,6 +218,12 @@ export default function ImportLab() {
             setRepository(repoRes.data);
             setProducts(productsRes.data);
             setExtraFieldTemplates(extraFieldsRes.data || []);
+
+            // Evita "stale UI": se il prodotto in modal è quello ricaricato, sostituiscilo con i dati aggiornati dal backend.
+            if (currentSelectedId) {
+                const updatedSelected = (productsRes.data as StagingProduct[]).find(p => p.id === currentSelectedId);
+                if (updatedSelected) setSelectedProduct(updatedSelected);
+            }
 
             // If there are PDFs, load the first one's pages if needed
             if (repoRes.data.pdfs?.length > 0) {
