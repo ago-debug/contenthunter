@@ -11,6 +11,8 @@ import * as XLSX from "xlsx";
 import EdgeScroll from "./EdgeScroll";
 import { useCatalog } from "./CatalogContext";
 import { SearchableSelect } from "./SearchableSelect";
+import { useSession } from "next-auth/react";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 // Configure PDF.js worker for production
 if (typeof window !== "undefined") {
@@ -63,8 +65,15 @@ interface ProductData {
 export default function WorkspaceClient() {
     const searchParams = useSearchParams();
 
+    const { data: session } = useSession();
+    const companyContext = useCompanyContext();
+    const effectiveCompanyId =
+        (session?.user as any)?.companyId ?? companyContext?.selectedCompanyId ?? null;
 
-
+    const storageScope = effectiveCompanyId != null ? String(effectiveCompanyId) : "all";
+    const pdfCatalogIdKey = `pdf_catalog_id_${storageScope}`;
+    const pdfCatalogProjectNameKey = `pdf_catalog_project_name_${storageScope}`;
+    const pdfCatalogProductsKey = `pdf_catalog_products_${storageScope}`;
 
     const loadExistingCatalog = async (id: number) => {
         setIsProcessing(true);
@@ -103,7 +112,7 @@ export default function WorkspaceClient() {
 
             if (is404) {
                 // Clear stale ID if it doesn't exist anymore
-                localStorage.removeItem("pdf_catalog_id");
+                localStorage.removeItem(pdfCatalogIdKey);
                 setCatalogId(null);
             }
 
@@ -588,9 +597,9 @@ export default function WorkspaceClient() {
 
         // Restore state from URL or localStorage
         const urlId = searchParams.get("id");
-        const savedCatalogId = localStorage.getItem("pdf_catalog_id");
-        const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
-        const savedProducts = localStorage.getItem("pdf_catalog_products");
+        const savedCatalogId = localStorage.getItem(pdfCatalogIdKey);
+        const savedProjectName = localStorage.getItem(pdfCatalogProjectNameKey);
+        const savedProducts = localStorage.getItem(pdfCatalogProductsKey);
 
         if (savedProjectName) setProjectName(savedProjectName);
 
@@ -598,21 +607,22 @@ export default function WorkspaceClient() {
         if (targetIdStr) {
             const parsedId = parseInt(targetIdStr);
             if (!isNaN(parsedId)) {
-                // If the target ID is different from current or if we are just mounting, load it
-                if (catalogId !== parsedId) {
-                    setCatalogId(parsedId);
-                    loadExistingCatalog(parsedId);
-                }
+                setCatalogId(parsedId);
+                loadExistingCatalog(parsedId);
             }
+        } else {
+            // If no catalog is selected for this company scope, clear stale UI state.
+            resetCatalog();
         }
 
-        if (savedProducts) {
+        // Only restore cached products when we are NOT loading a specific catalog.
+        if (!targetIdStr && savedProducts) {
             try {
                 setProducts(JSON.parse(savedProducts));
                 toast.info("Sessione ripristinata dal database locale.");
             } catch (e) {
                 console.error("Local storage restore error:", e);
-                localStorage.removeItem("pdf_catalog_products");
+                localStorage.removeItem(pdfCatalogProductsKey);
             }
         }
 
@@ -626,7 +636,7 @@ export default function WorkspaceClient() {
 
         window.addEventListener('click', handleGlobalClick);
         return () => window.removeEventListener('click', handleGlobalClick);
-    }, []);
+    }, [pdfCatalogIdKey, pdfCatalogProjectNameKey, pdfCatalogProductsKey, resetCatalog, searchParams]);
 
     const resolveImageUrl = (url: string) => {
         if (url && typeof url === 'string' && url.startsWith("PAGE_REF_")) {
@@ -669,8 +679,8 @@ export default function WorkspaceClient() {
     useEffect(() => {
         const timer = setTimeout(() => {
             try {
-                if (catalogId) localStorage.setItem("pdf_catalog_id", catalogId.toString());
-                if (projectName) localStorage.setItem("pdf_catalog_project_name", projectName);
+                if (catalogId) localStorage.setItem(pdfCatalogIdKey, catalogId.toString());
+                if (projectName) localStorage.setItem(pdfCatalogProjectNameKey, projectName);
                 if (products.length > 0) {
                     const sanitized = products.map((p, pIdx) => ({
                         ...p,
@@ -679,7 +689,7 @@ export default function WorkspaceClient() {
                             url: img.url && typeof img.url === 'string' && img.url.startsWith("data:image") ? "LOCAL_SESSION_ASSET" : img.url
                         }))
                     }));
-                    localStorage.setItem("pdf_catalog_products", JSON.stringify(sanitized));
+                    localStorage.setItem(pdfCatalogProductsKey, JSON.stringify(sanitized));
                 }
             } catch (err) { console.error(err); }
         }, 1000); // 1s Debounce for persistence
