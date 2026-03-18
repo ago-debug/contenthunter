@@ -89,7 +89,12 @@ export async function POST(req: NextRequest) {
         let resolvedSubSubCatId: number | null | undefined = hasSubSubCategoryId ? parseNullableId(body.subSubCategoryId) : undefined;
 
         try {
-            if (category && (resolvedCatId == null || resolvedSubCatId == null || resolvedSubSubCatId == null)) {
+            // Auto-category should only run when IDs are genuinely missing (`undefined`),
+            // not when they are explicitly cleared by the UI (`null`).
+            if (
+                category &&
+                (resolvedCatId === undefined || resolvedSubCatId === undefined || resolvedSubSubCatId === undefined)
+            ) {
                 const cleanCatString = category.toString().trim();
                 if (cleanCatString) {
                     // Supporta separatori tipici per gerarchie: ">" oppure "/", "|" (oltre a varianti con spazi)
