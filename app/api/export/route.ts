@@ -158,6 +158,7 @@ export async function POST(req: NextRequest) {
         const {
             fields = ["sku", "title", "price", "brand", "category", "images"],
             filters = {},
+            format = "xlsx",
         } = body as {
             fields?: string[];
             filters?: {
@@ -167,7 +168,10 @@ export async function POST(req: NextRequest) {
                 subCategoryId?: number;
                 subSubCategoryId?: number;
             };
+            format?: "xlsx" | "csv";
         };
+
+        const outputFormat: "xlsx" | "csv" = format === "csv" ? "csv" : "xlsx";
 
         const filterWhere = buildWhere(filters);
         const where = { companyId: ctx.companyId, ...filterWhere };
@@ -328,6 +332,36 @@ export async function POST(req: NextRequest) {
 
             return row;
         });
+
+        const csvEscape = (value: any) => {
+            const v = value === undefined || value === null ? "" : String(value);
+            // Quote se contiene virgole/doppi apici/a capo
+            if (/[",\r\n]/.test(v)) {
+                return `"${v.replace(/"/g, '""')}"`;
+            }
+            return v;
+        };
+
+        const orderedHeaders: string[] = [
+            ...colOrder.map((c) => c.label),
+            ...Array.from(allExtraKeys),
+        ];
+
+        if (outputFormat === "csv") {
+            const headerLine = orderedHeaders.map(csvEscape).join(",");
+            const lines = data.map((row: any) => {
+                return orderedHeaders.map((h) => csvEscape(row?.[h])).join(",");
+            });
+            const csv = [headerLine, ...lines].join("\r\n");
+
+            return new Response(csv, {
+                status: 200,
+                headers: {
+                    "Content-Disposition": `attachment; filename="export-${Date.now()}.csv"`,
+                    "Content-Type": "text/csv; charset=utf-8",
+                },
+            });
+        }
 
         const worksheet = XLSX.utils.json_to_sheet(data);
         const workbook = XLSX.utils.book_new();

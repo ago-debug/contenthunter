@@ -91,7 +91,7 @@ export default function ExportPage() {
     const selectAllFields = () => setSelectedFields(EXPORT_FIELD_OPTIONS.map((f) => f.key));
     const deselectAllFields = () => setSelectedFields([]);
 
-    const handleExportExcel = async () => {
+    const handleExport = async (format: "xlsx" | "csv") => {
         if (selectedFields.length === 0) return;
         setExporting(true);
         try {
@@ -107,7 +107,7 @@ export default function ExportPage() {
             const res = await fetch(`/api/export${query}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fields: selectedFields, filters }),
+                body: JSON.stringify({ fields: selectedFields, filters, format }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
@@ -117,7 +117,7 @@ export default function ExportPage() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `export-${Date.now()}.xlsx`;
+            a.download = `export-${Date.now()}.${format === "csv" ? "csv" : "xlsx"}`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err: any) {
@@ -285,12 +285,20 @@ export default function ExportPage() {
                         {selectedFields.length} campi selezionati
                     </span>
                     <button
-                        onClick={handleExportExcel}
+                        onClick={() => handleExport("xlsx")}
                         disabled={selectedFields.length === 0 || exporting}
                         className="btn-primary py-3 px-6 sm:px-8 flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 touch-manipulation"
                     >
                         <FileDown className="w-4 h-4" />
                         {exporting ? "Export in corso..." : "Esporta Excel"}
+                    </button>
+                    <button
+                        onClick={() => handleExport("csv")}
+                        disabled={selectedFields.length === 0 || exporting}
+                        className="btn-secondary py-3 px-6 sm:px-8 flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 touch-manipulation"
+                        title="CSV con separatore virgola (,)"
+                    >
+                        {exporting ? "Export..." : "Esporta CSV (,)"}
                     </button>
                 </div>
             </div>
@@ -366,20 +374,28 @@ export default function ExportPage() {
             {/* Sticky CTA mobile */}
             <div className="fixed bottom-0 left-0 right-0 lg:hidden bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3 z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] safe-area-pb">
                 <span className="text-xs text-gray-500">{selectedFields.length} campi</span>
-                <button
-                    onClick={handleExportExcel}
-                    disabled={selectedFields.length === 0 || exporting}
-                    className="btn-primary py-3 px-6 flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 touch-manipulation flex-1 max-w-[240px] justify-center"
-                >
-                    <FileDown className="w-4 h-4" />
-                    {exporting ? "Export..." : "Esporta Excel"}
-                </button>
+                <div className="flex gap-2 flex-1 justify-end max-w-[240px]">
+                    <button
+                        onClick={() => handleExport("xlsx")}
+                        disabled={selectedFields.length === 0 || exporting}
+                        className="btn-primary py-3 px-3 flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 touch-manipulation flex-1 justify-center text-xs"
+                    >
+                        {exporting ? "..." : "Excel"}
+                    </button>
+                    <button
+                        onClick={() => handleExport("csv")}
+                        disabled={selectedFields.length === 0 || exporting}
+                        className="btn-secondary py-3 px-3 flex items-center gap-2 disabled:opacity-50 shadow-lg active:scale-95 touch-manipulation flex-1 justify-center text-xs"
+                    >
+                        {exporting ? "..." : "CSV (,)"}
+                    </button>
+                </div>
             </div>
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 px-2 sm:px-10 text-[9px] sm:text-[10px] font-bold text-gray-300 uppercase tracking-widest">
                 <div className="flex items-center gap-4 sm:gap-6">
                     <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                    <span className="break-words">XLSX · Campi selezionabili · Immagini = link</span>
+                    <span className="break-words">XLSX/CSV · Campi selezionabili · Immagini = link</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500/50 shrink-0" />
