@@ -36,6 +36,7 @@ export async function POST(req: Request) {
             key,
             secret,
             limit = 20,
+            mapping,
             overwrite = {
                 base: true,
                 texts: true,
@@ -48,6 +49,13 @@ export async function POST(req: Request) {
             key: string;
             secret: string;
             limit?: number;
+            mapping?: {
+                brandAttributeName?: string;
+                materialAttributeName?: string;
+                dimensionsAttributeName?: string;
+                extrasToERPExtraFields?: boolean;
+                extrasToAttributes?: boolean;
+            };
             overwrite?: {
                 base?: boolean;
                 texts?: boolean;
@@ -90,9 +98,15 @@ export async function POST(req: Request) {
                 }
 
                 const wooAttrs = Array.isArray(wp?.attributes) ? wp.attributes : [];
-                const brandName = getWooAttr(wooAttrs, "Brand");
-                const material = getWooAttr(wooAttrs, "Material");
-                const dimensions = getWooAttr(wooAttrs, "Dimensions");
+
+                const effectiveBrandAttr = (mapping?.brandAttributeName ?? "Brand").toString();
+                const effectiveMaterialAttr = (mapping?.materialAttributeName ?? "Material").toString();
+                const effectiveDimensionsAttr = (mapping?.dimensionsAttributeName ?? "Dimensions").toString();
+                const extrasToERPExtraFields = mapping?.extrasToERPExtraFields ?? true;
+
+                const brandName = getWooAttr(wooAttrs, effectiveBrandAttr);
+                const material = getWooAttr(wooAttrs, effectiveMaterialAttr);
+                const dimensions = getWooAttr(wooAttrs, effectiveDimensionsAttr);
 
                 const categoryName = Array.isArray(wp?.categories) ? wp.categories?.[0]?.name ?? null : null;
                 const priceNum = parsePrice(wp?.regular_price ?? null);
@@ -207,19 +221,45 @@ export async function POST(req: Request) {
                     // Legacy extras -> ProductExtra
                     if (overwrite?.extras || !existing) {
                         const extrasToSet: Record<string, string> = {};
+
                         if (dimensions) extrasToSet.dimensions = dimensions;
                         if (material) extrasToSet.material = material;
 
-                        // Optional: map Woo stock_quantity -> stockLocal
+                        // Map Woo stock_quantity -> stockLocal
                         const stockQty = wp?.stock_quantity ?? null;
                         const stockLocal = stockQty !== null && stockQty !== undefined ? String(stockQty) : null;
                         if (stockLocal && stockLocal.trim() !== "") extrasToSet.stockLocal = stockLocal;
 
+                        // Map all other Woo attributes into ERP extraFields (key = attribute name)
+                        if (extrasToERPExtraFields) {
+                            for (const a of wooAttrs) {
+                                const attrName = (a?.name || "").toString().trim();
+                                if (!attrName) continue;
+
+                                const attrNameLower = attrName.toLowerCase();
+                                const brandLower = effectiveBrandAttr.toLowerCase();
+                                const materialLower = effectiveMaterialAttr.toLowerCase();
+                                const dimensionsLower = effectiveDimensionsAttr.toLowerCase();
+
+                                // Skip attributes mapped to legacy fields already
+                                if (attrNameLower === brandLower) continue;
+                                if (attrNameLower === materialLower) continue;
+                                if (attrNameLower === dimensionsLower) continue;
+
+                                const opt0 = Array.isArray(a?.options) ? a.options[0] : null;
+                                const val = (opt0 ?? "").toString().trim();
+                                if (!val) continue;
+
+                                extrasToSet[attrName] = val;
+                            }
+                        }
+
                         for (const [k, v] of Object.entries(extrasToSet)) {
+                            if (!v || !v.toString().trim()) continue;
                             await prisma.productExtra.upsert({
                                 where: { productId_key: { productId, key: k } },
-                                update: { value: v },
-                                create: { productId, key: k, value: v },
+                                update: { value: v.toString() },
+                                create: { productId, key: k, value: v.toString() },
                             });
                         }
                     }

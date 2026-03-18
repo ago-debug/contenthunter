@@ -96,6 +96,7 @@ export default function ErpTable() {
     const [isConnectingWoo, setIsConnectingWoo] = useState(false);
     const [isPublishingWoo, setIsPublishingWoo] = useState(false);
     const [isImportingWoo, setIsImportingWoo] = useState(false);
+    const [isMassExportingWoo, setIsMassExportingWoo] = useState(false);
     const [showBrandsPanel, setShowBrandsPanel] = useState(false);
     const [selectedBrandForEdit, setSelectedBrandForEdit] = useState<any | null>(null);
     const [brandEditForm, setBrandEditForm] = useState({ aiContentGuidelines: "", producerDomain: "", logoUrl: "" });
@@ -189,6 +190,79 @@ export default function ErpTable() {
         }
     };
 
+    const ensureWooMapping = async () => {
+        const storageKey = "pim_woo_mapping_v1";
+        const saved = localStorage.getItem(storageKey);
+        const savedMapping = saved ? (() => {
+            try { return JSON.parse(saved); } catch { return null; }
+        })() : null;
+
+        // Always read Woo attributes before asking the mapping decision
+        let attributeNames: string[] = [];
+        try {
+            const res = await axios.get("/api/integrations/woocommerce", { params: wooConfig });
+            attributeNames = res.data.attributeNames || [];
+        } catch {
+            // ignore, mapping will use defaults
+        }
+
+        const defaultPick = (needle: string, fallback: string) => {
+            const match = attributeNames.find((n: string) => n.toLowerCase().includes(needle.toLowerCase()));
+            if (match) return match;
+            return attributeNames.includes(fallback) ? fallback : fallback;
+        };
+
+        const draftMapping = {
+            brandAttributeName:
+                savedMapping?.brandAttributeName ||
+                defaultPick("brand", "Brand"),
+            materialAttributeName:
+                savedMapping?.materialAttributeName ||
+                defaultPick("material", "Material"),
+            dimensionsAttributeName:
+                savedMapping?.dimensionsAttributeName ||
+                defaultPick("dimension", "Dimensions"),
+            extrasToAttributes: savedMapping?.extrasToAttributes ?? true,
+            extrasToERPExtraFields: savedMapping?.extrasToERPExtraFields ?? true,
+        };
+
+        if (savedMapping) {
+            const ok = window.confirm("Vuoi usare il mapping WooCommerce salvato (Brand/Material/Dimensions) ?");
+            if (ok) return savedMapping;
+        }
+
+        const brandAttr = window.prompt(
+            "Nome attributo Woo per BRAND (es. 'Brand'). Lascia vuoto per non usarlo:",
+            draftMapping.brandAttributeName
+        );
+        if (brandAttr === null) return null;
+
+        const materialAttr = window.prompt(
+            "Nome attributo Woo per MATERIAL (es. 'Material'). Lascia vuoto per non usarlo:",
+            draftMapping.materialAttributeName
+        );
+        if (materialAttr === null) return null;
+
+        const dimensionsAttr = window.prompt(
+            "Nome attributo Woo per DIMENSIONS (es. 'Dimensions'). Lascia vuoto per non usarlo:",
+            draftMapping.dimensionsAttributeName
+        );
+        if (dimensionsAttr === null) return null;
+
+        const extrasConfirm = window.confirm("Mappare tutti gli altri attributi WooCommerce su ERP come 'extraFields'?");
+
+        const nextMapping = {
+            brandAttributeName: brandAttr.trim(),
+            materialAttributeName: materialAttr.trim(),
+            dimensionsAttributeName: dimensionsAttr.trim(),
+            extrasToAttributes: extrasConfirm,
+            extrasToERPExtraFields: extrasConfirm,
+        };
+
+        localStorage.setItem(storageKey, JSON.stringify(nextMapping));
+        return nextMapping;
+    };
+
     const handleAddCategory = async (name: string, parentId: number | null, level: 1 | 2 | 3) => {
         try {
             const res = await axios.post('/api/categories', { name, parentId });
@@ -210,9 +284,13 @@ export default function ErpTable() {
         }
         setIsPublishingWoo(true);
         try {
+            const mapping = await ensureWooMapping();
+            if (!mapping) return;
+
             const res = await axios.post("/api/integrations/woocommerce", {
                 ...wooConfig,
-                product
+                product,
+                mapping
             });
             toast.success(`Prodotto pubblicato! ID WooCommerce: ${res.data.wooId}`);
             // Update local product with wooId
@@ -233,6 +311,9 @@ export default function ErpTable() {
             return;
         }
 
+        const mapping = await ensureWooMapping();
+        if (!mapping) return;
+
         const limitRaw = window.prompt("Quanti prodotti importare da WooCommerce? (default 20)", "20");
         if (limitRaw === null) return;
         const limit = parseInt(limitRaw || "20", 10);
@@ -246,7 +327,8 @@ export default function ErpTable() {
         try {
             const res = await axios.post("/api/integrations/woocommerce/import", {
                 ...wooConfig,
-                limit
+                limit,
+                mapping
             });
 
             const msg =
@@ -270,6 +352,52 @@ export default function ErpTable() {
             });
         } finally {
             setIsImportingWoo(false);
+        }
+    };
+
+    const exportSelectedToWoo = async () => {
+        if (!selectedIds.length) {
+            toast.warning("Seleziona prima almeno un prodotto.");
+            return;
+        }
+        const mapping = await ensureWooMapping();
+        if (!mapping) return;
+
+        const list = products.filter((p: any) => selectedIds.includes(p.id));
+        if (!list.length) return;
+
+        if (!window.confirm(`Push massivo su WooCommerce di ${list.length} prodotti (selezionati)?`)) return;
+
+        setIsMassExportingWoo(true);
+        const toastId = toast.loading("Push massivo su WooCommerce in corso...");
+        let created = 0;
+        let updated = 0;
+        let errors = 0;
+
+        try {
+            for (const prod of list) {
+                try {
+                    const res = await axios.post("/api/integrations/woocommerce", {
+                        ...wooConfig,
+                        product: prod,
+                        mapping,
+                    });
+                    if (res.data.action === "updated") updated++;
+                    else created++;
+                } catch (err: any) {
+                    errors++;
+                    console.error("Woo mass export error:", err.response?.data || err.message || err);
+                }
+            }
+        } finally {
+            toast.update(toastId, {
+                render: `Push massivo completato: ${created} creati, ${updated} aggiornati, ${errors} errori.`,
+                type: errors ? "warning" : "success",
+                isLoading: false,
+                autoClose: 6000,
+            });
+            setIsMassExportingWoo(false);
+            fetchProducts();
         }
     };
 
@@ -2019,6 +2147,20 @@ export default function ErpTable() {
                                                         <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
                                                     ) : (
                                                         "Import from WooCommerce"
+                                                    )}
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-4">
+                                                <button
+                                                    onClick={exportSelectedToWoo}
+                                                    disabled={isMassExportingWoo}
+                                                    className="w-full bg-white text-slate-900 p-4 rounded-3xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                                                >
+                                                    {isMassExportingWoo ? (
+                                                        <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+                                                    ) : (
+                                                        "Push massivo (selezionati)"
                                                     )}
                                                 </button>
                                             </div>
