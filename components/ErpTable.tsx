@@ -95,6 +95,7 @@ export default function ErpTable() {
     const [wooFields, setWooFields] = useState<string[]>([]);
     const [isConnectingWoo, setIsConnectingWoo] = useState(false);
     const [isPublishingWoo, setIsPublishingWoo] = useState(false);
+    const [isImportingWoo, setIsImportingWoo] = useState(false);
     const [showBrandsPanel, setShowBrandsPanel] = useState(false);
     const [selectedBrandForEdit, setSelectedBrandForEdit] = useState<any | null>(null);
     const [brandEditForm, setBrandEditForm] = useState({ aiContentGuidelines: "", producerDomain: "", logoUrl: "" });
@@ -222,6 +223,53 @@ export default function ErpTable() {
             toast.error(err.response?.data?.error || "Errore di pubblicazione");
         } finally {
             setIsPublishingWoo(false);
+        }
+    };
+
+    const importFromWoo = async () => {
+        if (!wooConfig.domain || !wooConfig.key || !wooConfig.secret) {
+            toast.warning("Configura prima l'integrazione WooCommerce nelle impostazioni.");
+            setActiveTab("woocommerce");
+            return;
+        }
+
+        const limitRaw = window.prompt("Quanti prodotti importare da WooCommerce? (default 20)", "20");
+        if (limitRaw === null) return;
+        const limit = parseInt(limitRaw || "20", 10);
+        if (!Number.isFinite(limit) || limit <= 0) {
+            toast.info("Valore non valido per il limite.");
+            return;
+        }
+
+        setIsImportingWoo(true);
+        const toastId = toast.loading("Importazione prodotti da WooCommerce in corso...");
+        try {
+            const res = await axios.post("/api/integrations/woocommerce/import", {
+                ...wooConfig,
+                limit
+            });
+
+            const msg =
+                `Import completato: ` +
+                `${res.data.created || 0} creati, ${res.data.updated || 0} aggiornati, ` +
+                `${res.data.skipped || 0} saltati, ${res.data.errors || 0} errori.`;
+
+            toast.update(toastId, {
+                render: msg,
+                type: "success",
+                isLoading: false,
+                autoClose: 5000
+            });
+            fetchProducts();
+        } catch (err: any) {
+            toast.update(toastId, {
+                render: err.response?.data?.error || "Errore durante l'importazione da WooCommerce",
+                type: "error",
+                isLoading: false,
+                autoClose: 5000
+            });
+        } finally {
+            setIsImportingWoo(false);
         }
     };
 
@@ -1958,6 +2006,20 @@ export default function ErpTable() {
                                                     className="bg-[#111827] text-white p-8 rounded-3xl font-black uppercase text-xs tracking-[0.2em] hover:bg-black transition-all shadow-2xl shadow-slate-200 disabled:opacity-50"
                                                 >
                                                     {isPublishingWoo ? <RefreshCw className="w-6 h-6 animate-spin mx-auto" /> : "Push to Store"}
+                                                </button>
+                                            </div>
+
+                                            <div className="mt-6">
+                                                <button
+                                                    onClick={importFromWoo}
+                                                    disabled={isImportingWoo}
+                                                    className="w-full bg-white text-slate-900 p-4 rounded-3xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                                                >
+                                                    {isImportingWoo ? (
+                                                        <RefreshCw className="w-5 h-5 animate-spin mx-auto" />
+                                                    ) : (
+                                                        "Import from WooCommerce"
+                                                    )}
                                                 </button>
                                             </div>
                                         </div>
