@@ -66,12 +66,30 @@ export async function POST(req: NextRequest) {
             console.warn("[AUTO-BRAND] Skipped:", brandErr);
         }
 
-        let resolvedCatId = body.categoryId ? Number(body.categoryId) : undefined;
-        let resolvedSubCatId = body.subCategoryId ? Number(body.subCategoryId) : undefined;
-        let resolvedSubSubCatId = body.subSubCategoryId ? Number(body.subSubCategoryId) : undefined;
+        // Parse category hierarchy IDs robustly:
+        // - if the field is missing (undefined), we should not update that level
+        // - if the field is explicitly null, we should clear that level
+        // - avoid "truthy" checks so IDs like `0` (if ever used) don't get dropped
+        const hasCategoryId = Object.prototype.hasOwnProperty.call(body, "categoryId");
+        const hasSubCategoryId = Object.prototype.hasOwnProperty.call(body, "subCategoryId");
+        const hasSubSubCategoryId = Object.prototype.hasOwnProperty.call(body, "subSubCategoryId");
+
+        const parseNullableId = (val: any): number | null | undefined => {
+            if (val === undefined) return undefined;
+            if (val === null) return null;
+            const s = String(val).trim();
+            if (!s) return null;
+            const n = Number(s);
+            if (Number.isNaN(n)) return undefined;
+            return n;
+        };
+
+        let resolvedCatId: number | null | undefined = hasCategoryId ? parseNullableId(body.categoryId) : undefined;
+        let resolvedSubCatId: number | null | undefined = hasSubCategoryId ? parseNullableId(body.subCategoryId) : undefined;
+        let resolvedSubSubCatId: number | null | undefined = hasSubSubCategoryId ? parseNullableId(body.subSubCategoryId) : undefined;
 
         try {
-            if (category && (!resolvedCatId || !resolvedSubCatId || !resolvedSubSubCatId)) {
+            if (category && (resolvedCatId == null || resolvedSubCatId == null || resolvedSubSubCatId == null)) {
                 const cleanCatString = category.toString().trim();
                 if (cleanCatString) {
                     // Supporta separatori tipici per gerarchie: ">" oppure "/", "|" (oltre a varianti con spazi)
