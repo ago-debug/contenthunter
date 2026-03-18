@@ -134,7 +134,9 @@ export async function POST(
                         },
                     });
                 } else {
-                    // aggiorna campi base solo se arrivano valori non vuoti
+                    // Aggiorna campi base.
+                    // - Se overwrite.base è true: aggiorna tutto come in passato.
+                    // - Se overwrite.base è false: aggiorna almeno `brand`/`category` SOLO se sono vuoti in DB.
                     if (overwriteOptions.base) {
                         await prisma.stagingProduct.update({
                             where: { id: staging.id },
@@ -146,6 +148,27 @@ export async function POST(
                                 category: p.category ? String(p.category) : staging.category,
                             },
                         });
+                    } else {
+                        const incomingBrand = p.brand ? String(p.brand) : null;
+                        const incomingCategory = p.category ? String(p.category) : null;
+                        const updateFields: any = {};
+
+                        if (incomingBrand && (!staging.brand || String(staging.brand).trim() === "")) {
+                            updateFields.brand = incomingBrand;
+                        }
+                        if (
+                            incomingCategory &&
+                            (!staging.category || String(staging.category).trim() === "")
+                        ) {
+                            updateFields.category = incomingCategory;
+                        }
+
+                        if (Object.keys(updateFields).length > 0) {
+                            await prisma.stagingProduct.update({
+                                where: { id: staging.id },
+                                data: updateFields,
+                            });
+                        }
                     }
                 }
 
