@@ -54,7 +54,11 @@ export async function POST(req: Request) {
                 materialAttributeName?: string;
                 dimensionsAttributeName?: string;
                 extrasToERPExtraFields?: boolean;
-                extrasToAttributes?: boolean;
+                // Woo stock_quantity -> ERP extraFields (stockLocal/stockSupplier)
+                stockQuantityERPKey?: "stockLocal" | "stockSupplier";
+                // ACF meta_data keys (tipicamente "acf_")
+                acfMetaPrefix?: string;
+                acfToERPExtraFields?: boolean;
             };
             overwrite?: {
                 base?: boolean;
@@ -103,6 +107,9 @@ export async function POST(req: Request) {
                 const effectiveMaterialAttr = (mapping?.materialAttributeName ?? "Material").toString();
                 const effectiveDimensionsAttr = (mapping?.dimensionsAttributeName ?? "Dimensions").toString();
                 const extrasToERPExtraFields = mapping?.extrasToERPExtraFields ?? true;
+                const stockKey = mapping?.stockQuantityERPKey ?? "stockLocal";
+                const acfPrefix = (mapping?.acfMetaPrefix ?? "acf_").toString().trim();
+                const acfToERPExtraFields = mapping?.acfToERPExtraFields ?? true;
 
                 const brandName = getWooAttr(wooAttrs, effectiveBrandAttr);
                 const material = getWooAttr(wooAttrs, effectiveMaterialAttr);
@@ -228,7 +235,7 @@ export async function POST(req: Request) {
                         // Map Woo stock_quantity -> stockLocal
                         const stockQty = wp?.stock_quantity ?? null;
                         const stockLocal = stockQty !== null && stockQty !== undefined ? String(stockQty) : null;
-                        if (stockLocal && stockLocal.trim() !== "") extrasToSet.stockLocal = stockLocal;
+                        if (stockLocal && stockLocal.trim() !== "") extrasToSet[stockKey] = stockLocal;
 
                         // Map all other Woo attributes into ERP extraFields (key = attribute name)
                         if (extrasToERPExtraFields) {
@@ -251,6 +258,32 @@ export async function POST(req: Request) {
                                 if (!val) continue;
 
                                 extrasToSet[attrName] = val;
+                            }
+                        }
+
+                        // Map ACF custom fields from Woo meta_data -> ERP extraFields
+                        if (acfToERPExtraFields && acfPrefix) {
+                            const metaData = Array.isArray(wp?.meta_data) ? wp.meta_data : [];
+                            for (const md of metaData) {
+                                const mKey = md?.key;
+                                if (typeof mKey !== "string") continue;
+                                if (!mKey.toLowerCase().startsWith(acfPrefix.toLowerCase())) continue;
+                                const mVal = md?.value;
+                                const valStr = mVal === null || mVal === undefined ? "" : mVal.toString().trim();
+                                if (!valStr) continue;
+                                extrasToSet[mKey] = valStr;
+                            }
+
+                            // Fallback: if Woo response exposes `acf` object directly
+                            const acfObj = wp?.acf;
+                            if (acfObj && typeof acfObj === "object" && !Array.isArray(acfObj)) {
+                                for (const [k, v] of Object.entries(acfObj as any)) {
+                                    if (!k) continue;
+                                    const fullKey = k.toLowerCase().startsWith(acfPrefix.toLowerCase()) ? k : `${acfPrefix}${k}`;
+                                    const valStr = v === null || v === undefined ? "" : v.toString().trim();
+                                    if (!valStr) continue;
+                                    extrasToSet[fullKey] = valStr;
+                                }
                             }
                         }
 

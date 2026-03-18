@@ -6,6 +6,14 @@ type WooMapping = {
     materialAttributeName?: string;
     dimensionsAttributeName?: string;
     extrasToAttributes?: boolean;
+    // ERP: stockLocal/stockSupplier (usato per stock_quantity di Woo)
+    stockQuantityERPKey?: "stockLocal" | "stockSupplier";
+    // ACF: prefisso meta key (tipicamente "acf_")
+    acfMetaPrefix?: string;
+    // Import: meta_data ACF -> extraFields ERP
+    acfToERPExtraFields?: boolean;
+    // Export: extraFields ERP con prefisso ACF -> meta_data su Woo
+    acfToWooMeta?: boolean;
 };
 
 export async function GET(req: Request) {
@@ -41,12 +49,22 @@ export async function GET(req: Request) {
             )
         );
 
+        const sampleMetaData = Array.isArray(sampleProduct?.meta_data) ? sampleProduct.meta_data : [];
+        const acfMetaKeys = Array.from(
+            new Set(
+                sampleMetaData
+                    .map((m: any) => m?.key)
+                    .filter((k: any) => typeof k === "string" && k.trim().toLowerCase().startsWith("acf_"))
+            )
+        );
+
         return NextResponse.json({
             success: true,
             fields,
             sampleProduct,
             totalFound: response.data.length,
-            attributeNames
+            attributeNames,
+            acfMetaKeys
         });
     } catch (err: any) {
         console.error("WooCommerce Error:", err.response?.data || err.message);
@@ -77,11 +95,26 @@ export async function POST(req: Request) {
             materialAttributeName: mapping?.materialAttributeName ?? "Material",
             dimensionsAttributeName: mapping?.dimensionsAttributeName ?? "Dimensions",
             extrasToAttributes: mapping?.extrasToAttributes ?? true,
+            stockQuantityERPKey: mapping?.stockQuantityERPKey ?? "stockLocal",
+            acfMetaPrefix: mapping?.acfMetaPrefix ?? "acf_",
+            acfToERPExtraFields: mapping?.acfToERPExtraFields ?? true,
+            acfToWooMeta: mapping?.acfToWooMeta ?? true,
         };
 
         const brandAttrName = (effectiveMapping.brandAttributeName || "").toString().trim();
         const materialAttrName = (effectiveMapping.materialAttributeName || "").toString().trim();
         const dimensionsAttrName = (effectiveMapping.dimensionsAttributeName || "").toString().trim();
+        const acfPrefix = (effectiveMapping.acfMetaPrefix || "acf_").toString().trim();
+        const stockKey = effectiveMapping.stockQuantityERPKey ?? "stockLocal";
+
+        const erpStockRaw =
+            product?.extraFields?.[stockKey] ??
+            product?.stock ??
+            null;
+        const erpStockNum =
+            erpStockRaw !== null && erpStockRaw !== undefined
+                ? parseInt(String(erpStockRaw), 10) || 0
+                : null;
 
         // Map PIM product to WooCommerce format
         const wooProduct = {
@@ -94,10 +127,10 @@ export async function POST(req: Request) {
             categories: product.category ? [{ name: product.category }] : [],
             images: (product.images || []).map((img: any) => ({ src: img.url })),
             attributes: [] as any[],
-            ...(product.stock !== undefined && product.stock !== null
+            ...(erpStockNum !== null
                 ? {
                     manage_stock: true,
-                    stock_quantity: parseInt(String(product.stock), 10) || 0,
+                    stock_quantity: erpStockNum,
                 }
                 : {})
         };
@@ -119,6 +152,7 @@ export async function POST(req: Request) {
             const skipKeys = new Set(["stockLocal", "stockSupplier", "dimensions", "material", "weight"]);
             for (const [k, v] of Object.entries(product.extraFields)) {
                 if (skipKeys.has(k)) continue;
+                if (effectiveMapping.acfToWooMeta && acfPrefix && k.toLowerCase().startsWith(acfPrefix.toLowerCase())) continue;
                 const value = v?.toString?.().trim?.() ?? "";
                 if (!value) continue;
                 attributes.push({
@@ -131,6 +165,21 @@ export async function POST(req: Request) {
         }
 
         wooProduct.attributes = attributes;
+
+        // Map ACF fields (ERP extraFields with acf prefix) -> Woo meta_data
+        if (effectiveMapping.acfToWooMeta && acfPrefix && product.extraFields && typeof product.extraFields === "object") {
+            const metaEntries: { key: string; value: string }[] = [];
+            for (const [k, v] of Object.entries(product.extraFields)) {
+                if (!k || !k.toLowerCase().startsWith(acfPrefix.toLowerCase())) continue;
+                const value = v?.toString?.().trim?.() ?? "";
+                if (!value) continue;
+                metaEntries.push({ key: k, value });
+            }
+            if (metaEntries.length > 0) {
+                // Woo expects meta_data: [{key,value}]
+                (wooProduct as any).meta_data = metaEntries;
+            }
+        }
 
         // Upsert by SKU: if product exists -> PUT, else -> POST
         const existingRes = await axios.get(`${domain}/wp-json/wc/v3/products`, {

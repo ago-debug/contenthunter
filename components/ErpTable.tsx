@@ -199,9 +199,11 @@ export default function ErpTable() {
 
         // Always read Woo attributes before asking the mapping decision
         let attributeNames: string[] = [];
+        let acfMetaKeys: string[] = [];
         try {
             const res = await axios.get("/api/integrations/woocommerce", { params: wooConfig });
             attributeNames = res.data.attributeNames || [];
+            acfMetaKeys = res.data.acfMetaKeys || [];
         } catch {
             // ignore, mapping will use defaults
         }
@@ -224,10 +226,14 @@ export default function ErpTable() {
                 defaultPick("dimension", "Dimensions"),
             extrasToAttributes: savedMapping?.extrasToAttributes ?? true,
             extrasToERPExtraFields: savedMapping?.extrasToERPExtraFields ?? true,
+            stockQuantityERPKey: savedMapping?.stockQuantityERPKey ?? "stockLocal",
+            acfMetaPrefix: savedMapping?.acfMetaPrefix ?? "acf_",
+            acfToERPExtraFields: savedMapping?.acfToERPExtraFields ?? true,
+            acfToWooMeta: savedMapping?.acfToWooMeta ?? true,
         };
 
         if (savedMapping) {
-            const ok = window.confirm("Vuoi usare il mapping WooCommerce salvato (Brand/Material/Dimensions) ?");
+            const ok = window.confirm("Vuoi usare il mapping WooCommerce salvato (Brand/Material/Dimensions/Stock/ACF)?");
             if (ok) return savedMapping;
         }
 
@@ -251,12 +257,33 @@ export default function ErpTable() {
 
         const extrasConfirm = window.confirm("Mappare tutti gli altri attributi WooCommerce su ERP come 'extraFields'?");
 
+        const stockKey = window.prompt(
+            "Dove vuoi salvare Woo stock_quantity in ERP? (scrivi stockLocal o stockSupplier)",
+            draftMapping.stockQuantityERPKey
+        );
+        if (stockKey === null) return null;
+        const normalizedStockKey =
+            stockKey.toString().trim() === "stockSupplier" ? "stockSupplier" : "stockLocal";
+
+        const acfKeysPreview = acfMetaKeys?.length ? acfMetaKeys.slice(0, 6).join(", ") : "";
+        const acfImport = window.confirm(
+            "Vuoi importare in ERP (extraFields) i campi ACF di WooCommerce (meta_data con chiave che inizia 'acf_')? " +
+                (acfKeysPreview ? `(esempi: ${acfKeysPreview}${acfMetaKeys.length > 6 ? "..." : ""})` : "")
+        );
+        const acfExport = window.confirm(
+            "Quando pubblichi su Woo, vuoi rimandare i campi ACF dai tuoi extraFields ERP verso Woo (meta_data)?"
+        );
+
         const nextMapping = {
             brandAttributeName: brandAttr.trim(),
             materialAttributeName: materialAttr.trim(),
             dimensionsAttributeName: dimensionsAttr.trim(),
             extrasToAttributes: extrasConfirm,
             extrasToERPExtraFields: extrasConfirm,
+            stockQuantityERPKey: normalizedStockKey,
+            acfMetaPrefix: draftMapping.acfMetaPrefix,
+            acfToERPExtraFields: acfImport,
+            acfToWooMeta: acfExport,
         };
 
         localStorage.setItem(storageKey, JSON.stringify(nextMapping));
