@@ -2076,22 +2076,77 @@ export default function ImportLab() {
                                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6 px-1">Anteprima Dati (prime 3 righe)</h4>
                                     <div className="border border-slate-100 rounded-3xl overflow-hidden shadow-sm bg-slate-50/50">
                                         <table className="w-full text-left text-xs">
-                                            <thead>
-                                                <tr className="bg-slate-100">
-                                                    {rawHeaders.slice(0, 5).map((h, i) => (
-                                                        <th key={i} className="px-5 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px]">{h}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {rawRows.slice(0, 3).map((row, i) => (
-                                                    <tr key={i}>
-                                                        {rawHeaders.slice(0, 5).map((h, j) => (
-                                                            <td key={j} className="px-5 py-3 font-bold text-slate-600 truncate max-w-[150px]">{row[rawHeaders.indexOf(h)]}</td>
-                                                        ))}
-                                                    </tr>
-                                                ))}
-                                            </tbody>
+                                            {/* Mostra le colonne effettivamente mappate (cosi capisci perché un campo non arriva in scheda). */}
+                                            {(() => {
+                                                const previewFieldOrder = [
+                                                    "sku",
+                                                    "ean",
+                                                    "parentSku",
+                                                    "category",
+                                                    "brand",
+                                                    "title",
+                                                    "price",
+                                                ] as const;
+
+                                                const fieldLabelMap: Record<string, string> = {
+                                                    sku: "SKU",
+                                                    ean: "EAN",
+                                                    parentSku: "SKU Padre",
+                                                    category: "Categoria",
+                                                    brand: "Brand",
+                                                    title: "Titolo",
+                                                    price: "Prezzo",
+                                                };
+
+                                                const mappedFields = previewFieldOrder.filter((f) => !!mapping[f]);
+
+                                                const columns = (mappedFields.length > 0
+                                                    ? mappedFields.map((field) => ({
+                                                        field,
+                                                        header: mapping[field]!,
+                                                        label: fieldLabelMap[field] || field,
+                                                    }))
+                                                    : rawHeaders.slice(0, 5).map((h) => ({
+                                                        field: h,
+                                                        header: h,
+                                                        label: h,
+                                                    }))) as Array<{ field: string; header: string; label: string }>;
+
+                                                return (
+                                                    <>
+                                                        <thead>
+                                                            <tr className="bg-slate-100">
+                                                                {columns.map((c, i) => (
+                                                                    <th
+                                                                        key={`${c.field}-${i}`}
+                                                                        className="px-5 py-3 font-black text-slate-500 uppercase tracking-widest text-[9px]"
+                                                                    >
+                                                                        {c.label}
+                                                                    </th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100">
+                                                            {rawRows.slice(0, 3).map((row, i) => (
+                                                                <tr key={i}>
+                                                                    {columns.map((c, j) => {
+                                                                        const idx = rawHeaders.indexOf(c.header);
+                                                                        const value = idx > -1 ? row[idx] : undefined;
+                                                                        return (
+                                                                            <td
+                                                                                key={j}
+                                                                                className="px-5 py-3 font-bold text-slate-600 truncate max-w-[150px]"
+                                                                            >
+                                                                                {value}
+                                                                            </td>
+                                                                        );
+                                                                    })}
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </>
+                                                );
+                                            })()}
                                         </table>
                                     </div>
                                 </div>
