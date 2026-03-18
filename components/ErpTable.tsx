@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
 import { SearchableSelect } from "./SearchableSelect";
 import { MultiSearchableSelect } from "./MultiSearchableSelect";
+import { useSession } from "next-auth/react";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 export default function ErpTable() {
     const [products, setProducts] = useState<any[]>([]);
@@ -92,6 +94,18 @@ export default function ErpTable() {
         key: "",
         secret: ""
     });
+    const { data: session } = useSession();
+    const companyContext = useCompanyContext();
+    const effectiveCompanyId =
+        (session?.user as any)?.companyId ?? companyContext?.selectedCompanyId ?? null;
+
+    const wooStorageKey = effectiveCompanyId != null
+        ? `pim_woo_config_${effectiveCompanyId}`
+        : "pim_woo_config_all";
+
+    const wooMappingStorageKey = effectiveCompanyId != null
+        ? `pim_woo_mapping_v1_${effectiveCompanyId}`
+        : "pim_woo_mapping_v1_all";
     const [wooFields, setWooFields] = useState<string[]>([]);
     const [isConnectingWoo, setIsConnectingWoo] = useState(false);
     const [isPublishingWoo, setIsPublishingWoo] = useState(false);
@@ -167,7 +181,9 @@ export default function ErpTable() {
     };
 
     useEffect(() => {
-        const saved = localStorage.getItem("pim_woo_config");
+        // Reload Woo config when company changes to avoid cross-company leakage.
+        setWooConfig({ domain: "", key: "", secret: "" });
+        const saved = localStorage.getItem(wooStorageKey);
         if (saved) setWooConfig(JSON.parse(saved));
         fetchCategories();
         fetchTags();
@@ -176,7 +192,7 @@ export default function ErpTable() {
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         if (savedProjectName) setProjectName(savedProjectName);
         fetchProducts();
-    }, []);
+    }, [wooStorageKey]);
 
     const testWooConnection = async () => {
         setIsConnectingWoo(true);
@@ -184,7 +200,7 @@ export default function ErpTable() {
             const res = await axios.get("/api/integrations/woocommerce", { params: wooConfig });
             setWooFields(res.data.fields || []);
             toast.success(`Connesso! WooCommerce ha ${res.data.totalFound} prodotti.`);
-            localStorage.setItem("pim_woo_config", JSON.stringify(wooConfig));
+            localStorage.setItem(wooStorageKey, JSON.stringify(wooConfig));
         } catch (err: any) {
             toast.error(err.response?.data?.error || "Connessione fallita");
         } finally {
@@ -193,7 +209,7 @@ export default function ErpTable() {
     };
 
     const ensureWooMapping = async () => {
-        const storageKey = "pim_woo_mapping_v1";
+        const storageKey = wooMappingStorageKey;
         const saved = localStorage.getItem(storageKey);
         const savedMapping = saved ? (() => {
             try { return JSON.parse(saved); } catch { return null; }

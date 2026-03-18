@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon, Database, Globe, Cpu, Save, Shield, ShieldCheck, RefreshCw, Key } from "lucide-react";
 import { toast } from "react-toastify";
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 export default function SettingsPage() {
     const [config, setConfig] = useState({
@@ -15,9 +17,20 @@ export default function SettingsPage() {
     });
     const [isSaving, setIsSaving] = useState(false);
 
+    const { data: session } = useSession();
+    const companyContext = useCompanyContext();
+    const effectiveCompanyId =
+        (session?.user as any)?.companyId ?? companyContext?.selectedCompanyId ?? null;
+
+    const wooStorageKey = effectiveCompanyId != null
+        ? `pim_woo_config_${effectiveCompanyId}`
+        : "pim_woo_config_all";
+
     useEffect(() => {
-        // Load from local storage or placeholder
-        const savedWoo = localStorage.getItem("pim_woo_config");
+        // Reload when company changes: avoid leaking previous company Woo credentials.
+        setConfig(prev => ({ ...prev, wooDomain: "", wooKey: "", wooSecret: "" }));
+
+        const savedWoo = localStorage.getItem(wooStorageKey);
         if (savedWoo) {
             const woo = JSON.parse(savedWoo);
             setConfig(prev => ({
@@ -27,12 +40,12 @@ export default function SettingsPage() {
                 wooSecret: woo.secret || ""
             }));
         }
-    }, []);
+    }, [wooStorageKey]);
 
     const handleSave = async () => {
         setIsSaving(true);
         // In a real app, we'd save to an API. Here we simulate for PIM frontend.
-        localStorage.setItem("pim_woo_config", JSON.stringify({
+        localStorage.setItem(wooStorageKey, JSON.stringify({
             domain: config.wooDomain,
             key: config.wooKey,
             secret: config.wooSecret
