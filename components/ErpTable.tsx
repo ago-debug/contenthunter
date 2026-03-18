@@ -1233,7 +1233,9 @@ export default function ErpTable() {
                         <div className="flex items-center gap-2 shrink-0">
                             <div className="text-center px-2 py-1 bg-white/80 rounded-lg border border-gray-100">
                                 <p className="text-[7px] sm:text-[8px] font-black text-gray-400 uppercase leading-none">DB</p>
-                                <p className="text-xs sm:text-sm font-black text-[#111827] leading-tight">{products.length}</p>
+                                <p className="text-xs sm:text-sm font-black text-[#111827] leading-tight">
+                                    {filteredProducts.length}
+                                </p>
                             </div>
                             <div className="flex bg-[#F9FAFB] p-0.5 rounded-lg border border-gray-100">
                                 <button

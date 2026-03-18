@@ -74,7 +74,11 @@ export async function POST(req: NextRequest) {
             if (category && (!resolvedCatId || !resolvedSubCatId || !resolvedSubSubCatId)) {
                 const cleanCatString = category.toString().trim();
                 if (cleanCatString) {
-                    const parts = cleanCatString.split('>').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+                    // Supporta separatori tipici per gerarchie: ">" oppure "/", "|" (oltre a varianti con spazi)
+                    const parts = cleanCatString
+                        .split(/>\s*|\s*\/\s*|\s*\|\s*|›\s*|»\s*|→\s*|->\s*/g)
+                        .map((s: string) => s.trim())
+                        .filter((s: string) => s.length > 0);
                     if (parts.length > 0) {
                         let cat1 = await prisma.category.findFirst({ where: { companyId, name: parts[0], parentId: null } });
                         if (!cat1) cat1 = await prisma.category.create({ data: { companyId, name: parts[0], parentId: null } });
