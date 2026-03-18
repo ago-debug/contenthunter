@@ -97,6 +97,7 @@ export default function ErpTable() {
     const [isPublishingWoo, setIsPublishingWoo] = useState(false);
     const [isImportingWoo, setIsImportingWoo] = useState(false);
     const [isMassExportingWoo, setIsMassExportingWoo] = useState(false);
+    const [isBulkTranslatingTitle, setIsBulkTranslatingTitle] = useState(false);
     const [showBrandsPanel, setShowBrandsPanel] = useState(false);
     const [selectedBrandForEdit, setSelectedBrandForEdit] = useState<any | null>(null);
     const [brandEditForm, setBrandEditForm] = useState({ aiContentGuidelines: "", producerDomain: "", logoUrl: "" });
@@ -424,6 +425,95 @@ export default function ErpTable() {
                 autoClose: 6000,
             });
             setIsMassExportingWoo(false);
+            fetchProducts();
+        }
+    };
+
+    const handleBulkTranslateTitle = async () => {
+        if (!selectedIds.length) {
+            toast.warning("Seleziona prima almeno un prodotto.");
+            return;
+        }
+
+        const targetLang = editLang;
+        const targetLabel = targetLang.toUpperCase();
+
+        if (!window.confirm(`Tradurre il TITOL0 in ${targetLabel} per ${selectedIds.length} prodotti selezionati?`)) return;
+
+        setIsBulkTranslatingTitle(true);
+        const toastId = toast.loading(`Traduzione titoli in corso: 0/${selectedIds.length}...`);
+
+        let done = 0;
+        let errors = 0;
+
+        try {
+            for (const id of selectedIds) {
+                const p = products.find((x: any) => x.id === id);
+                if (!p) {
+                    errors++;
+                    done++;
+                    continue;
+                }
+
+                const sourceLang =
+                    targetLang === "it"
+                        ? "it"
+                        : p?.translations?.["it"]?.title
+                        ? "it"
+                        : (Object.keys(p.translations || {}).find((l) => p.translations?.[l]?.title) || "it");
+
+                const sourceTitle = (p?.translations?.[sourceLang]?.title || "").toString();
+
+                try {
+                    const res = await fetch("/api/ai/translate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            textData: { title: sourceTitle },
+                            targetLanguage: targetLang,
+                        }),
+                    });
+
+                    if (!res.ok) throw new Error(await res.text());
+                    const translated = await res.json();
+                    const translatedTitle = translated?.title?.toString?.() ?? "";
+
+                    const existing = p.translations?.[targetLang] || {};
+
+                    await axios.post("/api/products", {
+                        sku: p.sku,
+                        translations: {
+                            [targetLang]: {
+                                title: translatedTitle || null,
+                                // Preserve other fields in the same language as best-effort
+                                description: existing?.description ?? "",
+                                bulletPoints: existing?.bulletPoints ?? "",
+                                seoAiText: existing?.seoAiText ?? "",
+                            },
+                        },
+                    });
+                } catch (e: any) {
+                    console.error("Bulk translate title error:", e);
+                    errors++;
+                } finally {
+                    done++;
+                    toast.update(toastId, {
+                        render: `Traduzione titoli in corso: ${done}/${selectedIds.length}${
+                            errors ? ` (${errors} errori)` : ""
+                        }`,
+                    });
+                }
+            }
+        } finally {
+            toast.update(toastId, {
+                render: errors
+                    ? `Completato con errori: ${done - errors}/${done} aggiornati, ${errors} errori.`
+                    : `Completato: ${done}/${done} titoli tradotti in ${targetLabel}.`,
+                type: errors ? "warning" : "success",
+                isLoading: false,
+                autoClose: 6000,
+            });
+            setIsBulkTranslatingTitle(false);
             fetchProducts();
         }
     };
@@ -1274,6 +1364,18 @@ export default function ErpTable() {
                             <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
                         ) : (
                             `Push massivo (${selectedIds.length})`
+                        )}
+                    </button>
+
+                    <button
+                        onClick={handleBulkTranslateTitle}
+                        disabled={isBulkTranslatingTitle || selectedIds.length === 0}
+                        className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                    >
+                        {isBulkTranslatingTitle ? (
+                            <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                        ) : (
+                            `Traduci titolo (${editLang.toUpperCase()})`
                         )}
                     </button>
                 </div>
