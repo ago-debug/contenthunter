@@ -1049,7 +1049,10 @@ export default function ErpTable() {
         setIsSaving(true);
         try {
             const payload = {
-                ...selectedProduct
+                ...selectedProduct,
+                // The backend only persists category changes when `overwrite.category === true`.
+                // Without this, UI updates locally but DB remains unchanged.
+                overwrite: { category: true }
             };
             await axios.post("/api/products", payload);
             toast.success("Prodotto aggiornato con successo");
