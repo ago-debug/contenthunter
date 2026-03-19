@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import {
     Package, FileText, Search, Plus, Trash2, ImageIcon,
@@ -176,6 +176,27 @@ export default function ImportLab() {
     const [pushOverwriteExtras, setPushOverwriteExtras] = useState(false);
     const [pushOverwriteStock, setPushOverwriteStock] = useState(false);
     const [pushOverwriteImages, setPushOverwriteImages] = useState(false);
+
+    const filteredProducts = useMemo(() => {
+        const q = (searchTerm || "").trim().toLowerCase();
+        if (!q) return products;
+
+        return products.filter((p) => {
+            const sku = String(p.sku || "").toLowerCase();
+            const ean = String(p.ean || "").toLowerCase();
+            const brand = String(p.brand || "").toLowerCase();
+            const category = String(p.category || "").toLowerCase();
+            const title = String(p.texts?.[0]?.title || "").toLowerCase();
+
+            return (
+                sku.includes(q) ||
+                ean.includes(q) ||
+                brand.includes(q) ||
+                category.includes(q) ||
+                title.includes(q)
+            );
+        });
+    }, [products, searchTerm]);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -1465,11 +1486,11 @@ export default function ImportLab() {
                                 >
                                     <div className="max-w-7xl mx-auto space-y-6">
                                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Contenuto Repository ({products.length})</h3>
+                                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Contenuto Repository ({filteredProducts.length}/{products.length})</h3>
                                             <div className="relative group w-full sm:w-80">
                                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                                 <input
-                                                    placeholder="Filtra per SKU, Nome..."
+                                                    placeholder="Filtra per SKU, EAN, Nome, Brand..."
                                                     className="w-full bg-white border border-slate-100 rounded-xl pl-12 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-sm"
                                                     value={searchTerm}
                                                     onChange={e => setSearchTerm(e.target.value)}
@@ -1491,7 +1512,7 @@ export default function ImportLab() {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
-                                                    {products.filter(p => p.sku.toLowerCase().includes(searchTerm.toLowerCase())).map((p) => (
+                                                    {filteredProducts.map((p) => (
                                                         <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
                                                             <td className="px-6 py-4">
                                                                 <div className="flex flex-col">
