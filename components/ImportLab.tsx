@@ -136,6 +136,9 @@ export default function ImportLab() {
     const [extraFieldTemplates, setExtraFieldTemplates] = useState<{ id: number; key: string; label: string }[]>([]);
     const [extraFieldMapping, setExtraFieldMapping] = useState<Record<string, string>>({});
     const [newExtraLabel, setNewExtraLabel] = useState<string>("");
+    /** Nuovo campo extra nella scheda Import (staging) */
+    const [importSheetNewExtraKey, setImportSheetNewExtraKey] = useState("");
+    const [importSheetNewExtraValue, setImportSheetNewExtraValue] = useState("");
     const [overwriteBaseInfo, setOverwriteBaseInfo] = useState(true);
     const [overwriteTexts, setOverwriteTexts] = useState(true);
     const [overwritePrice, setOverwritePrice] = useState(true);
@@ -326,13 +329,15 @@ export default function ImportLab() {
     };
 
     const getExtra = (p: StagingProduct, key: string): string => {
-        const ex = (p.extraFields || []).find((e: any) => e.key === key);
+        const k = key.toLowerCase();
+        const ex = (p.extraFields || []).find((e: any) => String(e.key || "").toLowerCase() === k);
         return ex?.value ?? "";
     };
     const setExtra = (p: StagingProduct, key: string, value: string): void => {
         const extra = [...(p.extraFields || [])];
-        const i = extra.findIndex((e: any) => e.key === key);
-        if (i >= 0) extra[i] = { ...extra[i], value };
+        const k = key.toLowerCase();
+        const i = extra.findIndex((e: any) => String(e.key || "").toLowerCase() === k);
+        if (i >= 0) extra[i] = { ...extra[i], key, value };
         else extra.push({ key, value });
         setSelectedProduct({ ...p, extraFields: extra });
     };
@@ -908,10 +913,16 @@ export default function ImportLab() {
 
         try {
             const productsToImport = rawRows.map(row => {
+                // Celle vuote / solo spazi → null (non escludere la riga se altri campi mappati sono vuoti)
                 const getVal = (field: string) => {
-                    const idx = rawHeaders.indexOf(mapping[field]);
-                    const val = idx > -1 ? row[idx] : null;
-                    return val !== undefined && val !== null ? String(val) : null;
+                    const col = mapping[field];
+                    if (!col) return null;
+                    const idx = rawHeaders.indexOf(col);
+                    if (idx < 0) return null;
+                    const val = row[idx];
+                    if (val === undefined || val === null) return null;
+                    const s = String(val).trim();
+                    return s === "" ? null : s;
                 };
 
                 const base: any = {
@@ -939,17 +950,22 @@ export default function ImportLab() {
                     const col = extraFieldMapping[tpl.key];
                     if (!col) return;
                     const idx = rawHeaders.indexOf(col);
-                    const val = idx > -1 ? row[idx] : null;
-                    if (val !== undefined && val !== null && String(val).trim() !== "") {
-                        extrasObj[tpl.key] = String(val);
-                    }
+                    if (idx < 0) return;
+                    const val = row[idx];
+                    if (val === undefined || val === null) return;
+                    const s = String(val).trim();
+                    if (s !== "") extrasObj[tpl.key] = s;
                 });
                 if (Object.keys(extrasObj).length > 0) {
                     base.extraFields = extrasObj;
                 }
 
                 return base;
-            }).filter(p => p.sku || p.ean || p.title);
+            }).filter((p) => {
+                // Stessa logica del backend: serve almeno un identificativo (SKU, EAN o titolo) non vuoto.
+                // Gli altri campi mappati possono essere tutti vuoti: la riga viene importata comunque.
+                return Boolean(p.sku || p.ean || p.title);
+            });
 
             await axios.post("/api/repositories/" + catalogIdParam + "/staging", {
                 products: productsToImport,
@@ -1863,6 +1879,114 @@ export default function ImportLab() {
                                             </div>
                                         </div>
 
+                                        {/* Campi extra (come in mappatura import + COLORE) */}
+                                        {(() => {
+                                            const importExtraReserved = new Set([
+                                                "dimensions",
+                                                "weight",
+                                                "material",
+                                                "stocklocal",
+                                                "stocksupplier",
+                                                "colore",
+                                                "_ai_visual_mapping",
+                                            ]);
+                                            const tplKeys = new Set(
+                                                extraFieldTemplates.map((t) => String(t.key || "").toLowerCase())
+                                            );
+                                            const orphanExtras = (selectedProduct.extraFields || []).filter((e: any) => {
+                                                const k = String(e.key || "").toLowerCase();
+                                                if (!k || importExtraReserved.has(k)) return false;
+                                                if (tplKeys.has(k)) return false;
+                                                return true;
+                                            });
+                                            return (
+                                                <div className="pt-6 border-t border-slate-100 space-y-6">
+                                                    <div className="flex items-center gap-2">
+                                                        <Sparkles className="w-4 h-4 text-orange-500" />
+                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
+                                                            Campi extra personalizzati
+                                                        </p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-6">
+                                                        <div className="space-y-2 col-span-2 sm:col-span-1">
+                                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                                                COLORE
+                                                            </label>
+                                                            <input
+                                                                value={getExtra(selectedProduct, "colore")}
+                                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                                placeholder="Es. Rosso, Nero…"
+                                                                onChange={(e) => setExtra(selectedProduct, "colore", e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-6">
+                                                        {extraFieldTemplates
+                                                            .filter((tpl) => String(tpl.key || "").toLowerCase() !== "colore")
+                                                            .map((tpl) => (
+                                                                <div key={tpl.id + "-" + tpl.key} className="space-y-2">
+                                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                                                        {tpl.label}
+                                                                    </label>
+                                                                    <input
+                                                                        value={getExtra(selectedProduct, tpl.key)}
+                                                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                                        onChange={(e) =>
+                                                                            setExtra(selectedProduct, tpl.key, e.target.value)
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                    {orphanExtras.length > 0 && (
+                                                        <div className="grid grid-cols-2 gap-6">
+                                                            {orphanExtras.map((e: any) => (
+                                                                <div key={e.key} className="space-y-2">
+                                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                                                        {e.key}
+                                                                    </label>
+                                                                    <input
+                                                                        value={String(e.value ?? "")}
+                                                                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold"
+                                                                        onChange={(ev) =>
+                                                                            setExtra(selectedProduct, e.key, ev.target.value)
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    <div className="flex flex-col sm:flex-row gap-3">
+                                                        <input
+                                                            value={importSheetNewExtraKey}
+                                                            onChange={(e) => setImportSheetNewExtraKey(e.target.value)}
+                                                            placeholder="Nome campo extra (es. STAGIONE)"
+                                                            className="flex-1 bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700"
+                                                        />
+                                                        <input
+                                                            value={importSheetNewExtraValue}
+                                                            onChange={(e) => setImportSheetNewExtraValue(e.target.value)}
+                                                            placeholder="Valore"
+                                                            className="flex-1 bg-white border border-slate-200 rounded-2xl px-4 py-3 text-xs font-bold text-slate-700"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const k = importSheetNewExtraKey.trim();
+                                                                if (!k) return;
+                                                                setExtra(selectedProduct, k, importSheetNewExtraValue);
+                                                                setImportSheetNewExtraKey("");
+                                                                setImportSheetNewExtraValue("");
+                                                            }}
+                                                            className="px-5 py-3 rounded-2xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black whitespace-nowrap"
+                                                        >
+                                                            Aggiungi
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione (lunga)</label>
                                             <textarea
@@ -2293,7 +2417,7 @@ export default function ImportLab() {
                                 </button>
                                 <button
                                     onClick={handleConfirmImport}
-                                    disabled={isSavingStaging || !mapping.sku}
+                                    disabled={isSavingStaging || !(mapping.sku || mapping.ean || mapping.title)}
                                     className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3"
                                 >
                                     {isSavingStaging ? (
