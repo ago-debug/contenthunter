@@ -350,6 +350,187 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        /** Imposta lo stesso valore su un campo per tutti gli ID (o solo se vuoto) */
+        if (action === "bulk_set_field") {
+            const fieldPath = String((body as any).fieldPath ?? "").trim();
+            const valueRaw = (body as any).value;
+            const onlyIfEmpty = (body as any).onlyIfEmpty === true;
+            const strVal = valueRaw == null ? "" : String(valueRaw);
+
+            if (!fieldPath) {
+                return NextResponse.json({ error: "fieldPath obbligatorio" }, { status: 400 });
+            }
+
+            const cleanIds = ids
+                .map((x: unknown) => Number(x))
+                .filter((n): n is number => Number.isInteger(n) && n > 0);
+            if (cleanIds.length === 0) {
+                return NextResponse.json({ error: "Nessun ID valido" }, { status: 400 });
+            }
+
+            const fpLower = fieldPath.toLowerCase();
+            const isExtra = fpLower.startsWith("extra:");
+            if (!isExtra && !strVal.trim() && fpLower !== "price") {
+                return NextResponse.json({ error: "Valore obbligatorio per questo campo" }, { status: 400 });
+            }
+            if (isExtra && fieldPath.length <= 6) {
+                return NextResponse.json({ error: "Usa extra:nome_campo" }, { status: 400 });
+            }
+
+            let updated = 0;
+            let skipped = 0;
+
+            const CHUNK = 50;
+            for (let i = 0; i < cleanIds.length; i += CHUNK) {
+                const batch = cleanIds.slice(i, i + CHUNK);
+                const products = await prisma.product.findMany({
+                    where: { id: { in: batch } },
+                    include: {
+                        texts: { where: { language: "it" } },
+                        extraFields: true,
+                        prices: { where: { listName: "default" } }
+                    }
+                });
+
+                for (const p of products) {
+                    if (isExtra) {
+                        const ek = fieldPath.slice(fieldPath.indexOf(":") + 1).trim();
+                        if (!ek) continue;
+                        const existing = p.extraFields.find((e) => e.key.toLowerCase() === ek.toLowerCase());
+                        const dbKey = existing?.key ?? ek;
+                        if (onlyIfEmpty && (existing?.value || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        if (!strVal.trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.productExtra.upsert({
+                            where: { productId_key: { productId: p.id, key: dbKey } },
+                            create: { productId: p.id, key: ek, value: strVal },
+                            update: { value: strVal }
+                        });
+                        updated++;
+                        continue;
+                    }
+
+                    if (fpLower === "brand") {
+                        if (onlyIfEmpty && (p.brand || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { brand: strVal || null }
+                        });
+                        updated++;
+                    } else if (fpLower === "category") {
+                        if (onlyIfEmpty && (p.category || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { category: strVal || null }
+                        });
+                        updated++;
+                    } else if (fpLower === "ean") {
+                        if (onlyIfEmpty && (p.ean || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { ean: strVal || null }
+                        });
+                        updated++;
+                    } else if (fpLower === "parentsku") {
+                        if (onlyIfEmpty && (p.parentSku || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { parentSku: strVal || null }
+                        });
+                        updated++;
+                    } else if (fpLower === "dimensions" || fpLower === "weight" || fpLower === "material") {
+                        const key = fpLower === "dimensions" ? "dimensions" : fpLower === "weight" ? "weight" : "material";
+                        const existing = p.extraFields.find((e) => e.key.toLowerCase() === key);
+                        if (onlyIfEmpty && (existing?.value || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.productExtra.upsert({
+                            where: { productId_key: { productId: p.id, key } },
+                            create: { productId: p.id, key, value: strVal },
+                            update: { value: strVal }
+                        });
+                        updated++;
+                    } else if (
+                        ["title", "description", "docdescription", "bulletpoints", "seoaitext"].includes(fpLower)
+                    ) {
+                        const colMap: Record<string, "title" | "description" | "docDescription" | "bulletPoints" | "seoAiText"> =
+                            {
+                                title: "title",
+                                description: "description",
+                                docdescription: "docDescription",
+                                bulletpoints: "bulletPoints",
+                                seoaitext: "seoAiText"
+                            };
+                        const col = colMap[fpLower];
+                        const textRow = p.texts[0];
+                        const cur = (textRow as Record<string, unknown> | undefined)?.[col] ?? "";
+                        if (onlyIfEmpty && String(cur).trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.productText.upsert({
+                            where: {
+                                productId_language: { productId: p.id, language: "it" }
+                            },
+                            create: {
+                                productId: p.id,
+                                language: "it",
+                                [col]: strVal || null
+                            },
+                            update: { [col]: strVal || null }
+                        });
+                        updated++;
+                    } else if (fpLower === "price") {
+                        const num = parseFloat(
+                            strVal.replace(/[^0-9.,-]/g, "").replace(",", ".")
+                        );
+                        if (isNaN(num)) {
+                            skipped++;
+                            continue;
+                        }
+                        const pr = p.prices[0];
+                        if (onlyIfEmpty && pr != null && !isNaN(pr.price) && pr.price !== 0) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.productPrice.upsert({
+                            where: {
+                                productId_listName: { productId: p.id, listName: "default" }
+                            },
+                            create: { productId: p.id, listName: "default", price: num },
+                            update: { price: num }
+                        });
+                        updated++;
+                    } else {
+                        return NextResponse.json(
+                            { error: `Campo non supportato: ${fieldPath}` },
+                            { status: 400 }
+                        );
+                    }
+                }
+            }
+
+            return NextResponse.json({ success: true, updated, skipped });
+        }
+
         return NextResponse.json({ error: "Invalid bulk action" }, { status: 400 });
     } catch (err: any) {
         console.error("Bulk action error:", err);

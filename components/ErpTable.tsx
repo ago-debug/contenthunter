@@ -8,7 +8,7 @@ import {
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, Languages, ShoppingCart, Box, ChevronDown,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
-    Building2, ImagePlus, Link2, ArrowUp, ArrowDown
+    Building2, ImagePlus, Link2, ArrowUp, ArrowDown, Layers
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
@@ -16,6 +16,58 @@ import { SearchableSelect } from "./SearchableSelect";
 import { MultiSearchableSelect } from "./MultiSearchableSelect";
 import { useSession } from "next-auth/react";
 import { useCompanyContext } from "@/contexts/CompanyContext";
+
+const EMPTY_SHEET_FILTERS: Record<string, string> = {
+    sku: "",
+    ean: "",
+    parentSku: "",
+    title: "",
+    categoryText: "",
+    dimensions: "",
+    weight: "",
+    material: "",
+    colore: "",
+    description: "",
+    docDescription: "",
+    seoAiText: "",
+    bulletContains: ""
+};
+
+/** Etichette filtri per campi scheda (substring, case-insensitive) */
+/** Opzioni per modifica massiva valore singolo */
+const BULK_SET_FIELD_OPTIONS: { value: string; label: string }[] = [
+    { value: "brand", label: "Brand" },
+    { value: "category", label: "Categoria (testo)" },
+    { value: "ean", label: "EAN" },
+    { value: "parentSku", label: "Parent SKU" },
+    { value: "title", label: "Titolo (IT)" },
+    { value: "description", label: "Descrizione" },
+    { value: "docDescription", label: "Descrizione documentazione (PDF)" },
+    { value: "bulletPoints", label: "Bullet points" },
+    { value: "seoAiText", label: "SEO AI" },
+    { value: "price", label: "Prezzo (listino default)" },
+    { value: "dimensions", label: "Dimensioni" },
+    { value: "weight", label: "Peso" },
+    { value: "material", label: "Materiale" },
+    { value: "extra:colore", label: "Colore (extra)" },
+    { value: "__extra_custom__", label: "Altro campo extra (chiave manuale)" }
+];
+
+const SHEET_FILTER_FIELDS: { key: string; label: string }[] = [
+    { key: "sku", label: "SKU" },
+    { key: "ean", label: "EAN" },
+    { key: "parentSku", label: "Parent SKU" },
+    { key: "title", label: "Titolo (IT)" },
+    { key: "categoryText", label: "Categoria (testo)" },
+    { key: "dimensions", label: "Dimensioni" },
+    { key: "weight", label: "Peso" },
+    { key: "material", label: "Materiale" },
+    { key: "colore", label: "Colore" },
+    { key: "description", label: "Descrizione" },
+    { key: "docDescription", label: "Doc. PDF" },
+    { key: "seoAiText", label: "SEO AI" },
+    { key: "bulletContains", label: "Bullet (contiene)" }
+];
 
 const TITLE_FIELD_PRESETS: { id: string; label: string }[] = [
     { id: "brand", label: "Brand" },
@@ -143,6 +195,13 @@ export default function ErpTable() {
     /** Chiavi ProductExtra aggiuntive, separate da virgola, in coda alla sequenza */
     const [bulkTitleFieldsCustom, setBulkTitleFieldsCustom] = useState("");
 
+    /** Centro modifiche massive (modale unica) */
+    const [showBulkOperationsModal, setShowBulkOperationsModal] = useState(false);
+    const [bulkOpFieldPath, setBulkOpFieldPath] = useState("brand");
+    const [bulkOpExtraKey, setBulkOpExtraKey] = useState("");
+    const [bulkOpValue, setBulkOpValue] = useState("");
+    const [bulkOpOnlyEmpty, setBulkOpOnlyEmpty] = useState(true);
+
     const [showCataloguesPanel, setShowCataloguesPanel] = useState(false);
     const [catalogues, setCatalogues] = useState<any[]>([]);
     const [selectedCatalogueForEdit, setSelectedCatalogueForEdit] = useState<any | null>(null);
@@ -170,6 +229,9 @@ export default function ErpTable() {
     const [filterPriceMax, setFilterPriceMax] = useState<string>("");
     const [filterStockMin, setFilterStockMin] = useState<string>("");
     const [filterStockMax, setFilterStockMax] = useState<string>("");
+
+    /** Filtri "contiene" sui singoli campi scheda (substring, case-insensitive) */
+    const [sheetFilters, setSheetFilters] = useState<Record<string, string>>(() => ({ ...EMPTY_SHEET_FILTERS }));
 
     const updateBrandInList = (brandId: number, patch: Record<string, any>) => {
         setAllBrands(prev => prev.map(brand => brand.id === brandId ? { ...brand, ...patch } : brand));
@@ -1080,8 +1142,77 @@ export default function ErpTable() {
         }
     };
 
+    const BULK_SET_FIELD_BATCH = 40;
+
+    const handleBulkSetFieldMass = async () => {
+        if (selectedIds.length === 0) return;
+        const fp =
+            bulkOpFieldPath === "__extra_custom__"
+                ? `extra:${bulkOpExtraKey.trim()}`
+                : bulkOpFieldPath;
+        if (bulkOpFieldPath === "__extra_custom__" && !bulkOpExtraKey.trim()) {
+            toast.warning("Indica la chiave del campo extra (es. stagione).");
+            return;
+        }
+        const needsValue =
+            !fp.toLowerCase().startsWith("extra:") && fp.toLowerCase() !== "price";
+        if (needsValue && !bulkOpValue.trim()) {
+            toast.warning("Inserisci un valore da applicare.");
+            return;
+        }
+        if (
+            !window.confirm(
+                `Applicare il valore al campo selezionato su ${selectedIds.length} prodotti${
+                    bulkOpOnlyEmpty ? " (solo dove il campo è vuoto)" : ""
+                }?`
+            )
+        ) {
+            return;
+        }
+        setIsBulkWorking(true);
+        const toastId = toast.loading("Applicazione valore in corso…");
+        try {
+            let totU = 0;
+            let totS = 0;
+            for (let i = 0; i < selectedIds.length; i += BULK_SET_FIELD_BATCH) {
+                const batch = selectedIds.slice(i, i + BULK_SET_FIELD_BATCH);
+                const res = await axios.post(
+                    "/api/products/bulk",
+                    {
+                        ids: batch,
+                        action: "bulk_set_field",
+                        fieldPath: fp,
+                        value: bulkOpValue,
+                        onlyIfEmpty: bulkOpOnlyEmpty
+                    },
+                    { timeout: 120000 }
+                );
+                totU += res.data?.updated ?? 0;
+                totS += res.data?.skipped ?? 0;
+            }
+            toast.update(toastId, {
+                render: `Aggiornati: ${totU}, saltati (già valorizzati o non validi): ${totS}`,
+                type: "success",
+                isLoading: false,
+                autoClose: 5000
+            });
+            setShowBulkOperationsModal(false);
+            fetchProducts();
+        } catch (err: any) {
+            toast.update(toastId, {
+                render: err?.response?.data?.error || err?.message || "Errore",
+                type: "error",
+                isLoading: false,
+                autoClose: 6000
+            });
+        } finally {
+            setIsBulkWorking(false);
+        }
+    };
+
     const handleBulkGenerateSeoAi = async (overwriteExisting: boolean) => {
         if (selectedIds.length === 0) return;
+        setShowBulkOperationsModal(false);
         setShowBulkSeoModal(false);
         setIsBulkWorking(true);
         const toastId = toast.loading(`Generazione contenuti SEO AI: 0/${selectedIds.length}...`);
@@ -1317,6 +1448,12 @@ export default function ErpTable() {
         setIsSearchingWeb(false);
     };
 
+    const fieldContains = (needle: string, value: unknown) => {
+        const n = (needle || "").trim().toLowerCase();
+        if (!n) return true;
+        return String(value ?? "").toLowerCase().includes(n);
+    };
+
     const filteredProducts = products.filter((p: any) => {
         const term = searchTerm.toLowerCase();
 
@@ -1365,6 +1502,21 @@ export default function ErpTable() {
             if (!isNaN(maxS) && !isNaN(stockNum) && stockNum > maxS) return false;
         }
 
+        const sf = sheetFilters;
+        if (!fieldContains(sf.sku, p.sku)) return false;
+        if (!fieldContains(sf.ean, p.ean)) return false;
+        if (!fieldContains(sf.parentSku, p.parentSku)) return false;
+        if (!fieldContains(sf.title, p.title)) return false;
+        if (!fieldContains(sf.categoryText, p.category)) return false;
+        if (!fieldContains(sf.dimensions, p.dimensions)) return false;
+        if (!fieldContains(sf.weight, p.weight)) return false;
+        if (!fieldContains(sf.material, p.material)) return false;
+        if (!fieldContains(sf.colore, getExtraValue(p, "colore"))) return false;
+        if (!fieldContains(sf.description, p.description)) return false;
+        if (!fieldContains(sf.docDescription, p.docDescription)) return false;
+        if (!fieldContains(sf.seoAiText, p.seoAiText)) return false;
+        if (!fieldContains(sf.bulletContains, p.bulletPoints)) return false;
+
         if (!term) return true;
 
         const baseMatch = (p.sku || "").toLowerCase().includes(term) ||
@@ -1387,6 +1539,8 @@ export default function ErpTable() {
 
         return false;
     });
+
+    const hasSheetFilters = Object.values(sheetFilters).some((v) => (v || "").trim());
 
     const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: any }) => (
         <button
@@ -1517,9 +1671,13 @@ export default function ErpTable() {
                         <button
                             type="button"
                             onClick={() => setShowAdvancedFilters((v) => !v)}
-                            className="ml-2 flex items-center gap-1 px-3 py-2 rounded-xl bg-white border border-slate-200 text-[9px] font-black uppercase tracking-widest text-slate-500 shrink-0 hover:bg-slate-50"
+                            className={`ml-2 flex items-center gap-1 px-3 py-2 rounded-xl bg-white border text-[9px] font-black uppercase tracking-widest shrink-0 hover:bg-slate-50 ${
+                                hasSheetFilters
+                                    ? "border-violet-400 text-violet-700 ring-1 ring-violet-200"
+                                    : "border-slate-200 text-slate-500"
+                            }`}
                         >
-                            <span>Filtri avanzati</span>
+                            <span>Filtri avanzati{hasSheetFilters ? " ●" : ""}</span>
                             <ChevronDown
                                 className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
                             />
@@ -1594,6 +1752,40 @@ export default function ErpTable() {
                                     className="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-800"
                                 />
                             </div>
+
+                            <div className="w-full border-t border-slate-200 pt-3 mt-1">
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        Campi scheda prodotto (contiene)
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSheetFilters({ ...EMPTY_SHEET_FILTERS })}
+                                        disabled={!Object.values(sheetFilters).some((v) => (v || "").trim())}
+                                        className="text-[10px] font-black uppercase text-violet-600 hover:text-violet-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        Azzera campi scheda
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2">
+                                    {SHEET_FILTER_FIELDS.map(({ key, label }) => (
+                                        <label key={key} className="flex flex-col gap-0.5 min-w-0">
+                                            <span className="text-[9px] font-black uppercase text-slate-400 truncate" title={label}>
+                                                {label}
+                                            </span>
+                                            <input
+                                                type="text"
+                                                value={sheetFilters[key] ?? ""}
+                                                onChange={(e) =>
+                                                    setSheetFilters((prev) => ({ ...prev, [key]: e.target.value }))
+                                                }
+                                                className="w-full min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-800 placeholder:text-slate-300"
+                                                placeholder="Filtra…"
+                                            />
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -1652,6 +1844,22 @@ export default function ErpTable() {
                         ) : (
                             "Esporta selezionati (Excel/CSV)"
                         )}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!selectedIds.length) {
+                                toast.warning("Seleziona almeno un prodotto in tabella.");
+                                return;
+                            }
+                            setShowBulkOperationsModal(true);
+                        }}
+                        disabled={selectedIds.length === 0}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-black transition-all border border-slate-900 disabled:opacity-40"
+                    >
+                        <Layers className="w-4 h-4 shrink-0" />
+                        Modifiche massive
                     </button>
                 </div>
 
@@ -3485,7 +3693,16 @@ export default function ErpTable() {
                                 <span className="bg-slate-900 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">{selectedIds.length}</span>
                                 <span className="text-xs font-black uppercase tracking-widest text-slate-400">Selezionati</span>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 flex-wrap justify-center max-w-[95vw]">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkOperationsModal(true)}
+                                    disabled={isBulkWorking}
+                                    className="flex items-center gap-2 text-white bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25 transition-all text-[11px] font-black uppercase tracking-widest"
+                                >
+                                    <Layers className="w-4 h-4" />
+                                    Centro modifiche
+                                </button>
                                 <button
                                     onClick={handleBulkNormalizeTitles}
                                     disabled={isBulkWorking}
@@ -3543,6 +3760,232 @@ export default function ErpTable() {
                             </div>
                         </motion.div>
                     )}
+            </AnimatePresence>
+
+            {/* Centro modifiche massive: valore campo + azioni già esistenti */}
+            <AnimatePresence>
+                {showBulkOperationsModal && (
+                    <div className="fixed inset-0 z-[115] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowBulkOperationsModal(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.96, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.96, opacity: 0 }}
+                            className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto border border-gray-100"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="sticky top-0 z-10 flex items-start justify-between gap-3 p-5 pb-3 bg-white border-b border-gray-100">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-2.5 bg-slate-900 rounded-xl shrink-0">
+                                        <Layers className="w-6 h-6 text-white" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h3 className="text-lg font-black text-gray-900 leading-tight">Modifiche massive</h3>
+                                        <p className="text-sm text-gray-500 mt-0.5">
+                                            {selectedIds.length} prodotti selezionati
+                                        </p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkOperationsModal(false)}
+                                    className="p-2 rounded-xl hover:bg-gray-100 text-gray-500"
+                                    aria-label="Chiudi"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <div className="p-5 space-y-8">
+                                <section>
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                                        Imposta lo stesso valore su un campo
+                                    </h4>
+                                    <p className="text-xs text-slate-600 mb-3">
+                                        Utile per brand, categoria testuale, materiale, colore, prezzo uguale su più articoli.
+                                        Con &quot;Solo se vuoto&quot; non sovrascrivi dati già presenti.
+                                    </p>
+                                    <div className="space-y-3">
+                                        <label className="block">
+                                            <span className="text-[10px] font-black uppercase text-slate-400">Campo</span>
+                                            <select
+                                                value={bulkOpFieldPath}
+                                                onChange={(e) => setBulkOpFieldPath(e.target.value)}
+                                                className="mt-1 w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800"
+                                            >
+                                                {BULK_SET_FIELD_OPTIONS.map((o) => (
+                                                    <option key={o.value} value={o.value}>
+                                                        {o.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        {bulkOpFieldPath === "__extra_custom__" && (
+                                            <label className="block">
+                                                <span className="text-[10px] font-black uppercase text-slate-400">
+                                                    Chiave extra (ERP)
+                                                </span>
+                                                <input
+                                                    type="text"
+                                                    value={bulkOpExtraKey}
+                                                    onChange={(e) => setBulkOpExtraKey(e.target.value)}
+                                                    className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold"
+                                                    placeholder="es. stagione"
+                                                />
+                                            </label>
+                                        )}
+                                        <label className="block">
+                                            <span className="text-[10px] font-black uppercase text-slate-400">Valore</span>
+                                            <textarea
+                                                value={bulkOpValue}
+                                                onChange={(e) => setBulkOpValue(e.target.value)}
+                                                rows={2}
+                                                className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800"
+                                                placeholder="Testo o numero (prezzo con punto o virgola)"
+                                            />
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkOpOnlyEmpty}
+                                                onChange={(e) => setBulkOpOnlyEmpty(e.target.checked)}
+                                                className="rounded border-slate-300 text-slate-900"
+                                            />
+                                            <span className="text-xs font-bold text-slate-700">
+                                                Applica solo se il campo è vuoto
+                                            </span>
+                                        </label>
+                                        <button
+                                            type="button"
+                                            onClick={handleBulkSetFieldMass}
+                                            disabled={isBulkWorking}
+                                            className="w-full py-3 px-4 bg-slate-900 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-black disabled:opacity-50"
+                                        >
+                                            {isBulkWorking ? "Elaborazione…" : "Applica valore ai selezionati"}
+                                        </button>
+                                    </div>
+                                </section>
+
+                                <section className="border-t border-slate-100 pt-6">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                                        Titoli (IT)
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setTimeout(() => void handleBulkNormalizeTitles(), 0);
+                                            }}
+                                            disabled={isBulkWorking}
+                                            className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-900 text-[11px] font-black uppercase border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
+                                        >
+                                            Normalizza titoli
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setTimeout(() => void handleBulkAddTitlePrefix(), 0);
+                                            }}
+                                            disabled={isBulkWorking}
+                                            className="px-3 py-2 rounded-xl bg-amber-50 text-amber-900 text-[11px] font-black uppercase border border-amber-100 hover:bg-amber-100 disabled:opacity-50"
+                                        >
+                                            Prefisso titolo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setTimeout(() => void handleBulkReplaceTitlePart(), 0);
+                                            }}
+                                            disabled={isBulkWorking}
+                                            className="px-3 py-2 rounded-xl bg-cyan-50 text-cyan-900 text-[11px] font-black uppercase border border-cyan-100 hover:bg-cyan-100 disabled:opacity-50"
+                                        >
+                                            Trova / sostituisci titolo
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setShowBulkTitleFieldsModal(true);
+                                            }}
+                                            disabled={isBulkWorking}
+                                            className="px-3 py-2 rounded-xl bg-violet-50 text-violet-900 text-[11px] font-black uppercase border border-violet-100 hover:bg-violet-100 disabled:opacity-50"
+                                        >
+                                            Campi nel titolo
+                                        </button>
+                                    </div>
+                                </section>
+
+                                <section className="border-t border-slate-100 pt-6">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">
+                                        Contenuti & SEO
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setShowBulkSeoModal(true);
+                                            }}
+                                            disabled={isBulkWorking}
+                                            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-900 text-[11px] font-black uppercase border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            Genera SEO AI
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setTimeout(() => void handleBulkTranslateTitle(), 0);
+                                            }}
+                                            disabled={isBulkTranslatingTitle || isBulkWorking}
+                                            className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                                        >
+                                            Traduci titolo ({editLang.toUpperCase()})
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setTimeout(() => void exportSelectedToFile(), 0);
+                                            }}
+                                            disabled={isExportingSelectedFile}
+                                            className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                                        >
+                                            Esporta Excel / CSV
+                                        </button>
+                                    </div>
+                                </section>
+
+                                <section className="border-t border-slate-100 pt-6">
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest text-red-500 mb-3">
+                                        Pericolo
+                                    </h4>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowBulkOperationsModal(false);
+                                            setTimeout(() => void handleBulkDelete(), 0);
+                                        }}
+                                        disabled={isBulkDeleting}
+                                        className="px-4 py-2.5 rounded-xl bg-red-50 text-red-800 text-[11px] font-black uppercase border border-red-100 hover:bg-red-100 disabled:opacity-50"
+                                    >
+                                        Elimina prodotti selezionati
+                                    </button>
+                                </section>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
 
             {/* Modal scelta sovrascrittura SEO AI */}
