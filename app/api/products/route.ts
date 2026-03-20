@@ -36,16 +36,17 @@ export async function POST(req: NextRequest) {
         const overwriteExtras: boolean = overwrite?.extras === true;
         const overwriteImages: boolean = overwrite?.images === true;
 
-        // 1. Find existing product by EAN or SKU (scoped by company)
+        // 1. Find existing product (scoped by company)
+        // Priorità: SKU prima, poi EAN. Import Lab / PIM identificano la riga per SKU; se l’EAN è
+        // condiviso o duplicato in staging, un match EAN-first aggiornava un altro prodotto e la scheda
+        // corretta (SKU) restava vuota.
         let existingProduct = null;
-        if (cleanEan) {
+        existingProduct = await prisma.product.findFirst({
+            where: { companyId, sku: cleanSku }
+        });
+        if (!existingProduct && cleanEan) {
             existingProduct = await prisma.product.findFirst({
                 where: { companyId, ean: cleanEan }
-            });
-        }
-        if (!existingProduct) {
-            existingProduct = await prisma.product.findFirst({
-                where: { companyId, sku: cleanSku }
             });
         }
 
