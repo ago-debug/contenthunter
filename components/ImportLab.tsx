@@ -902,9 +902,9 @@ export default function ImportLab() {
             toast.warning("Nessun catalogo selezionato. Apri un catalogo dalla dashboard.");
             return;
         }
-        const hasKeyMapping = mapping.sku || mapping.ean || mapping.title;
+        const hasKeyMapping = mapping.sku || mapping.ean;
         if (!hasKeyMapping) {
-            toast.warning("Devi mappare almeno uno tra SKU, EAN o Titolo.");
+            toast.warning("Devi mappare almeno la colonna SKU e/o EAN (unici campi usati per unire le righe).");
             return;
         }
 
@@ -962,9 +962,8 @@ export default function ImportLab() {
 
                 return base;
             }).filter((p) => {
-                // Stessa logica del backend: serve almeno un identificativo (SKU, EAN o titolo) non vuoto.
-                // Gli altri campi mappati possono essere tutti vuoti: la riga viene importata comunque.
-                return Boolean(p.sku || p.ean || p.title);
+                // Stessa logica del backend: solo SKU o EAN identificano la riga (titolo duplicato ignorato).
+                return Boolean(p.sku || p.ean);
             });
 
             const totalDataRows = rawRows.length;
@@ -986,11 +985,11 @@ export default function ImportLab() {
             let detail =
                 "Righe nel file: " +
                 totalDataRows +
-                ". Con identificativo (SKU/EAN/Titolo): " +
+                ". Con SKU o EAN: " +
                 sentWithKey +
                 ".";
             if (skippedNoKeyOnClient > 0) {
-                detail += " Saltate (senza identificativo): " + skippedNoKeyOnClient + ".";
+                detail += " Saltate (senza SKU né EAN): " + skippedNoKeyOnClient + ".";
             }
             if (st) {
                 if (st.skippedNoIdentifier > 0) {
@@ -1002,7 +1001,7 @@ export default function ImportLab() {
                     ".";
                 if ((st.stagingMergedOrUpdated ?? 0) > 0) {
                     detail +=
-                        " Righe che aggiornano un prodotto già presente (stesso SKU/EAN o titolo duplicato nel file): " +
+                        " Righe che aggiornano un prodotto già presente (stesso SKU o EAN nel file): " +
                         st.stagingMergedOrUpdated +
                         ".";
                 }
@@ -1011,7 +1010,7 @@ export default function ImportLab() {
                 }
             }
             detail +=
-                " Nota: una riga = un prodotto solo se SKU/EAN sono univoci; altrimenti le righe si uniscono sullo stesso articolo.";
+                " Nota: una riga = un prodotto se SKU o EAN sono univoci; titoli uguali non uniscono mai le righe.";
 
             toast.update(toastId, {
                 render: detail,
@@ -2457,7 +2456,7 @@ export default function ImportLab() {
                                 </button>
                                 <button
                                     onClick={handleConfirmImport}
-                                    disabled={isSavingStaging || !(mapping.sku || mapping.ean || mapping.title)}
+                                    disabled={isSavingStaging || !(mapping.sku || mapping.ean)}
                                     className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl disabled:opacity-50 flex items-center justify-center gap-3"
                                 >
                                     {isSavingStaging ? (

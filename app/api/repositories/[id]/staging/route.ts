@@ -95,18 +95,18 @@ export async function POST(
 
         for (const p of products) {
             try {
-                if (!p.sku && !p.ean && !p.title) {
-                    skippedNoIdentifier++;
-                    continue; // Skip righe senza chiavi minime
-                }
-
                 const skuNorm = normalizeSku(p.sku);
                 const eanNorm = normalizeEan(p.ean);
 
+                // Unicità solo SKU / EAN (il titolo duplicato non unisce mai righe)
+                if (!skuNorm && !eanNorm) {
+                    skippedNoIdentifier++;
+                    continue;
+                }
+
                 /**
                  * Match stretto: se la riga ha uno SKU, cerchiamo SOLO per SKU.
-                 * Altrimenti (solo EAN / solo titolo) usiamo EAN o titolo.
-                 * Così due righe con SKU diversi non collassano sullo stesso EAN duplicato nel file.
+                 * Altrimenti cerchiamo per EAN.
                  */
                 let staging = null;
 
@@ -120,22 +120,7 @@ export async function POST(
                     });
                 }
 
-                // 2) Fallback: match per titolo esatto, se presente e non trovato via SKU/EAN
-                if (!staging && p.title) {
-                    staging = await prisma.stagingProduct.findFirst({
-                        where: {
-                            catalogId,
-                            texts: {
-                                some: {
-                                    language: "it",
-                                    title: String(p.title),
-                                },
-                            },
-                        },
-                    });
-                }
-
-                // 3) Se non esiste ancora, crealo
+                // Se non esiste ancora, crealo
                 if (!staging) {
                     staging = await prisma.stagingProduct.create({
                         data: {
