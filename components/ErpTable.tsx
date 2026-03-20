@@ -8,7 +8,7 @@ import {
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, Languages, ShoppingCart, Box, ChevronDown,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
-    Building2, ImagePlus, Link2, ArrowUp, ArrowDown, Layers
+    Building2, ImagePlus, Link2, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
