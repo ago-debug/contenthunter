@@ -245,6 +245,12 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Handle "Old" hardcoded fields mapping them to Extra EAV just in case
+        const hasExtraValue = (v: unknown): boolean => {
+            if (v === undefined || v === null) return false;
+            // Evita `if (v)` che scarta 0, "0", ecc.
+            return String(v).trim() !== "";
+        };
+
         if (!existingProduct || overwriteExtras) {
             const legacyExtras = [
                 { key: "dimensions", value: dimensions },
@@ -253,7 +259,7 @@ export async function POST(req: NextRequest) {
             ];
 
             for (const leg of legacyExtras) {
-                if (leg.value) {
+                if (hasExtraValue(leg.value)) {
                     await prisma.productExtra.upsert({
                         where: { productId_key: { productId: product.id, key: leg.key } },
                         update: { value: leg.value.toString() },
@@ -265,7 +271,7 @@ export async function POST(req: NextRequest) {
             // 5. Handle truly dynamic extra fields
             if (extraFields && typeof extraFields === 'object') {
                 for (const [key, value] of Object.entries(extraFields)) {
-                    if (value) {
+                    if (hasExtraValue(value)) {
                         await prisma.productExtra.upsert({
                             where: { productId_key: { productId: product.id, key: key } },
                             update: { value: value.toString() },

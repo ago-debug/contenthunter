@@ -339,7 +339,10 @@ export default function ImportLab() {
         const i = extra.findIndex((e: any) => String(e.key || "").toLowerCase() === k);
         if (i >= 0) extra[i] = { ...extra[i], key, value };
         else extra.push({ key, value });
-        setSelectedProduct({ ...p, extraFields: extra });
+        const updated = { ...p, extraFields: extra };
+        setSelectedProduct(updated);
+        // Il push Master ERP itera su `products`: senza questo sync i campi extra restano obsoleti finché non salvi.
+        setProducts((prev) => prev.map((prod) => (prod.id === p.id ? updated : prod)));
     };
 
     const handleSaveProductChange = async () => {
@@ -572,7 +575,8 @@ export default function ImportLab() {
         setPushOverwriteBullets(false);
         setPushOverwriteSeo(false);
         setPushOverwritePrice(false);
-        setPushOverwriteExtras(false);
+        // Default on: di solito si vuole portare in Master ERP anche dimensioni/peso/materiali/colore ecc.
+        setPushOverwriteExtras(true);
         setPushOverwriteStockLocal(false);
         setPushOverwriteStockSupplier(false);
         setIsPushConfirmOpen(true);
@@ -642,6 +646,14 @@ export default function ImportLab() {
                         seoAiText: baseText.seoAiText,
                         price: basePrice.price,
                         images,
+                        // Anche i campi legacy top-level: l’API li mappa in ProductExtra insieme a extraFields
+                        ...(pushOverwriteExtras
+                            ? {
+                                  dimensions: extraObj.dimensions,
+                                  weight: extraObj.weight,
+                                  material: extraObj.material
+                              }
+                            : {}),
                         extraFields: extraFieldsToSend,
                         catalogId: parseInt(catalogIdParam),
                         overwrite: {
