@@ -205,27 +205,30 @@ export async function POST(
                 .forEach((entry) => matches.push(...entry.paths));
 
             if (matches.length > 0) {
-                // Clear existing staging images if we are re-associating? 
-                // Let's just add new ones for now, but usually clean is better.
-                // await prisma.stagingProductImage.deleteMany({ where: { stagingProductId: product.id } });
+                // Deduplica forte:
+                // - evita doppioni nello stesso run
+                // - evita duplicati già presenti in DB per lo stesso prodotto
+                const existingRows = await prisma.stagingProductImage.findMany({
+                    where: { stagingProductId: product.id },
+                    select: { imageUrl: true }
+                });
+                const existingUrls = new Set(existingRows.map((row) => row.imageUrl));
+                const seenInThisRun = new Set<string>();
 
                 for (const relPath of matches) {
                     const imageUrl = toPublicUrl(baseUrl, relPath);
+                    if (seenInThisRun.has(imageUrl)) continue;
+                    seenInThisRun.add(imageUrl);
+                    if (existingUrls.has(imageUrl)) continue;
 
-                    // Check if already exists to avoid duplicates
-                    const existing = await prisma.stagingProductImage.findFirst({
-                        where: { stagingProductId: product.id, imageUrl }
+                    await prisma.stagingProductImage.create({
+                        data: {
+                            stagingProductId: product.id,
+                            imageUrl
+                        }
                     });
-
-                    if (!existing) {
-                        await prisma.stagingProductImage.create({
-                            data: {
-                                stagingProductId: product.id,
-                                imageUrl
-                            }
-                        });
-                        associatedCount++;
-                    }
+                    existingUrls.add(imageUrl);
+                    associatedCount++;
                 }
             }
         }
