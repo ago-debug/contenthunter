@@ -183,6 +183,153 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: true, count: updatedCount });
         }
 
+        // Aggiunge al titolo (lingua IT) valori presi dagli stessi prodotti (SKU, extra, ecc.)
+        if (action === "append_product_fields_to_title") {
+            const fields = (body as any).fields as string[] | undefined;
+            const position = (body as any).position as string | undefined;
+            const separator = ((body as any).separator ?? " · ").toString();
+            const language = ((body as any).language ?? "it").toString();
+
+            if (!fields || !Array.isArray(fields) || fields.length === 0) {
+                return NextResponse.json({ error: "fields (array) is required" }, { status: 400 });
+            }
+            if (position !== "start" && position !== "end") {
+                return NextResponse.json({ error: "position must be start or end" }, { status: 400 });
+            }
+
+            const buildExtraLowerMap = (extras: { key: string; value: string }[]) => {
+                const m: Record<string, string> = {};
+                for (const ex of extras) {
+                    m[ex.key.toLowerCase()] = (ex.value ?? "").trim();
+                }
+                return m;
+            };
+
+            const resolveProductFieldValue = (
+                p: {
+                    sku: string;
+                    ean: string | null;
+                    parentSku: string | null;
+                    brand: string | null;
+                    category: string | null;
+                    extraFields: { key: string; value: string }[];
+                    prices: { price: number }[];
+                },
+                fieldId: string
+            ): string => {
+                const id = fieldId.trim();
+                if (!id) return "";
+                const lower = id.toLowerCase();
+                const xm = buildExtraLowerMap(p.extraFields);
+
+                switch (lower) {
+                    case "sku":
+                        return (p.sku || "").trim();
+                    case "ean":
+                        return (p.ean || "").trim();
+                    case "parentsku":
+                    case "parent_sku":
+                        return (p.parentSku || "").trim();
+                    case "brand":
+                        return (p.brand || "").trim();
+                    case "category":
+                    case "categoria":
+                        return (p.category || "").trim();
+                    case "dimensions":
+                    case "dimensioni":
+                        return xm["dimensions"] || "";
+                    case "weight":
+                    case "peso":
+                        return xm["weight"] || "";
+                    case "material":
+                    case "materiale":
+                        return xm["material"] || "";
+                    case "price":
+                    case "prezzo": {
+                        const pr = p.prices?.[0];
+                        return pr != null && pr.price != null ? String(pr.price) : "";
+                    }
+                    default:
+                        return xm[lower] || "";
+                }
+            };
+
+            const products = await prisma.product.findMany({
+                where: { id: { in: ids } },
+                include: {
+                    extraFields: true,
+                    texts: { where: { language } },
+                    prices: { where: { listName: "default" } }
+                }
+            });
+
+            let updatedCount = 0;
+            let skippedCount = 0;
+
+            const normCompare = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+            for (const p of products) {
+                const textRow = p.texts[0];
+                const parts: string[] = [];
+                for (const fid of fields) {
+                    const v = resolveProductFieldValue(p, fid);
+                    if (v) parts.push(v);
+                }
+
+                if (parts.length === 0) continue;
+
+                const chunk = parts.join(separator).trim();
+                const currentTitle = (textRow?.title || "").toString().trim();
+                const nt = normCompare(currentTitle);
+                const nc = normCompare(chunk);
+
+                // Salta se il titolo contiene già l'intero blocco (stesso testo, spazi normalizzati, case-insensitive)
+                const chunkAlreadyInTitle = nc.length > 0 && nt.includes(nc);
+
+                // Salta se ogni valore non vuoto è già presente nel titolo (anche con altro separatore / ordine)
+                const allValuesAlreadyInTitle =
+                    parts.length > 0 &&
+                    parts.every((part) => {
+                        const np = normCompare(part);
+                        return np.length === 0 || nt.includes(np);
+                    });
+
+                if (chunkAlreadyInTitle || allValuesAlreadyInTitle) {
+                    skippedCount++;
+                    continue;
+                }
+
+                let newTitle: string;
+                if (position === "start") {
+                    newTitle = currentTitle ? `${chunk}${separator}${currentTitle}`.trim() : chunk;
+                } else {
+                    newTitle = currentTitle ? `${currentTitle}${separator}${chunk}`.trim() : chunk;
+                }
+
+                newTitle = newTitle.replace(/\s+/g, " ").trim();
+                if (newTitle === currentTitle) continue;
+
+                await prisma.productText.upsert({
+                    where: {
+                        productId_language: { productId: p.id, language }
+                    },
+                    create: {
+                        productId: p.id,
+                        language,
+                        title: newTitle
+                    },
+                    update: { title: newTitle }
+                });
+                updatedCount++;
+            }
+
+            return NextResponse.json({
+                success: true,
+                count: updatedCount,
+                skipped: skippedCount
+            });
+        }
+
         return NextResponse.json({ error: "Invalid bulk action" }, { status: 400 });
     } catch (err: any) {
         console.error("Bulk action error:", err);

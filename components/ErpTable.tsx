@@ -8,7 +8,7 @@ import {
     HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, Languages, ShoppingCart, Box, ChevronDown,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
-    Building2, ImagePlus
+    Building2, ImagePlus, Link2, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
@@ -16,6 +16,19 @@ import { SearchableSelect } from "./SearchableSelect";
 import { MultiSearchableSelect } from "./MultiSearchableSelect";
 import { useSession } from "next-auth/react";
 import { useCompanyContext } from "@/contexts/CompanyContext";
+
+const TITLE_FIELD_PRESETS: { id: string; label: string }[] = [
+    { id: "brand", label: "Brand" },
+    { id: "category", label: "Categoria" },
+    { id: "colore", label: "Colore (extra)" },
+    { id: "material", label: "Materiale" },
+    { id: "dimensions", label: "Dimensioni" },
+    { id: "weight", label: "Peso" },
+    { id: "sku", label: "SKU" },
+    { id: "ean", label: "EAN" },
+    { id: "parentSku", label: "Parent SKU" },
+    { id: "price", label: "Prezzo (listino default)" }
+];
 
 export default function ErpTable() {
     const [products, setProducts] = useState<any[]>([]);
@@ -122,6 +135,14 @@ export default function ErpTable() {
     const [isSavingBrand, setIsSavingBrand] = useState(false);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [showBulkSeoModal, setShowBulkSeoModal] = useState(false);
+    const [showBulkTitleFieldsModal, setShowBulkTitleFieldsModal] = useState(false);
+    /** Ordine = ordine nel titolo (primo selezionato per primo, poi si può riordinare) */
+    const [bulkTitleFieldsSelected, setBulkTitleFieldsSelected] = useState<string[]>([]);
+    const [bulkTitleFieldsPosition, setBulkTitleFieldsPosition] = useState<"start" | "end">("end");
+    const [bulkTitleFieldsSeparator, setBulkTitleFieldsSeparator] = useState(" · ");
+    /** Chiavi ProductExtra aggiuntive, separate da virgola, in coda alla sequenza */
+    const [bulkTitleFieldsCustom, setBulkTitleFieldsCustom] = useState("");
+
     const [showCataloguesPanel, setShowCataloguesPanel] = useState(false);
     const [catalogues, setCatalogues] = useState<any[]>([]);
     const [selectedCatalogueForEdit, setSelectedCatalogueForEdit] = useState<any | null>(null);
@@ -914,6 +935,80 @@ export default function ErpTable() {
         } catch (err) {
             toast.update(toastId, {
                 render: "Errore durante l'aggiornamento massivo dei titoli (Master ERP)",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } finally {
+            setIsBulkWorking(false);
+        }
+    };
+
+    const toggleBulkTitleField = (id: string) => {
+        setBulkTitleFieldsSelected((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+    };
+
+    const moveBulkTitleField = (index: number, dir: -1 | 1) => {
+        setBulkTitleFieldsSelected((prev) => {
+            const j = index + dir;
+            if (j < 0 || j >= prev.length) return prev;
+            const next = [...prev];
+            [next[index], next[j]] = [next[j], next[index]];
+            return next;
+        });
+    };
+
+    const handleBulkAppendFieldsToTitle = async () => {
+        if (selectedIds.length === 0) return;
+        const custom = bulkTitleFieldsCustom
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        const fields = [...bulkTitleFieldsSelected, ...custom];
+        if (fields.length === 0) {
+            toast.info("Seleziona almeno un campo o inserisci chiavi extra (nome campo in ERP).");
+            return;
+        }
+        const sep = bulkTitleFieldsSeparator.length > 0 ? bulkTitleFieldsSeparator : " ";
+        const posLabel = bulkTitleFieldsPosition === "start" ? "all'inizio del titolo" : "in fondo al titolo";
+        if (
+            !window.confirm(
+                `Aggiungere i campi selezionati ${posLabel} per ${selectedIds.length} prodotti (lingua IT)? I valori vuoti vengono saltati.`
+            )
+        ) {
+            return;
+        }
+
+        setIsBulkWorking(true);
+        setShowBulkTitleFieldsModal(false);
+        const toastId = toast.loading("Aggiornamento titoli con campi prodotto...");
+        try {
+            const res = await axios.post("/api/products/bulk", {
+                ids: selectedIds,
+                action: "append_product_fields_to_title",
+                fields,
+                position: bulkTitleFieldsPosition,
+                separator: sep,
+                language: "it"
+            });
+            const n = res.data?.count ?? 0;
+            const sk = res.data?.skipped ?? 0;
+            const msg =
+                sk > 0
+                    ? `Titoli aggiornati: ${n}, saltati (valori già nel titolo): ${sk}`
+                    : `Titoli aggiornati: ${n}`;
+            toast.update(toastId, {
+                render: msg,
+                type: "success",
+                isLoading: false,
+                autoClose: 4000
+            });
+            fetchProducts();
+        } catch (err) {
+            toast.update(toastId, {
+                render: "Errore durante l'aggiornamento titoli",
                 type: "error",
                 isLoading: false,
                 autoClose: 4000
@@ -3354,6 +3449,14 @@ export default function ErpTable() {
                                     Trova/Sostituisci + Agg. Titolo
                                 </button>
                                 <button
+                                    onClick={() => setShowBulkTitleFieldsModal(true)}
+                                    disabled={isBulkWorking}
+                                    className="flex items-center gap-2 text-violet-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    <Link2 className="w-4 h-4" />
+                                    Campi nel titolo
+                                </button>
+                                <button
                                     onClick={() => setShowBulkSeoModal(true)}
                                     disabled={isBulkWorking}
                                     className="flex items-center gap-2 text-indigo-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
@@ -3424,6 +3527,175 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={() => setShowBulkSeoModal(false)}
+                                    className="w-full py-2.5 text-gray-500 font-medium text-sm"
+                                >
+                                    Annulla
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Modal: campi dello stesso prodotto concatenati al titolo (IT) */}
+            <AnimatePresence>
+                {showBulkTitleFieldsModal && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowBulkTitleFieldsModal(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full border border-gray-100 max-h-[90vh] overflow-y-auto"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-3 bg-violet-100 rounded-xl">
+                                    <Link2 className="w-6 h-6 text-violet-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-gray-900">Campi nel titolo</h3>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {selectedIds.length} prodotti · lingua IT · valori presi da ogni singolo articolo
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p className="text-xs text-gray-600 mb-3 font-medium">
+                                Dove inserire il blocco campi (separati dal titolo con il separatore sotto):
+                            </p>
+                            <div className="flex gap-2 mb-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkTitleFieldsPosition("start")}
+                                    className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide border-2 transition-all ${
+                                        bulkTitleFieldsPosition === "start"
+                                            ? "border-violet-600 bg-violet-50 text-violet-900"
+                                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                    }`}
+                                >
+                                    Inizio titolo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setBulkTitleFieldsPosition("end")}
+                                    className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide border-2 transition-all ${
+                                        bulkTitleFieldsPosition === "end"
+                                            ? "border-violet-600 bg-violet-50 text-violet-900"
+                                            : "border-gray-200 text-gray-600 hover:border-gray-300"
+                                    }`}
+                                >
+                                    Fine titolo
+                                </button>
+                            </div>
+
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+                                Separatore tra i campi (e tra blocco e titolo)
+                            </label>
+                            <input
+                                type="text"
+                                value={bulkTitleFieldsSeparator}
+                                onChange={(e) => setBulkTitleFieldsSeparator(e.target.value)}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-4 font-mono"
+                                placeholder=" · "
+                            />
+                            <p className="text-[10px] text-gray-400 mb-4">
+                                Suggerimenti: <code className="bg-gray-100 px-1 rounded"> · </code>,{" "}
+                                <code className="bg-gray-100 px-1 rounded"> - </code>,{" "}
+                                <code className="bg-gray-100 px-1 rounded">, </code>
+                            </p>
+
+                            <p className="text-xs font-black uppercase tracking-widest text-gray-500 mb-2">
+                                Campi da includere (ordine = ordine nel titolo)
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                                {TITLE_FIELD_PRESETS.map((pf) => (
+                                    <label
+                                        key={pf.id}
+                                        className="flex items-center gap-2 text-xs cursor-pointer select-none text-gray-700"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={bulkTitleFieldsSelected.includes(pf.id)}
+                                            onChange={() => toggleBulkTitleField(pf.id)}
+                                            className="rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+                                        />
+                                        {pf.label}
+                                    </label>
+                                ))}
+                            </div>
+
+                            {bulkTitleFieldsSelected.length > 0 && (
+                                <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Ordine nel titolo</p>
+                                    <ul className="space-y-1">
+                                        {bulkTitleFieldsSelected.map((fid, idx) => {
+                                            const lab =
+                                                TITLE_FIELD_PRESETS.find((p) => p.id === fid)?.label || fid;
+                                            return (
+                                                <li
+                                                    key={`${fid}-${idx}`}
+                                                    className="flex items-center justify-between gap-2 text-xs text-slate-800"
+                                                >
+                                                    <span>
+                                                        {idx + 1}. {lab}
+                                                    </span>
+                                                    <span className="flex gap-1">
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === 0}
+                                                            onClick={() => moveBulkTitleField(idx, -1)}
+                                                            className="p-1 rounded-lg hover:bg-white disabled:opacity-30"
+                                                            title="Su"
+                                                        >
+                                                            <ArrowUp className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            disabled={idx === bulkTitleFieldsSelected.length - 1}
+                                                            onClick={() => moveBulkTitleField(idx, 1)}
+                                                            className="p-1 rounded-lg hover:bg-white disabled:opacity-30"
+                                                            title="Giù"
+                                                        >
+                                                            <ArrowDown className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            )}
+
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-1">
+                                Altri campi extra (chiavi ERP, separate da virgola, in coda)
+                            </label>
+                            <input
+                                type="text"
+                                value={bulkTitleFieldsCustom}
+                                onChange={(e) => setBulkTitleFieldsCustom(e.target.value)}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-4"
+                                placeholder="es. stagione, cod_fornitore"
+                            />
+
+                            <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                                <button
+                                    type="button"
+                                    onClick={handleBulkAppendFieldsToTitle}
+                                    disabled={isBulkWorking}
+                                    className="w-full py-3 px-4 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700 transition-all text-sm disabled:opacity-50"
+                                >
+                                    Applica ai selezionati
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBulkTitleFieldsModal(false)}
                                     className="w-full py-2.5 text-gray-500 font-medium text-sm"
                                 >
                                     Annulla
