@@ -258,8 +258,15 @@ export async function POST(req: NextRequest) {
                 }
             };
 
+            const cleanIds = ids
+                .map((x: unknown) => Number(x))
+                .filter((n): n is number => Number.isInteger(n) && n > 0);
+            if (cleanIds.length === 0) {
+                return NextResponse.json({ error: "Nessun ID prodotto valido" }, { status: 400 });
+            }
+
             const products = await prisma.product.findMany({
-                where: { id: { in: ids } },
+                where: { id: { in: cleanIds } },
                 include: {
                     extraFields: true,
                     texts: { where: { language } },
@@ -273,6 +280,8 @@ export async function POST(req: NextRequest) {
             let noFieldValuesCount = 0;
 
             const normCompare = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+            const toUpsert: { productId: number; newTitle: string }[] = [];
 
             for (const p of products) {
                 const textRow = p.texts[0];
@@ -292,8 +301,6 @@ export async function POST(req: NextRequest) {
                 const nt = normCompare(currentTitle);
                 const nc = normCompare(chunk);
 
-                // Solo blocco intero: il controllo "ogni valore nel titolo" saltava tutto con falsi positivi
-                // (es. prezzo "89", lettere corte contenute in altre parole).
                 const chunkAlreadyInTitle = nc.length > 0 && nt.includes(nc);
 
                 if (chunkAlreadyInTitle) {
@@ -311,18 +318,28 @@ export async function POST(req: NextRequest) {
                 newTitle = newTitle.replace(/\s+/g, " ").trim();
                 if (newTitle === currentTitle) continue;
 
-                await prisma.productText.upsert({
-                    where: {
-                        productId_language: { productId: p.id, language }
-                    },
-                    create: {
-                        productId: p.id,
-                        language,
-                        title: newTitle
-                    },
-                    update: { title: newTitle }
+                toUpsert.push({ productId: p.id, newTitle });
+            }
+
+            if (toUpsert.length > 0) {
+                await prisma.$transaction(async (tx) => {
+                    await Promise.all(
+                        toUpsert.map((u) =>
+                            tx.productText.upsert({
+                                where: {
+                                    productId_language: { productId: u.productId, language }
+                                },
+                                create: {
+                                    productId: u.productId,
+                                    language,
+                                    title: u.newTitle
+                                },
+                                update: { title: u.newTitle }
+                            })
+                        )
+                    );
                 });
-                updatedCount++;
+                updatedCount = toUpsert.length;
             }
 
             return NextResponse.json({

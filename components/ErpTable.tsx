@@ -984,9 +984,36 @@ export default function ErpTable() {
         setIsBulkWorking(true);
         setShowBulkTitleFieldsModal(false);
         const toastId = toast.loading("Aggiornamento titoli con campi prodotto...");
-        /** Più richieste corte: una sola con centinaia di ID va in timeout sul server (update sequenziali). */
-        const BULK_TITLE_BATCH = 25;
+        /** Richieste piccole: timeout proxy / PHP / serverless; 10 è il più sicuro. */
+        const BULK_TITLE_BATCH = 10;
+        const BULK_REQ_TIMEOUT_MS = 120000;
         const totalSel = selectedIds.length;
+
+        const postTitleBatch = async (batchIds: number[]) => {
+            const payload = {
+                ids: batchIds,
+                action: "append_product_fields_to_title",
+                fields,
+                position: bulkTitleFieldsPosition,
+                separator: sep,
+                language: "it"
+            };
+            let lastErr: unknown;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                try {
+                    return await axios.post("/api/products/bulk", payload, {
+                        timeout: BULK_REQ_TIMEOUT_MS
+                    });
+                } catch (e) {
+                    lastErr = e;
+                    if (attempt < 2) {
+                        await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+                    }
+                }
+            }
+            throw lastErr;
+        };
+
         try {
             let n = 0;
             let sk = 0;
@@ -994,18 +1021,13 @@ export default function ErpTable() {
             for (let i = 0; i < selectedIds.length; i += BULK_TITLE_BATCH) {
                 const batch = selectedIds.slice(i, i + BULK_TITLE_BATCH);
                 const done = Math.min(i + batch.length, totalSel);
+                const batchNum = Math.floor(i / BULK_TITLE_BATCH) + 1;
+                const batchTotal = Math.ceil(totalSel / BULK_TITLE_BATCH);
                 toast.update(toastId, {
-                    render: `Aggiornamento titoli… ${done}/${totalSel}`,
+                    render: `Titoli… ${done}/${totalSel} (richiesta ${batchNum}/${batchTotal})`,
                     isLoading: true
                 });
-                const res = await axios.post("/api/products/bulk", {
-                    ids: batch,
-                    action: "append_product_fields_to_title",
-                    fields,
-                    position: bulkTitleFieldsPosition,
-                    separator: sep,
-                    language: "it"
-                });
+                const res = await postTitleBatch(batch);
                 n += res.data?.count ?? 0;
                 sk += res.data?.skipped ?? 0;
                 nv += res.data?.noFieldValues ?? 0;
@@ -1041,12 +1063,17 @@ export default function ErpTable() {
                 autoClose: n === 0 ? 7000 : 4000
             });
             fetchProducts();
-        } catch (err) {
+        } catch (err: any) {
+            const apiMsg =
+                err?.response?.data?.error ||
+                err?.response?.data?.details ||
+                err?.message ||
+                "Errore di rete o timeout";
             toast.update(toastId, {
-                render: "Errore durante l'aggiornamento titoli (prova con meno prodotti se persiste).",
+                render: `Titoli: ${apiMsg}`,
                 type: "error",
                 isLoading: false,
-                autoClose: 5000
+                autoClose: 8000
             });
         } finally {
             setIsBulkWorking(false);
