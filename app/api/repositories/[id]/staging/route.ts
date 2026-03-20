@@ -103,16 +103,22 @@ export async function POST(
                 const skuNorm = normalizeSku(p.sku);
                 const eanNorm = normalizeEan(p.ean);
 
-                // 1) Prova a trovare un prodotto di staging esistente per questo catalogo
-                let staging = await prisma.stagingProduct.findFirst({
-                    where: {
-                        catalogId,
-                        OR: [
-                            skuNorm ? { sku: skuNorm } : undefined,
-                            eanNorm ? { ean: eanNorm } : undefined,
-                        ].filter(Boolean) as any,
-                    },
-                });
+                /**
+                 * Match stretto: se la riga ha uno SKU, cerchiamo SOLO per SKU.
+                 * Altrimenti (solo EAN / solo titolo) usiamo EAN o titolo.
+                 * Così due righe con SKU diversi non collassano sullo stesso EAN duplicato nel file.
+                 */
+                let staging = null;
+
+                if (skuNorm) {
+                    staging = await prisma.stagingProduct.findFirst({
+                        where: { catalogId, sku: skuNorm },
+                    });
+                } else if (eanNorm) {
+                    staging = await prisma.stagingProduct.findFirst({
+                        where: { catalogId, ean: eanNorm },
+                    });
+                }
 
                 // 2) Fallback: match per titolo esatto, se presente e non trovato via SKU/EAN
                 if (!staging && p.title) {
