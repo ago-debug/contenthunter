@@ -971,7 +971,7 @@ export default function ErpTable() {
             toast.info("Seleziona almeno un campo o inserisci chiavi extra (nome campo in ERP).");
             return;
         }
-        const sep = bulkTitleFieldsSeparator.length > 0 ? bulkTitleFieldsSeparator : " ";
+        const sep = bulkTitleFieldsSeparator.trim() || " · ";
         const posLabel = bulkTitleFieldsPosition === "start" ? "all'inizio del titolo" : "in fondo al titolo";
         if (
             !window.confirm(
@@ -995,15 +995,36 @@ export default function ErpTable() {
             });
             const n = res.data?.count ?? 0;
             const sk = res.data?.skipped ?? 0;
-            const msg =
-                sk > 0
-                    ? `Titoli aggiornati: ${n}, saltati (valori già nel titolo): ${sk}`
-                    : `Titoli aggiornati: ${n}`;
+            const nv = res.data?.noFieldValues ?? 0;
+
+            let msg: string;
+            let toastType: "success" | "warning" = "success";
+            if (n === 0) {
+                toastType = "warning";
+                const bits: string[] = [];
+                if (nv > 0) {
+                    bits.push(
+                        `${nv} senza dati per i campi scelti (vuoti in scheda / chiavi extra errate)`
+                    );
+                }
+                if (sk > 0) {
+                    bits.push(`${sk} già con quel blocco nel titolo`);
+                }
+                msg =
+                    bits.length > 0
+                        ? `Nessun titolo modificato. ${bits.join(" · ")}`
+                        : "Nessun titolo modificato.";
+            } else {
+                msg =
+                    sk > 0 || nv > 0
+                        ? `Titoli aggiornati: ${n}${sk ? `, saltati (già presenti): ${sk}` : ""}${nv ? `, senza dati campi: ${nv}` : ""}`
+                        : `Titoli aggiornati: ${n}`;
+            }
             toast.update(toastId, {
                 render: msg,
-                type: "success",
+                type: toastType,
                 isLoading: false,
-                autoClose: 4000
+                autoClose: n === 0 ? 7000 : 4000
             });
             fetchProducts();
         } catch (err) {
@@ -3602,12 +3623,12 @@ export default function ErpTable() {
                                 type="text"
                                 value={bulkTitleFieldsSeparator}
                                 onChange={(e) => setBulkTitleFieldsSeparator(e.target.value)}
-                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-4 font-mono"
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 font-mono"
                                 placeholder=" · "
                             />
-                            <p className="text-[10px] text-gray-400 mb-4">
-                                Suggerimenti: <code className="bg-gray-100 px-1 rounded"> · </code>,{" "}
-                                <code className="bg-gray-100 px-1 rounded"> - </code>,{" "}
+                            <p className="text-[10px] text-gray-500 mb-4">
+                                Se lasci vuoto si usa automaticamente <code className="bg-gray-100 px-1 rounded"> · </code>.
+                                Altri esempi: <code className="bg-gray-100 px-1 rounded"> - </code>,{" "}
                                 <code className="bg-gray-100 px-1 rounded">, </code>
                             </p>
 
@@ -3685,10 +3706,21 @@ export default function ErpTable() {
                             />
 
                             <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                                {bulkTitleFieldsSelected.length === 0 &&
+                                    !bulkTitleFieldsCustom.split(",").some((s) => s.trim().length > 0) && (
+                                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                                            Seleziona almeno un campo qui sopra oppure indica chiavi extra (nome campo in
+                                            ERP), altrimenti il titolo non cambia.
+                                        </p>
+                                    )}
                                 <button
                                     type="button"
                                     onClick={handleBulkAppendFieldsToTitle}
-                                    disabled={isBulkWorking}
+                                    disabled={
+                                        isBulkWorking ||
+                                        (bulkTitleFieldsSelected.length === 0 &&
+                                            !bulkTitleFieldsCustom.split(",").some((s) => s.trim().length > 0))
+                                    }
                                     className="w-full py-3 px-4 bg-violet-600 text-white font-bold rounded-xl hover:bg-violet-700 transition-all text-sm disabled:opacity-50"
                                 >
                                     Applica ai selezionati

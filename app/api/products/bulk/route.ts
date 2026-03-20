@@ -187,7 +187,8 @@ export async function POST(req: NextRequest) {
         if (action === "append_product_fields_to_title") {
             const fields = (body as any).fields as string[] | undefined;
             const position = (body as any).position as string | undefined;
-            const separator = ((body as any).separator ?? " · ").toString();
+            const separatorRaw = ((body as any).separator ?? " · ").toString();
+            const separator = separatorRaw.trim() === "" ? " · " : separatorRaw;
             const language = ((body as any).language ?? "it").toString();
 
             if (!fields || !Array.isArray(fields) || fields.length === 0) {
@@ -265,6 +266,8 @@ export async function POST(req: NextRequest) {
 
             let updatedCount = 0;
             let skippedCount = 0;
+            /** Campi scelti ma tutti vuoti su quel prodotto (nessun extra / brand, ecc.) */
+            let noFieldValuesCount = 0;
 
             const normCompare = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
 
@@ -276,25 +279,21 @@ export async function POST(req: NextRequest) {
                     if (v) parts.push(v);
                 }
 
-                if (parts.length === 0) continue;
+                if (parts.length === 0) {
+                    noFieldValuesCount++;
+                    continue;
+                }
 
                 const chunk = parts.join(separator).trim();
                 const currentTitle = (textRow?.title || "").toString().trim();
                 const nt = normCompare(currentTitle);
                 const nc = normCompare(chunk);
 
-                // Salta se il titolo contiene già l'intero blocco (stesso testo, spazi normalizzati, case-insensitive)
+                // Solo blocco intero: il controllo "ogni valore nel titolo" saltava tutto con falsi positivi
+                // (es. prezzo "89", lettere corte contenute in altre parole).
                 const chunkAlreadyInTitle = nc.length > 0 && nt.includes(nc);
 
-                // Salta se ogni valore non vuoto è già presente nel titolo (anche con altro separatore / ordine)
-                const allValuesAlreadyInTitle =
-                    parts.length > 0 &&
-                    parts.every((part) => {
-                        const np = normCompare(part);
-                        return np.length === 0 || nt.includes(np);
-                    });
-
-                if (chunkAlreadyInTitle || allValuesAlreadyInTitle) {
+                if (chunkAlreadyInTitle) {
                     skippedCount++;
                     continue;
                 }
@@ -326,7 +325,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
                 success: true,
                 count: updatedCount,
-                skipped: skippedCount
+                skipped: skippedCount,
+                noFieldValues: noFieldValuesCount
             });
         }
 
