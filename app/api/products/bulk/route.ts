@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 
+/** Evita timeout su operazioni lunghe (hosting serverless / proxy) */
+export const maxDuration = 300;
+
 // Helper to normalize Italian product titles:
 // - trim + collapse multiple spaces
 // - lowercase everything

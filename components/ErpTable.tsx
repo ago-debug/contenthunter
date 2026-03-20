@@ -984,18 +984,32 @@ export default function ErpTable() {
         setIsBulkWorking(true);
         setShowBulkTitleFieldsModal(false);
         const toastId = toast.loading("Aggiornamento titoli con campi prodotto...");
+        /** Più richieste corte: una sola con centinaia di ID va in timeout sul server (update sequenziali). */
+        const BULK_TITLE_BATCH = 25;
+        const totalSel = selectedIds.length;
         try {
-            const res = await axios.post("/api/products/bulk", {
-                ids: selectedIds,
-                action: "append_product_fields_to_title",
-                fields,
-                position: bulkTitleFieldsPosition,
-                separator: sep,
-                language: "it"
-            });
-            const n = res.data?.count ?? 0;
-            const sk = res.data?.skipped ?? 0;
-            const nv = res.data?.noFieldValues ?? 0;
+            let n = 0;
+            let sk = 0;
+            let nv = 0;
+            for (let i = 0; i < selectedIds.length; i += BULK_TITLE_BATCH) {
+                const batch = selectedIds.slice(i, i + BULK_TITLE_BATCH);
+                const done = Math.min(i + batch.length, totalSel);
+                toast.update(toastId, {
+                    render: `Aggiornamento titoli… ${done}/${totalSel}`,
+                    isLoading: true
+                });
+                const res = await axios.post("/api/products/bulk", {
+                    ids: batch,
+                    action: "append_product_fields_to_title",
+                    fields,
+                    position: bulkTitleFieldsPosition,
+                    separator: sep,
+                    language: "it"
+                });
+                n += res.data?.count ?? 0;
+                sk += res.data?.skipped ?? 0;
+                nv += res.data?.noFieldValues ?? 0;
+            }
 
             let msg: string;
             let toastType: "success" | "warning" = "success";
@@ -1029,10 +1043,10 @@ export default function ErpTable() {
             fetchProducts();
         } catch (err) {
             toast.update(toastId, {
-                render: "Errore durante l'aggiornamento titoli",
+                render: "Errore durante l'aggiornamento titoli (prova con meno prodotti se persiste).",
                 type: "error",
                 isLoading: false,
-                autoClose: 4000
+                autoClose: 5000
             });
         } finally {
             setIsBulkWorking(false);
