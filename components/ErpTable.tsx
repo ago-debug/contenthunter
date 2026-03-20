@@ -38,10 +38,15 @@ const EMPTY_SHEET_FILTERS: Record<string, string> = {
 };
 
 /** Etichette filtri per campi scheda (substring, case-insensitive) */
-/** Opzioni per modifica massiva valore singolo */
+/** Opzioni per modifica massiva valore singolo (allineate a Product + ProductText + ProductPrice + ProductExtra) */
 const BULK_SET_FIELD_OPTIONS: { value: string; label: string }[] = [
-    { value: "brand", label: "Brand" },
-    { value: "category", label: "Categoria (testo)" },
+    { value: "sku", label: "SKU (univoco — attenzione duplicati)" },
+    { value: "brand", label: "Brand (testo)" },
+    { value: "brandId", label: "Brand ID (FK numerico)" },
+    { value: "category", label: "Categoria (testo libero)" },
+    { value: "categoryId", label: "Categoria ID (Liv. 1)" },
+    { value: "subCategoryId", label: "Sub categoria ID (Liv. 2)" },
+    { value: "subSubCategoryId", label: "Sotto-categoria ID (Liv. 3)" },
     { value: "ean", label: "EAN" },
     { value: "parentSku", label: "Parent SKU" },
     { value: "title", label: "Titolo (IT)" },
@@ -50,12 +55,58 @@ const BULK_SET_FIELD_OPTIONS: { value: string; label: string }[] = [
     { value: "bulletPoints", label: "Bullet points" },
     { value: "seoAiText", label: "SEO AI" },
     { value: "price", label: "Prezzo (listino default)" },
-    { value: "dimensions", label: "Dimensioni" },
-    { value: "weight", label: "Peso" },
-    { value: "material", label: "Materiale" },
+    { value: "currency", label: "Valuta prezzo (listino default)" },
+    { value: "dimensions", label: "Dimensioni (extra)" },
+    { value: "weight", label: "Peso (extra)" },
+    { value: "material", label: "Materiale (extra)" },
     { value: "extra:colore", label: "Colore (extra)" },
+    { value: "extra:stockLocal", label: "Giacenza locale (extra)" },
+    { value: "extra:stockSupplier", label: "Giacenza fornitore (extra)" },
     { value: "__extra_custom__", label: "Altro campo extra (chiave manuale)" }
 ];
+
+/** Campi per cui è consentito inviare valore vuoto (azzera / rimuovi extra / default valuta) */
+function bulkSetFieldAllowsEmptyValue(fieldPath: string): boolean {
+    const fpL = fieldPath.toLowerCase();
+    if (fpL.startsWith("extra:")) return true;
+    return new Set([
+        "categoryid",
+        "subcategoryid",
+        "subsubcategoryid",
+        "brandid",
+        "ean",
+        "parentsku",
+        "brand",
+        "category",
+        "title",
+        "description",
+        "docdescription",
+        "bulletpoints",
+        "seoaitext",
+        "currency",
+        "dimensions",
+        "weight",
+        "material"
+    ]).has(fpL);
+}
+
+function bulkSetFieldValuePlaceholder(fieldPath: string, extraKey: string): string {
+    const fp =
+        fieldPath === "__extra_custom__"
+            ? `extra:${(extraKey || "").trim()}`
+            : fieldPath;
+    const fpL = fp.toLowerCase();
+    if (fpL === "price") return "Es. 19.90 o 0";
+    if (fpL === "currency") return "EUR, USD, CHF… (vuoto = EUR)";
+    if (fpL === "sku") return "Codice SKU univoco nella società";
+    if (["brandid", "categoryid", "subcategoryid", "subsubcategoryid"].includes(fpL)) {
+        return "Solo numeri; vuoto = azzera il collegamento";
+    }
+    if (fpL.startsWith("extra:")) {
+        return "Valore; vuoto = rimuove il campo extra se presente";
+    }
+    return "Testo o numero; vuoto dove consentito azzera il campo";
+}
 
 const SHEET_FILTER_FIELDS: { key: string; label: string }[] = [
     { key: "sku", label: "SKU" },
@@ -1161,7 +1212,9 @@ export default function ErpTable() {
             return;
         }
         const needsValue =
-            !fp.toLowerCase().startsWith("extra:") && fp.toLowerCase() !== "price";
+            fp.toLowerCase() === "price" ||
+            fp.toLowerCase() === "sku" ||
+            (!bulkSetFieldAllowsEmptyValue(fp) && !fp.toLowerCase().startsWith("extra:"));
         if (needsValue && !bulkOpValue.trim()) {
             toast.warning("Inserisci un valore da applicare.");
             return;
@@ -3837,8 +3890,9 @@ export default function ErpTable() {
                                         Imposta lo stesso valore su un campo
                                     </h4>
                                     <p className="text-xs text-slate-600 mb-3">
-                                        Utile per brand, categoria testuale, materiale, colore, prezzo uguale su più articoli.
-                                        Con &quot;Solo se vuoto&quot; non sovrascrivi dati già presenti.
+                                        Tutti i campi prodotto (SKU, FK categoria/brand, testi IT, prezzo, valuta, extra).
+                                        Valore vuoto dove consentito azzera il campo o rimuove un extra. Con &quot;Solo se
+                                        vuoto&quot; non sovrascrivi dati già presenti.
                                     </p>
                                     <div className="space-y-3">
                                         <label className="block">
@@ -3876,7 +3930,10 @@ export default function ErpTable() {
                                                 onChange={(e) => setBulkOpValue(e.target.value)}
                                                 rows={2}
                                                 className="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-800"
-                                                placeholder="Testo o numero (prezzo con punto o virgola)"
+                                                placeholder={bulkSetFieldValuePlaceholder(
+                                                    bulkOpFieldPath,
+                                                    bulkOpExtraKey
+                                                )}
                                             />
                                         </label>
                                         <label className="flex items-center gap-2 cursor-pointer">

@@ -370,11 +370,63 @@ export async function POST(req: NextRequest) {
 
             const fpLower = fieldPath.toLowerCase();
             const isExtra = fpLower.startsWith("extra:");
-            if (!isExtra && !strVal.trim() && fpLower !== "price") {
+            const allowEmptyClear =
+                isExtra ||
+                [
+                    "categoryid",
+                    "subcategoryid",
+                    "subsubcategoryid",
+                    "brandid",
+                    "ean",
+                    "parentsku",
+                    "brand",
+                    "category",
+                    "title",
+                    "description",
+                    "docdescription",
+                    "bulletpoints",
+                    "seoaitext",
+                    "currency",
+                    "dimensions",
+                    "weight",
+                    "material"
+                ].includes(fpLower);
+            if (fpLower === "sku" && !strVal.trim()) {
+                return NextResponse.json({ error: "Valore obbligatorio per SKU" }, { status: 400 });
+            }
+            if (fpLower === "price" && !strVal.trim()) {
+                return NextResponse.json({ error: "Valore obbligatorio per il prezzo" }, { status: 400 });
+            }
+            if (!isExtra && !strVal.trim() && fpLower !== "price" && !allowEmptyClear) {
                 return NextResponse.json({ error: "Valore obbligatorio per questo campo" }, { status: 400 });
             }
             if (isExtra && fieldPath.length <= 6) {
                 return NextResponse.json({ error: "Usa extra:nome_campo" }, { status: 400 });
+            }
+
+            const allowedNonExtra = new Set([
+                "brand",
+                "category",
+                "ean",
+                "parentsku",
+                "sku",
+                "brandid",
+                "categoryid",
+                "subcategoryid",
+                "subsubcategoryid",
+                "dimensions",
+                "weight",
+                "material",
+                "title",
+                "description",
+                "docdescription",
+                "bulletpoints",
+                "seoaitext",
+                "currency",
+                "price"
+            ]);
+            if (!isExtra && !allowedNonExtra.has(fpLower)) {
+                return NextResponse.json({ error: `Campo non supportato: ${fieldPath}` }, { status: 400 });
             }
 
             let updated = 0;
@@ -398,11 +450,18 @@ export async function POST(req: NextRequest) {
                         if (!ek) continue;
                         const existing = p.extraFields.find((e) => e.key.toLowerCase() === ek.toLowerCase());
                         const dbKey = existing?.key ?? ek;
-                        if (onlyIfEmpty && (existing?.value || "").trim()) {
-                            skipped++;
+                        if (!strVal.trim()) {
+                            if (existing) {
+                                await prisma.productExtra.delete({
+                                    where: { productId_key: { productId: p.id, key: dbKey } }
+                                });
+                                updated++;
+                            } else {
+                                skipped++;
+                            }
                             continue;
                         }
-                        if (!strVal.trim()) {
+                        if (onlyIfEmpty && (existing?.value || "").trim()) {
                             skipped++;
                             continue;
                         }
@@ -455,9 +514,155 @@ export async function POST(req: NextRequest) {
                             data: { parentSku: strVal || null }
                         });
                         updated++;
+                    } else if (fpLower === "sku") {
+                        const newSku = strVal.trim();
+                        if (!newSku) {
+                            skipped++;
+                            continue;
+                        }
+                        if (onlyIfEmpty && (p.sku || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        if (newSku === p.sku) {
+                            skipped++;
+                            continue;
+                        }
+                        try {
+                            await prisma.product.update({
+                                where: { id: p.id },
+                                data: { sku: newSku }
+                            });
+                            updated++;
+                        } catch {
+                            skipped++;
+                        }
+                    } else if (fpLower === "brandid") {
+                        const t = strVal.trim();
+                        if (!t) {
+                            if (onlyIfEmpty && p.brandId != null) {
+                                skipped++;
+                                continue;
+                            }
+                            await prisma.product.update({
+                                where: { id: p.id },
+                                data: { brandId: null }
+                            });
+                            updated++;
+                            continue;
+                        }
+                        const n = parseInt(t, 10);
+                        if (Number.isNaN(n)) {
+                            skipped++;
+                            continue;
+                        }
+                        if (onlyIfEmpty && p.brandId != null) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { brandId: n }
+                        });
+                        updated++;
+                    } else if (fpLower === "categoryid") {
+                        const t = strVal.trim();
+                        if (!t) {
+                            if (onlyIfEmpty && p.categoryId != null) {
+                                skipped++;
+                                continue;
+                            }
+                            await prisma.product.update({
+                                where: { id: p.id },
+                                data: { categoryId: null }
+                            });
+                            updated++;
+                            continue;
+                        }
+                        const n = parseInt(t, 10);
+                        if (Number.isNaN(n)) {
+                            skipped++;
+                            continue;
+                        }
+                        if (onlyIfEmpty && p.categoryId != null) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { categoryId: n }
+                        });
+                        updated++;
+                    } else if (fpLower === "subcategoryid") {
+                        const t = strVal.trim();
+                        if (!t) {
+                            if (onlyIfEmpty && p.subCategoryId != null) {
+                                skipped++;
+                                continue;
+                            }
+                            await prisma.product.update({
+                                where: { id: p.id },
+                                data: { subCategoryId: null }
+                            });
+                            updated++;
+                            continue;
+                        }
+                        const n = parseInt(t, 10);
+                        if (Number.isNaN(n)) {
+                            skipped++;
+                            continue;
+                        }
+                        if (onlyIfEmpty && p.subCategoryId != null) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { subCategoryId: n }
+                        });
+                        updated++;
+                    } else if (fpLower === "subsubcategoryid") {
+                        const t = strVal.trim();
+                        if (!t) {
+                            if (onlyIfEmpty && p.subSubCategoryId != null) {
+                                skipped++;
+                                continue;
+                            }
+                            await prisma.product.update({
+                                where: { id: p.id },
+                                data: { subSubCategoryId: null }
+                            });
+                            updated++;
+                            continue;
+                        }
+                        const n = parseInt(t, 10);
+                        if (Number.isNaN(n)) {
+                            skipped++;
+                            continue;
+                        }
+                        if (onlyIfEmpty && p.subSubCategoryId != null) {
+                            skipped++;
+                            continue;
+                        }
+                        await prisma.product.update({
+                            where: { id: p.id },
+                            data: { subSubCategoryId: n }
+                        });
+                        updated++;
                     } else if (fpLower === "dimensions" || fpLower === "weight" || fpLower === "material") {
                         const key = fpLower === "dimensions" ? "dimensions" : fpLower === "weight" ? "weight" : "material";
                         const existing = p.extraFields.find((e) => e.key.toLowerCase() === key);
+                        if (!strVal.trim()) {
+                            if (existing) {
+                                await prisma.productExtra.delete({
+                                    where: { productId_key: { productId: p.id, key } }
+                                });
+                                updated++;
+                            } else {
+                                skipped++;
+                            }
+                            continue;
+                        }
                         if (onlyIfEmpty && (existing?.value || "").trim()) {
                             skipped++;
                             continue;
@@ -498,6 +703,28 @@ export async function POST(req: NextRequest) {
                             update: { [col]: strVal || null }
                         });
                         updated++;
+                    } else if (fpLower === "currency") {
+                        const cur = (strVal.trim() || "EUR").toUpperCase().slice(0, 3) || "EUR";
+                        const pr = p.prices[0];
+                        if (onlyIfEmpty && (pr?.currency || "").trim()) {
+                            skipped++;
+                            continue;
+                        }
+                        const priceNum =
+                            pr != null && typeof pr.price === "number" && !Number.isNaN(pr.price) ? pr.price : 0;
+                        await prisma.productPrice.upsert({
+                            where: {
+                                productId_listName: { productId: p.id, listName: "default" }
+                            },
+                            create: {
+                                productId: p.id,
+                                listName: "default",
+                                price: priceNum,
+                                currency: cur
+                            },
+                            update: { currency: cur }
+                        });
+                        updated++;
                     } else if (fpLower === "price") {
                         const num = parseFloat(
                             strVal.replace(/[^0-9.,-]/g, "").replace(",", ".")
@@ -511,11 +738,15 @@ export async function POST(req: NextRequest) {
                             skipped++;
                             continue;
                         }
+                        const cur =
+                            pr != null && (pr.currency || "").trim()
+                                ? String(pr.currency).toUpperCase().slice(0, 3)
+                                : "EUR";
                         await prisma.productPrice.upsert({
                             where: {
                                 productId_listName: { productId: p.id, listName: "default" }
                             },
-                            create: { productId: p.id, listName: "default", price: num },
+                            create: { productId: p.id, listName: "default", price: num, currency: cur },
                             update: { price: num }
                         });
                         updated++;
