@@ -260,10 +260,11 @@ export async function POST(req: NextRequest) {
 
             for (const leg of legacyExtras) {
                 if (hasExtraValue(leg.value)) {
+                    const str = String(leg.value);
                     await prisma.productExtra.upsert({
                         where: { productId_key: { productId: product.id, key: leg.key } },
-                        update: { value: leg.value.toString() },
-                        create: { productId: product.id, key: leg.key, value: leg.value.toString() }
+                        update: { value: str },
+                        create: { productId: product.id, key: leg.key, value: str }
                     });
                 }
             }
@@ -272,10 +273,11 @@ export async function POST(req: NextRequest) {
             if (extraFields && typeof extraFields === 'object') {
                 for (const [key, value] of Object.entries(extraFields)) {
                     if (hasExtraValue(value)) {
+                        const str = String(value);
                         await prisma.productExtra.upsert({
                             where: { productId_key: { productId: product.id, key: key } },
-                            update: { value: value.toString() },
-                            create: { productId: product.id, key: key, value: value.toString() }
+                            update: { value: str },
+                            create: { productId: product.id, key: key, value: str }
                         });
                     }
                 }
