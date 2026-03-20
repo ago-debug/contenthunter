@@ -2301,12 +2301,12 @@ export default function ImportLab() {
             {/* Push to Master ERP Confirmation Modal */}
             <AnimatePresence>
                 {isPushConfirmOpen && (
-                    <div className="fixed inset-0 z-[160] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="fixed inset-0 z-[160] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="w-full max-w-3xl bg-white rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+                            className="w-full max-w-3xl bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden"
                         >
                             <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
@@ -2325,7 +2325,7 @@ export default function ImportLab() {
                                 </button>
                             </div>
 
-                            <div className="p-8 space-y-6">
+                            <div className="flex-1 min-h-0 overflow-y-auto p-6 sm:p-8 space-y-6 custom-scrollbar">
                                 <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6">
                                     <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">
                                         Regole di sovrascrittura
@@ -2533,16 +2533,16 @@ export default function ImportLab() {
                                 </div>
                             </div>
 
-                            <div className="p-8 border-t border-slate-50 bg-slate-50/30 flex gap-4">
+                            <div className="sticky bottom-0 p-4 sm:p-6 border-t border-slate-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/85 flex gap-3 sm:gap-4">
                                 <button
                                     onClick={() => setIsPushConfirmOpen(false)}
-                                    className="flex-1 py-4 bg-white border border-slate-200 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
+                                    className="flex-1 py-3 sm:py-4 bg-white border border-slate-200 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
                                 >
                                     Annulla (torna al Lab)
                                 </button>
                                 <button
                                     onClick={executePushToMasterErp}
-                                    className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3"
+                                    className="flex-[2] py-3 sm:py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3"
                                 >
                                     <Sparkles className="w-4 h-4 text-orange-300" />
                                     Conferma Push verso Master ERP
