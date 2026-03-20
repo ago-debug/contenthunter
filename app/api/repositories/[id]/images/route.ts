@@ -3,29 +3,83 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 
-// Helper to recursively index image files
-function buildImageMap(root: string, currentDir: string, imageMap: Record<string, string[]> = {}) {
-    if (!fs.existsSync(currentDir)) return imageMap;
+// Helper to recursively index image files.
+function buildImageMap(root: string, imageMap: Record<string, string[]> = {}) {
+    if (!fs.existsSync(root)) return imageMap;
+    const dirs: string[] = [root];
 
-    const files = fs.readdirSync(currentDir);
-    for (const file of files) {
-        const fullPath = path.join(currentDir, file);
-        const stat = fs.statSync(fullPath);
+    // Iterative traversal: robust with deeply nested folders (10+ levels).
+    while (dirs.length > 0) {
+        const currentDir = dirs.pop()!;
+        const files = fs.readdirSync(currentDir);
 
-        if (stat.isDirectory()) {
-            buildImageMap(root, fullPath, imageMap);
-        } else {
-            const ext = path.extname(file).toLowerCase();
-            if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) {
-                const nameWithoutExt = path.basename(file, ext).toLowerCase();
-                const relativePath = path.relative(root, fullPath);
+        for (const file of files) {
+            const fullPath = path.join(currentDir, file);
+            const stat = fs.statSync(fullPath);
 
-                if (!imageMap[nameWithoutExt]) imageMap[nameWithoutExt] = [];
-                imageMap[nameWithoutExt].push(relativePath);
+            if (stat.isDirectory()) {
+                dirs.push(fullPath);
+                continue;
             }
+
+            const ext = path.extname(file).toLowerCase();
+            if (![".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) continue;
+
+            const nameWithoutExt = path.basename(file, ext).toLowerCase();
+            const relativePath = path.relative(root, fullPath);
+            if (!imageMap[nameWithoutExt]) imageMap[nameWithoutExt] = [];
+            imageMap[nameWithoutExt].push(relativePath);
         }
     }
+
     return imageMap;
+}
+
+function normalizeToken(value: string) {
+    return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/[-\s]+/g, "_");
+}
+
+function getImageMatchInfo(keyRaw: string, skuRaw: string): { matched: boolean; index: number } {
+    const key = normalizeToken(keyRaw);
+    const sku = normalizeToken(skuRaw);
+    if (!key || !sku) return { matched: false, index: Number.MAX_SAFE_INTEGER };
+
+    if (key === sku) return { matched: true, index: 0 };
+
+    if (!(key.startsWith(`${sku}_`) || key.startsWith(`${sku}-`) || key.startsWith(`${sku} `))) {
+        return { matched: false, index: Number.MAX_SAFE_INTEGER };
+    }
+
+    const restRaw = keyRaw.slice(skuRaw.length).trim();
+    const rest = normalizeToken(restRaw);
+    if (!rest) return { matched: true, index: 0 };
+
+    // Accept formats like:
+    // SKU_1, SKU_01, SKU_text_1, SKU_text_anything_01
+    const trailingIndexMatch = rest.match(/(?:^|[_\-\s])(\d{1,3})$/);
+    if (trailingIndexMatch) {
+        const n = parseInt(trailingIndexMatch[1], 10);
+        return { matched: true, index: Number.isFinite(n) ? n : 0 };
+    }
+
+    return { matched: true, index: 0 };
+}
+
+function toPublicUrl(baseUrl: string, relPath: string) {
+    const normalizedRelPath = relPath.split(path.sep).join("/");
+    if (baseUrl) {
+        const encodedPath = normalizedRelPath
+            .split("/")
+            .filter(Boolean)
+            .map((segment) => encodeURIComponent(segment))
+            .join("/");
+        return baseUrl + encodedPath;
+    }
+    return `/api/storage?path=${encodeURIComponent(normalizedRelPath)}`;
 }
 
 export async function GET(
@@ -109,7 +163,7 @@ export async function GET(
 
         // 3. Full scan if nothing was loaded
         if (!loaded) {
-            imageMap = buildImageMap(localPath, localPath);
+            imageMap = buildImageMap(localPath);
             try {
                 fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
             } catch {
@@ -119,22 +173,17 @@ export async function GET(
 
         const results: { fileName: string; relativePath: string; url: string }[] = [];
 
-        const normalizePath = (relPath: string) =>
-            relPath.split(path.sep).join("/");
-
         if (skuParam) {
-            const skuLower = skuParam.toLowerCase();
+            const skuRaw = String(skuParam || "").trim();
             const used = new Set<string>();
 
             const pushMatches = (relPaths: string[]) => {
                 for (const rel of relPaths) {
-                    const norm = normalizePath(rel);
+                    const norm = rel.split(path.sep).join("/");
                     if (used.has(norm)) continue;
                     used.add(norm);
 
-                    const url = baseUrl
-                        ? baseUrl + norm
-                        : `/api/storage?path=${encodeURIComponent(norm)}`;
+                    const url = toPublicUrl(baseUrl, norm);
 
                     results.push({
                         fileName: path.basename(norm),
@@ -144,25 +193,14 @@ export async function GET(
                 }
             };
 
-            const primaryKey = skuLower;
-            const secondaryPrefix = skuLower + "_";
-
-            // Primaria: nome esatto = SKU
-            if (imageMap[primaryKey]) {
-                pushMatches(imageMap[primaryKey]);
-            }
-
-            // Secondarie: SKU_X con X numerico, ordinate per X
-            const secondaryEntries: { index: number; paths: string[] }[] = [];
+            const groupedMatches: { index: number; paths: string[] }[] = [];
             for (const key of Object.keys(imageMap)) {
-                if (!key.startsWith(secondaryPrefix)) continue;
-                const suffix = key.substring(secondaryPrefix.length);
-                const num = parseInt(suffix, 10);
-                if (!Number.isFinite(num)) continue;
-                secondaryEntries.push({ index: num, paths: imageMap[key] });
+                const info = getImageMatchInfo(key, skuRaw);
+                if (!info.matched) continue;
+                groupedMatches.push({ index: info.index, paths: imageMap[key] });
             }
 
-            secondaryEntries
+            groupedMatches
                 .sort((a, b) => a.index - b.index)
                 .forEach(entry => pushMatches(entry.paths));
         } else {
@@ -170,10 +208,8 @@ export async function GET(
             const limit = 100;
             outer: for (const key of Object.keys(imageMap)) {
                 for (const rel of imageMap[key]) {
-                    const norm = normalizePath(rel);
-                    const url = baseUrl
-                        ? baseUrl + norm
-                        : `/api/storage?path=${encodeURIComponent(norm)}`;
+                    const norm = rel.split(path.sep).join("/");
+                    const url = toPublicUrl(baseUrl, norm);
 
                     results.push({
                         fileName: path.basename(norm),

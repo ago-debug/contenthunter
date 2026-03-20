@@ -8,28 +8,85 @@ import { prisma } from "@/lib/prisma";
  * Key: filename without extension (lowercase)
  * Value: array of relative paths
  */
-function buildImageMap(root: string, currentDir: string, imageMap: Record<string, string[]> = {}) {
-    if (!fs.existsSync(currentDir)) return imageMap;
+function buildImageMap(root: string, imageMap: Record<string, string[]> = {}) {
+    if (!fs.existsSync(root)) return imageMap;
+    const dirs: string[] = [root];
 
-    const files = fs.readdirSync(currentDir);
-    for (const file of files) {
-        const fullPath = path.join(currentDir, file);
-        const stat = fs.statSync(fullPath);
+    // Iterative traversal: robust with deeply nested folders (10+ levels).
+    while (dirs.length > 0) {
+        const currentDir = dirs.pop()!;
+        const files = fs.readdirSync(currentDir);
 
-        if (stat.isDirectory()) {
-            buildImageMap(root, fullPath, imageMap);
-        } else {
-            const ext = path.extname(file).toLowerCase();
-            if ([".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) {
-                const nameWithoutExt = path.basename(file, ext).toLowerCase();
-                const relativePath = path.relative(root, fullPath);
+        for (const file of files) {
+            const fullPath = path.join(currentDir, file);
+            const stat = fs.statSync(fullPath);
 
-                if (!imageMap[nameWithoutExt]) imageMap[nameWithoutExt] = [];
-                imageMap[nameWithoutExt].push(relativePath);
+            if (stat.isDirectory()) {
+                dirs.push(fullPath);
+                continue;
             }
+
+            const ext = path.extname(file).toLowerCase();
+            if (![".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) continue;
+
+            const nameWithoutExt = path.basename(file, ext).toLowerCase();
+            const relativePath = path.relative(root, fullPath);
+            if (!imageMap[nameWithoutExt]) imageMap[nameWithoutExt] = [];
+            imageMap[nameWithoutExt].push(relativePath);
         }
     }
+
     return imageMap;
+}
+
+function normalizeToken(value: string) {
+    return String(value || "")
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/[-\s]+/g, "_");
+}
+
+function getImageMatchInfo(keyRaw: string, skuRaw: string): { matched: boolean; index: number } {
+    const key = normalizeToken(keyRaw);
+    const sku = normalizeToken(skuRaw);
+    if (!key || !sku) return { matched: false, index: Number.MAX_SAFE_INTEGER };
+
+    // Exact name = primary image
+    if (key === sku) return { matched: true, index: 0 };
+
+    // Name must start with SKU and then continue with details/index.
+    if (!(key.startsWith(`${sku}_`) || key.startsWith(`${sku}-`) || key.startsWith(`${sku} `))) {
+        return { matched: false, index: Number.MAX_SAFE_INTEGER };
+    }
+
+    const restRaw = keyRaw.slice(skuRaw.length).trim();
+    const rest = normalizeToken(restRaw);
+    if (!rest) return { matched: true, index: 0 };
+
+    // Accept formats like:
+    // SKU_1, SKU_01, SKU_text_1, SKU_text_anything_01
+    const trailingIndexMatch = rest.match(/(?:^|[_\-\s])(\d{1,3})$/);
+    if (trailingIndexMatch) {
+        const n = parseInt(trailingIndexMatch[1], 10);
+        return { matched: true, index: Number.isFinite(n) ? n : 0 };
+    }
+
+    // SKU + description but no explicit trailing index => still valid, treat as primary.
+    return { matched: true, index: 0 };
+}
+
+function toPublicUrl(baseUrl: string, relPath: string) {
+    const normalizedRelPath = relPath.split(path.sep).join("/");
+    if (baseUrl) {
+        const encodedPath = normalizedRelPath
+            .split("/")
+            .filter(Boolean)
+            .map((segment) => encodeURIComponent(segment))
+            .join("/");
+        return baseUrl + encodedPath;
+    }
+    return `/api/storage?path=${encodeURIComponent(normalizedRelPath)}`;
 }
 
 export async function POST(
@@ -114,7 +171,7 @@ export async function POST(
 
         if (!loaded) {
             console.log("No index found (remote or local), scanning subdirectories...");
-            imageMap = buildImageMap(localPath, localPath);
+            imageMap = buildImageMap(localPath);
             // Save internal index for next time (if local folder is writable)
             try {
                 fs.writeFileSync(indexPath, JSON.stringify(imageMap, null, 2));
@@ -134,36 +191,18 @@ export async function POST(
         for (const product of products) {
             if (!product.sku) continue;
 
-            const sku = product.sku.toLowerCase();
-
-            // Convenzione:
-            // - primaria:  SKU.jpg
-            // - secondarie: SKU_2.jpg, SKU_3.jpg, ...
-            const primaryKey = sku;
-            const secondaryPrefix = sku + "_";
+            const sku = String(product.sku || "").trim();
+            const groupedMatches: { index: number; paths: string[] }[] = [];
+            for (const key of Object.keys(imageMap)) {
+                const info = getImageMatchInfo(key, sku);
+                if (!info.matched) continue;
+                groupedMatches.push({ index: info.index, paths: imageMap[key] });
+            }
 
             const matches: string[] = [];
-
-            // 3.1 Immagini primarie (nome esatto = SKU)
-            if (imageMap[primaryKey]) {
-                matches.push(...imageMap[primaryKey]);
-            }
-
-            // 3.2 Immagini secondarie (SKU_X dove X è numero)
-            const secondaryEntries: { index: number; paths: string[] }[] = [];
-            for (const key of Object.keys(imageMap)) {
-                if (!key.startsWith(secondaryPrefix)) continue;
-                const suffix = key.substring(secondaryPrefix.length);
-                const num = parseInt(suffix, 10);
-                if (!Number.isFinite(num)) continue;
-                secondaryEntries.push({ index: num, paths: imageMap[key] });
-            }
-
-            secondaryEntries
+            groupedMatches
                 .sort((a, b) => a.index - b.index)
-                .forEach(entry => {
-                    matches.push(...entry.paths);
-                });
+                .forEach((entry) => matches.push(...entry.paths));
 
             if (matches.length > 0) {
                 // Clear existing staging images if we are re-associating? 
@@ -171,9 +210,7 @@ export async function POST(
                 // await prisma.stagingProductImage.deleteMany({ where: { stagingProductId: product.id } });
 
                 for (const relPath of matches) {
-                    const imageUrl = baseUrl
-                        ? baseUrl + relPath.split(path.sep).join("/")
-                        : `/api/storage?path=${encodeURIComponent(relPath)}`;
+                    const imageUrl = toPublicUrl(baseUrl, relPath);
 
                     // Check if already exists to avoid duplicates
                     const existing = await prisma.stagingProductImage.findFirst({
