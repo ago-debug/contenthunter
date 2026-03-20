@@ -38,6 +38,12 @@ interface StagingProduct {
     foundInPdf?: { pageNumber: number, pdfId: number }[];
 }
 
+const ensureColorTemplate = (templates: { id: number; key: string; label: string }[]) => {
+    const hasColor = templates.some((tpl) => String(tpl.key || "").toLowerCase() === "colore");
+    if (hasColor) return templates;
+    return [...templates, { id: -1, key: "colore", label: "COLORE" }];
+};
+
 // Helper component to render a single PDF page thumbnail (cancels previous render to avoid canvas conflict)
 const PdfPageThumbnail = ({ pageNumber, pdfDoc }: { pageNumber: number, pdfDoc: any }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -240,7 +246,7 @@ export default function ImportLab() {
             ]);
             setRepository(repoRes.data);
             setProducts(productsRes.data);
-            setExtraFieldTemplates(extraFieldsRes.data || []);
+            setExtraFieldTemplates(ensureColorTemplate(extraFieldsRes.data || []));
 
             // Evita "stale UI": se il prodotto in modal è quello ricaricato, sostituiscilo con i dati aggiornati dal backend.
             if (currentSelectedId) {

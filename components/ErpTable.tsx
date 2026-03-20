@@ -58,6 +58,8 @@ export default function ErpTable() {
     const catalogCropImgRef = useRef<HTMLImageElement | null>(null);
     const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
     const [ambientPrompt, setAmbientPrompt] = useState<string>("");
+    const [newExtraKey, setNewExtraKey] = useState("");
+    const [newExtraValue, setNewExtraValue] = useState("");
 
 
     const saveImageToServer = async (url: string, sku: string): Promise<string> => {
@@ -1063,6 +1065,25 @@ export default function ErpTable() {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const getExtraValue = (p: any, key: string) => {
+        if (!p?.extraFields || typeof p.extraFields !== "object") return "";
+        const direct = p.extraFields[key];
+        if (direct !== undefined && direct !== null) return String(direct);
+        const alias = Object.keys(p.extraFields).find((k) => k.toLowerCase() === key.toLowerCase());
+        if (!alias) return "";
+        return String(p.extraFields[alias] ?? "");
+    };
+
+    const setExtraValue = (p: any, key: string, value: string) => {
+        const extras = { ...(p?.extraFields || {}) };
+        const alias = Object.keys(extras).find((k) => k.toLowerCase() === key.toLowerCase());
+        if (alias && alias !== key) {
+            delete extras[alias];
+        }
+        extras[key] = value;
+        return { ...p, extraFields: extras };
     };
 
     const handleTranslateProduct = async () => {
@@ -2331,31 +2352,75 @@ export default function ErpTable() {
                                                 </div>
                                             </div>
 
-                                            {selectedProduct.extraFields && Object.keys(selectedProduct.extraFields).length > 0 && (
-                                                <div className="mt-10 pt-8 border-t border-gray-100">
-                                                    <div className="flex items-center gap-3 mb-8">
-                                                        <div className="p-2 bg-emerald-50 rounded-lg">
-                                                            <Sparkles className="w-4 h-4 text-emerald-600" />
-                                                        </div>
-                                                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Extra Dynamics Specifications</p>
+                                            <div className="mt-10 pt-8 border-t border-gray-100">
+                                                <div className="flex items-center gap-3 mb-8">
+                                                    <div className="p-2 bg-emerald-50 rounded-lg">
+                                                        <Sparkles className="w-4 h-4 text-emerald-600" />
                                                     </div>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                                        {Object.entries(selectedProduct.extraFields).map(([key, value]: [string, any]) => (
-                                                            <div key={key} className="space-y-2">
-                                                                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1 block">{key}</label>
-                                                                <input
-                                                                    value={String(value)}
-                                                                    onChange={e => {
-                                                                        const newExtras = { ...selectedProduct.extraFields, [key]: e.target.value };
-                                                                        setSelectedProduct({ ...selectedProduct, extraFields: newExtras });
-                                                                    }}
-                                                                    className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800 focus:outline-none focus:border-emerald-400 transition-all text-xs shadow-sm"
-                                                                />
-                                                            </div>
-                                                        ))}
+                                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Campi Extra (allineati a Import LAB)</p>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1 block">COLORE</label>
+                                                        <input
+                                                            value={getExtraValue(selectedProduct, "colore")}
+                                                            onChange={e => setSelectedProduct(setExtraValue(selectedProduct, "colore", e.target.value))}
+                                                            className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800 focus:outline-none focus:border-emerald-400 transition-all text-xs shadow-sm"
+                                                            placeholder="Es. Rosso, Nero opaco, Multicolor..."
+                                                        />
                                                     </div>
                                                 </div>
-                                            )}
+
+                                                {selectedProduct.extraFields && Object.keys(selectedProduct.extraFields).length > 0 && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                                        {Object.entries(selectedProduct.extraFields)
+                                                            .filter(([key]) => key.toLowerCase() !== "colore")
+                                                            .map(([key, value]: [string, any]) => (
+                                                                <div key={key} className="space-y-2">
+                                                                    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 ml-1 block">{key}</label>
+                                                                    <input
+                                                                        value={String(value)}
+                                                                        onChange={e => {
+                                                                            const newExtras = { ...(selectedProduct.extraFields || {}), [key]: e.target.value };
+                                                                            setSelectedProduct({ ...selectedProduct, extraFields: newExtras });
+                                                                        }}
+                                                                        className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800 focus:outline-none focus:border-emerald-400 transition-all text-xs shadow-sm"
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-8 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+                                                    <input
+                                                        value={newExtraKey}
+                                                        onChange={(e) => setNewExtraKey(e.target.value)}
+                                                        placeholder="Nome campo extra (es. STAGIONE)"
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700"
+                                                    />
+                                                    <input
+                                                        value={newExtraValue}
+                                                        onChange={(e) => setNewExtraValue(e.target.value)}
+                                                        placeholder="Valore"
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700"
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const k = newExtraKey.trim();
+                                                            if (!k || !selectedProduct) return;
+                                                            const next = { ...(selectedProduct.extraFields || {}), [k]: newExtraValue };
+                                                            setSelectedProduct({ ...selectedProduct, extraFields: next });
+                                                            setNewExtraKey("");
+                                                            setNewExtraValue("");
+                                                        }}
+                                                        className="px-4 py-3 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors"
+                                                    >
+                                                        Aggiungi campo
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
