@@ -174,7 +174,8 @@ export default function ImportLab() {
     const [pushOverwriteSeo, setPushOverwriteSeo] = useState(false);
     const [pushOverwritePrice, setPushOverwritePrice] = useState(false);
     const [pushOverwriteExtras, setPushOverwriteExtras] = useState(false);
-    const [pushOverwriteStock, setPushOverwriteStock] = useState(false);
+    const [pushOverwriteStockLocal, setPushOverwriteStockLocal] = useState(false);
+    const [pushOverwriteStockSupplier, setPushOverwriteStockSupplier] = useState(false);
     const [pushOverwriteImages, setPushOverwriteImages] = useState(false);
 
     const filteredProducts = useMemo(() => {
@@ -561,7 +562,8 @@ export default function ImportLab() {
         setPushOverwriteSeo(false);
         setPushOverwritePrice(false);
         setPushOverwriteExtras(false);
-        setPushOverwriteStock(false);
+        setPushOverwriteStockLocal(false);
+        setPushOverwriteStockSupplier(false);
         setIsPushConfirmOpen(true);
     };
 
@@ -604,8 +606,11 @@ export default function ImportLab() {
                     if (pushOverwriteExtras) {
                         Object.assign(extraFieldsToSend, extraObj);
                     }
-                    if (pushOverwriteStock) {
-                        Object.assign(extraFieldsToSend, stockObj);
+                    if (pushOverwriteStockLocal && stockObj.stockLocal !== undefined) {
+                        extraFieldsToSend.stockLocal = stockObj.stockLocal;
+                    }
+                    if (pushOverwriteStockSupplier && stockObj.stockSupplier !== undefined) {
+                        extraFieldsToSend.stockSupplier = stockObj.stockSupplier;
                     }
 
                     const images = (p.images || []).map((img: any) => ({
@@ -638,7 +643,7 @@ export default function ImportLab() {
                             bulletPoints: pushOverwriteBullets,
                             seoAiText: pushOverwriteSeo,
                             price: pushOverwritePrice,
-                            extras: pushOverwriteExtras || pushOverwriteStock,
+                            extras: pushOverwriteExtras || pushOverwriteStockLocal || pushOverwriteStockSupplier,
                             images: pushOverwriteImages,
                         },
                     });
@@ -2497,14 +2502,29 @@ export default function ImportLab() {
                                             <label className="flex items-start gap-3 cursor-pointer">
                                                 <input
                                                     type="checkbox"
-                                                    checked={pushOverwriteStock}
-                                                    onChange={(e) => setPushOverwriteStock(e.target.checked)}
+                                                    checked={pushOverwriteStockLocal}
+                                                    onChange={(e) => setPushOverwriteStockLocal(e.target.checked)}
                                                     className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
                                                 />
                                                 <div>
-                                                    <div className="font-bold text-slate-800">Stock</div>
+                                                    <div className="font-bold text-slate-800">Stock locale</div>
                                                     <div className="text-xs text-slate-500">
-                                                        Sovrascrivi `stockLocal` e `stockSupplier`.
+                                                        Sovrascrivi solo `stockLocal`.
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className="flex items-start gap-3 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pushOverwriteStockSupplier}
+                                                    onChange={(e) => setPushOverwriteStockSupplier(e.target.checked)}
+                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900"
+                                                />
+                                                <div>
+                                                    <div className="font-bold text-slate-800">Stock fornitore</div>
+                                                    <div className="text-xs text-slate-500">
+                                                        Sovrascrivi solo `stockSupplier`.
                                                     </div>
                                                 </div>
                                             </label>
