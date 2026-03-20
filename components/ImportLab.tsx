@@ -967,7 +967,11 @@ export default function ImportLab() {
                 return Boolean(p.sku || p.ean || p.title);
             });
 
-            await axios.post("/api/repositories/" + catalogIdParam + "/staging", {
+            const totalDataRows = rawRows.length;
+            const sentWithKey = productsToImport.length;
+            const skippedNoKeyOnClient = totalDataRows - sentWithKey;
+
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/staging", {
                 products: productsToImport,
                 lastListinoName: currentImportFile,
                 overwrite: {
@@ -978,7 +982,43 @@ export default function ImportLab() {
                 }
             });
 
-            toast.update(toastId, { render: "Importazione completata con successo!", type: "success", isLoading: false, autoClose: 3000 });
+            const st = res.data?.stats;
+            let detail =
+                "Righe nel file: " +
+                totalDataRows +
+                ". Con identificativo (SKU/EAN/Titolo): " +
+                sentWithKey +
+                ".";
+            if (skippedNoKeyOnClient > 0) {
+                detail += " Saltate (senza identificativo): " + skippedNoKeyOnClient + ".";
+            }
+            if (st) {
+                if (st.skippedNoIdentifier > 0) {
+                    detail += " Saltate lato server: " + st.skippedNoIdentifier + ".";
+                }
+                detail +=
+                    " Nuovi prodotti in listino: " +
+                    (st.stagingCreated ?? "?") +
+                    ".";
+                if ((st.stagingMergedOrUpdated ?? 0) > 0) {
+                    detail +=
+                        " Righe che aggiornano un prodotto già presente (stesso SKU/EAN o titolo duplicato nel file): " +
+                        st.stagingMergedOrUpdated +
+                        ".";
+                }
+                if ((st.rowErrors ?? 0) > 0) {
+                    detail += " Errori su singole righe: " + st.rowErrors + ".";
+                }
+            }
+            detail +=
+                " Nota: una riga = un prodotto solo se SKU/EAN sono univoci; altrimenti le righe si uniscono sullo stesso articolo.";
+
+            toast.update(toastId, {
+                render: detail,
+                type: "success",
+                isLoading: false,
+                autoClose: 9000,
+            });
             setIsImportModalOpen(false);
             fetchRepository(parseInt(catalogIdParam!));
         } catch (err) {

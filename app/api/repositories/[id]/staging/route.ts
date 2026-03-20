@@ -88,9 +88,17 @@ export async function POST(
         const normalizeEan = (v: any) =>
             (v ? String(v).replace(/[^\d]/g, "") : "") || "";
 
+        let skippedNoIdentifier = 0;
+        let stagingCreated = 0;
+        let stagingMergedOrUpdated = 0;
+        let rowErrors = 0;
+
         for (const p of products) {
             try {
-                if (!p.sku && !p.ean && !p.title) continue; // Skip righe senza chiavi minime
+                if (!p.sku && !p.ean && !p.title) {
+                    skippedNoIdentifier++;
+                    continue; // Skip righe senza chiavi minime
+                }
 
                 const skuNorm = normalizeSku(p.sku);
                 const eanNorm = normalizeEan(p.ean);
@@ -133,7 +141,9 @@ export async function POST(
                             category: p.category ? String(p.category) : null,
                         },
                     });
+                    stagingCreated++;
                 } else {
+                    stagingMergedOrUpdated++;
                     // Aggiorna campi base.
                     // - Se overwrite.base è true: aggiorna tutto come in passato.
                     // - Se overwrite.base è false: aggiorna almeno `brand`/`category` SOLO se sono vuoti in DB.
@@ -329,12 +339,24 @@ export async function POST(
                     }
                 }
             } catch (perRowErr: any) {
+                rowErrors++;
                 console.error("Staging POST row error (SKU:", p.sku, "):", perRowErr);
                 // continua con le altre righe, senza far fallire tutta l'importazione
             }
         }
 
-        return NextResponse.json({ success: true, count: products.length });
+        return NextResponse.json({
+            success: true,
+            count: products.length,
+            stats: {
+                totalRowsReceived: products.length,
+                skippedNoIdentifier,
+                stagingCreated,
+                /** Righe che hanno aggiornato uno staging già esistente (DB o riga precedente con stesso SKU/EAN/titolo) */
+                stagingMergedOrUpdated,
+                rowErrors,
+            },
+        });
     } catch (err: any) {
         console.error("Staging POST error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });
