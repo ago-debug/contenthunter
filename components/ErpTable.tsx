@@ -30,7 +30,11 @@ const EMPTY_SHEET_FILTERS: Record<string, string> = {
     description: "",
     docDescription: "",
     seoAiText: "",
-    bulletContains: ""
+    bulletContains: "",
+    /** Sottostringa nel nome chiave (es. stagione, cod_fornitore) */
+    extraKeyContains: "",
+    /** Sottostringa nel valore di un extra (stesso campo se usi anche chiave) */
+    extraValueContains: ""
 };
 
 /** Etichette filtri per campi scheda (substring, case-insensitive) */
@@ -66,7 +70,9 @@ const SHEET_FILTER_FIELDS: { key: string; label: string }[] = [
     { key: "description", label: "Descrizione" },
     { key: "docDescription", label: "Doc. PDF" },
     { key: "seoAiText", label: "SEO AI" },
-    { key: "bulletContains", label: "Bullet (contiene)" }
+    { key: "bulletContains", label: "Bullet (contiene)" },
+    { key: "extraKeyContains", label: "Extra: nome chiave" },
+    { key: "extraValueContains", label: "Extra: valore" }
 ];
 
 const TITLE_FIELD_PRESETS: { id: string; label: string }[] = [
@@ -1517,6 +1523,23 @@ export default function ErpTable() {
         if (!fieldContains(sf.seoAiText, p.seoAiText)) return false;
         if (!fieldContains(sf.bulletContains, p.bulletPoints)) return false;
 
+        const ek = (sf.extraKeyContains || "").trim().toLowerCase();
+        const ev = (sf.extraValueContains || "").trim().toLowerCase();
+        if (ek || ev) {
+            const ex = p.extraFields;
+            if (!ex || typeof ex !== "object") return false;
+            let extraOk = false;
+            for (const [k, v] of Object.entries(ex)) {
+                const keyMatch = !ek || k.toLowerCase().includes(ek);
+                const valMatch = !ev || String(v ?? "").toLowerCase().includes(ev);
+                if (keyMatch && valMatch) {
+                    extraOk = true;
+                    break;
+                }
+            }
+            if (!extraOk) return false;
+        }
+
         if (!term) return true;
 
         const baseMatch = (p.sku || "").toLowerCase().includes(term) ||
@@ -1785,6 +1808,12 @@ export default function ErpTable() {
                                         </label>
                                     ))}
                                 </div>
+                                <p className="text-[10px] text-slate-500 mt-2 leading-snug">
+                                    <span className="font-black text-slate-600">Campi extra (dinamici):</span> solo{" "}
+                                    <em>valore</em> = in qualsiasi extra; solo <em>nome chiave</em> = almeno una chiave
+                                    che contiene il testo; <em>entrambi</em> = stesso campo extra deve soddisfare
+                                    chiave e valore.
+                                </p>
                             </div>
                         </div>
                     )}
