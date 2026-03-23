@@ -677,29 +677,33 @@ export default function ErpTable() {
         }
     };
 
-    const exportSelectedToFile = async (requestedFormat?: "excel" | "csv") => {
+    const exportSelectedToFile = async (requestedFormat: "excel" | "csv") => {
         if (!selectedIds.length) {
             toast.warning("Seleziona prima almeno un prodotto.");
             return;
         }
 
-        const picked =
-            requestedFormat ||
-            (() => {
-                const v = window.prompt('Formato export: scrivi "excel" oppure "csv"', "excel");
-                if (v === null) return null;
-                const n = v.toString().trim().toLowerCase();
-                return n === "csv" ? "csv" : "excel";
-            })();
+        const isGlobalAdmin = Boolean((session?.user as any)?.isGlobalAdmin);
+        if (isGlobalAdmin && effectiveCompanyId == null) {
+            toast.error("Seleziona un'azienda dal menu aziende per esportare.");
+            return;
+        }
 
-        if (!picked) return;
+        const picked = requestedFormat;
 
         setIsExportingSelectedFile(true);
         const toastId = toast.loading(`Esportazione prodotti selezionati (${picked.toUpperCase()})...`);
         try {
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+            };
+            if (effectiveCompanyId != null) {
+                headers["x-company-id"] = String(effectiveCompanyId);
+            }
+
             const res = await fetch("/api/products/export-selected", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers,
                 credentials: "include",
                 body: JSON.stringify({ ids: selectedIds, format: picked }),
             });
@@ -1917,14 +1921,27 @@ export default function ErpTable() {
                     </button>
 
                     <button
-                        onClick={() => exportSelectedToFile()}
+                        type="button"
+                        onClick={() => void exportSelectedToFile("excel")}
                         disabled={isExportingSelectedFile || selectedIds.length === 0}
                         className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
                     >
                         {isExportingSelectedFile ? (
                             <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
                         ) : (
-                            "Esporta selezionati (Excel/CSV)"
+                            "Esporta Excel"
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => void exportSelectedToFile("csv")}
+                        disabled={isExportingSelectedFile || selectedIds.length === 0}
+                        className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                    >
+                        {isExportingSelectedFile ? (
+                            <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                        ) : (
+                            "Esporta CSV"
                         )}
                     </button>
 
@@ -3826,6 +3843,24 @@ export default function ErpTable() {
                                     Genera SEO AI
                                 </button>
                                 <button
+                                    type="button"
+                                    onClick={() => void exportSelectedToFile("excel")}
+                                    disabled={isExportingSelectedFile || isBulkWorking}
+                                    className="flex items-center gap-2 text-sky-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    {isExportingSelectedFile ? "Esportazione…" : "Esporta Excel"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void exportSelectedToFile("csv")}
+                                    disabled={isExportingSelectedFile || isBulkWorking}
+                                    className="flex items-center gap-2 text-teal-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                                >
+                                    <Download className="w-4 h-4" />
+                                    {isExportingSelectedFile ? "Esportazione…" : "Esporta CSV"}
+                                </button>
+                                <button
                                     onClick={handleBulkDelete}
                                     disabled={isBulkDeleting}
                                     className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
@@ -4042,12 +4077,23 @@ export default function ErpTable() {
                                             type="button"
                                             onClick={() => {
                                                 setShowBulkOperationsModal(false);
-                                                setTimeout(() => void exportSelectedToFile(), 0);
+                                                setTimeout(() => void exportSelectedToFile("excel"), 0);
                                             }}
                                             disabled={isExportingSelectedFile}
                                             className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
                                         >
-                                            Esporta Excel / CSV
+                                            Esporta Excel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowBulkOperationsModal(false);
+                                                setTimeout(() => void exportSelectedToFile("csv"), 0);
+                                            }}
+                                            disabled={isExportingSelectedFile}
+                                            className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                                        >
+                                            Esporta CSV
                                         </button>
                                     </div>
                                 </section>
