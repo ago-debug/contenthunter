@@ -219,12 +219,12 @@ export default function ImportLab() {
         }
         const dupSku = new Set<string>();
         const dupEan = new Set<string>();
-        for (const [k, c] of skuOcc) {
+        skuOcc.forEach((c, k) => {
             if (c > 1) dupSku.add(k);
-        }
-        for (const [k, c] of eanOcc) {
+        });
+        eanOcc.forEach((c, k) => {
             if (c > 1) dupEan.add(k);
-        }
+        });
         return { dupSku, dupEan };
     }, [products]);
 
