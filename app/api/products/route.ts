@@ -514,7 +514,7 @@ export async function GET(req: NextRequest) {
 
         const mapped = products.map((p: any) => {
             const translations: Record<string, any> = {};
-            p.texts.forEach(t => {
+            p.texts.forEach((t: any) => {
                 translations[t.language] = {
                     title: t.title,
                     description: t.description,
@@ -533,7 +533,7 @@ export async function GET(req: NextRequest) {
             let weight = "";
             let material = "";
 
-            p.extraFields.forEach(ex => {
+            p.extraFields.forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
@@ -580,9 +580,9 @@ export async function GET(req: NextRequest) {
                 subCategoryId: p.subCategoryId,
                 subSubCategoryId: p.subSubCategoryId,
                 // Images
-                images: p.images.map(img => ({ id: img.id.toString(), url: img.imageUrl })),
+                images: p.images.map((img: any) => ({ id: img.id.toString(), url: img.imageUrl })),
                 // Tags
-                productTags: p.tags.map(pt => ({ tagId: pt.tagId })),
+                productTags: p.tags.map((pt: any) => ({ tagId: pt.tagId })),
                 catalogId: catalogId ? parseInt(catalogId) : undefined,
                 brandId: p.brandId,
                 brandData: p.brandRef,
