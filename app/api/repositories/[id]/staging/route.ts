@@ -99,12 +99,12 @@ export async function POST(
         }
         const skuCounts: Record<string, number> = {};
         const eanCounts: Record<string, number> = {};
-        for (const [k, c] of skuOcc) {
+        skuOcc.forEach((c, k) => {
             if (c > 1) skuCounts[k] = c;
-        }
-        for (const [k, c] of eanOcc) {
+        });
+        eanOcc.forEach((c, k) => {
             if (c > 1) eanCounts[k] = c;
-        }
+        });
 
         let skippedNoIdentifier = 0;
         let stagingCreated = 0;
