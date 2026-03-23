@@ -17,7 +17,8 @@ import {
     Tag as TagIcon,
     Building2,
     X,
-    Globe2
+    Globe2,
+    Percent,
 } from "lucide-react";
 
 type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
@@ -51,12 +52,13 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             ]
         },
         {
-            label: "Data Management",
+            label: "Gestione Tabelle",
             items: [
-                { href: "/tables/categories", label: "Categories", icon: Layers },
-                { href: "/tables/brands", label: "Brands", icon: Globe },
-                { href: "/tables/bullets", label: "Bullet Points", icon: List },
-                { href: "/tables/tags", label: "Tags", icon: TagIcon },
+                { href: "/tables/categories", label: "Categorie", icon: Layers },
+                { href: "/tables/brands", label: "Brand", icon: Globe },
+                { href: "/tables/bullets", label: "Bullet points", icon: List },
+                { href: "/tables/tags", label: "Tag", icon: TagIcon },
+                { href: "/tables/vat-codes", label: "Codici IVA", icon: Percent },
             ]
         },
         {
@@ -108,7 +110,10 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                         <div className="space-y-0.5">
                             {group.items.map((item, iIdx) => {
                                 const Icon = item.icon;
-                                const isActive = pathname === item.href;
+                                const isActive =
+                                    item.href === "/"
+                                        ? pathname === "/"
+                                        : pathname === item.href || pathname.startsWith(item.href + "/");
                                 return (
                                     <Link
                                         key={iIdx}

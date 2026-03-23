@@ -20,6 +20,34 @@ export async function GET(
             return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
         }
 
+        /** Solo metadati repository (PDF, listini, sorgenti): evita query enormi su cataloghi con migliaia di prodotti. */
+        const metaOnly =
+            req.nextUrl.searchParams.get("meta") === "1" ||
+            req.nextUrl.searchParams.get("minimal") === "1";
+
+        if (metaOnly) {
+            const catalogue = await prisma.catalog.findFirst({
+                where: { id, companyId },
+                include: {
+                    brandRef: true,
+                    searchSources: true,
+                    pdfs: true,
+                    listinoFiles: {
+                        orderBy: { uploadedAt: "desc" },
+                    },
+                },
+            });
+
+            if (!catalogue) {
+                return NextResponse.json({ error: "Catalogue not found" }, { status: 404 });
+            }
+
+            return NextResponse.json({
+                ...catalogue,
+                products: [],
+            });
+        }
+
         const catalogue = await prisma.catalog.findFirst({
             where: { id, companyId },
             include: {
@@ -59,7 +87,7 @@ export async function GET(
             let weight = "";
             let material = "";
 
-            p.extraFields.forEach((ex: any) => {
+            (p.extraFields ?? []).forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
@@ -82,7 +110,7 @@ export async function GET(
                 weight,
                 material,
                 extraFields: extraObj,
-                images: p.images.map((img: any) => ({ id: img.id.toString(), url: img.imageUrl })),
+                images: (p.images ?? []).map((img: any) => ({ id: img.id.toString(), url: img.imageUrl })),
                 catalogId: id
             };
         });

@@ -317,7 +317,8 @@ export default function ImportLab() {
         setLoading(true);
         try {
             const [repoRes, productsRes, extraFieldsRes] = await Promise.all([
-                axios.get("/api/catalogues/" + id),
+                // meta=1: solo impostazioni/PDF/listini — evita 500/timeout su cataloghi molto grandi
+                axios.get("/api/catalogues/" + id + "?meta=1"),
                 axios.get("/api/repositories/" + id + "/staging"),
                 axios.get("/api/catalogues/" + id + "/extra-fields")
             ]);
