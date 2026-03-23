@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { Prisma } from "@prisma/client";
+import { isVatSchemaUnavailableError } from "@/lib/vat-schema-fallback";
 
 function toNum(d: unknown): number {
     if (typeof d === "number" && !Number.isNaN(d)) return d;
@@ -28,6 +29,12 @@ export async function GET(req: NextRequest) {
             }))
         );
     } catch (e: any) {
+        if (isVatSchemaUnavailableError(e)) {
+            console.warn(
+                "[GET /api/vat-codes] Tabella IVA assente — restituisco []. Esegui: npx prisma db push"
+            );
+            return NextResponse.json([]);
+        }
         console.error("vat-codes GET", e);
         return NextResponse.json({ error: e?.message || "Errore" }, { status: 500 });
     }
@@ -72,6 +79,15 @@ export async function POST(req: NextRequest) {
             ratePercent: toNum(row.ratePercent),
         });
     } catch (e: any) {
+        if (isVatSchemaUnavailableError(e)) {
+            return NextResponse.json(
+                {
+                    error:
+                        "Schema database non aggiornato: eseguire sul server `npx prisma db push` (tabella VatCode).",
+                },
+                { status: 503 }
+            );
+        }
         if (e?.code === "P2002") {
             return NextResponse.json({ error: "Esiste già un codice IVA con questo codice" }, { status: 409 });
         }

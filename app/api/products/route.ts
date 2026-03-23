@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
+import { isVatSchemaUnavailableError } from "@/lib/vat-schema-fallback";
 
 export async function POST(req: NextRequest) {
     const ctx = await requireCompanyId(req);
@@ -173,27 +174,37 @@ export async function POST(req: NextRequest) {
 
         // 2.1 Codice IVA (opzionale; collegato a tabella VatCode)
         if (Object.prototype.hasOwnProperty.call(body, "vatCodeId")) {
-            const raw = (body as any).vatCodeId;
-            let vatId: number | null = null;
-            if (raw === null || raw === "") {
-                vatId = null;
-            } else {
-                const n = parseInt(String(raw), 10);
-                if (Number.isNaN(n)) {
-                    return NextResponse.json({ error: "Codice IVA (vatCodeId) non valido" }, { status: 400 });
+            try {
+                const raw = (body as any).vatCodeId;
+                let vatId: number | null = null;
+                if (raw === null || raw === "") {
+                    vatId = null;
+                } else {
+                    const n = parseInt(String(raw), 10);
+                    if (Number.isNaN(n)) {
+                        return NextResponse.json({ error: "Codice IVA (vatCodeId) non valido" }, { status: 400 });
+                    }
+                    const vc = await prisma.vatCode.findFirst({
+                        where: { id: n, companyId },
+                    });
+                    if (!vc) {
+                        return NextResponse.json({ error: "Codice IVA non trovato per questa azienda" }, { status: 400 });
+                    }
+                    vatId = n;
                 }
-                const vc = await prisma.vatCode.findFirst({
-                    where: { id: n, companyId },
+                product = await prisma.product.update({
+                    where: { id: product.id },
+                    data: { vatCodeId: vatId },
                 });
-                if (!vc) {
-                    return NextResponse.json({ error: "Codice IVA non trovato per questa azienda" }, { status: 400 });
+            } catch (vatErr) {
+                if (isVatSchemaUnavailableError(vatErr)) {
+                    console.warn(
+                        "[POST /api/products] Salvataggio vatCodeId ignorato: schema IVA non presente (npx prisma db push)"
+                    );
+                } else {
+                    throw vatErr;
                 }
-                vatId = n;
             }
-            product = await prisma.product.update({
-                where: { id: product.id },
-                data: { vatCodeId: vatId },
-            });
         }
 
         // 2. Upsert Italian texts con controllo di campo per sovrascrittura
@@ -462,22 +473,46 @@ export async function GET(req: NextRequest) {
             where.ean = ean;
         }
 
-        const products = await prisma.product.findMany({
-            where,
-            include: {
-                texts: true,
-                prices: { where: { listName: "default" } },
-                extraFields: true,
-                images: { select: { id: true, imageUrl: true } },
-                tags: { include: { tag: true } },
-                brandRef: true,
-                bulletPointRefs: true,
-                vatCode: true,
-            },
-            orderBy: { createdAt: 'desc' }
-        });
+        const productIncludeBase = {
+            texts: true,
+            prices: { where: { listName: "default" as const } },
+            extraFields: true,
+            images: { select: { id: true, imageUrl: true } },
+            tags: { include: { tag: true } },
+            brandRef: true,
+            bulletPointRefs: true,
+        };
 
-        const mapped = products.map(p => {
+        let products: any[];
+        try {
+            products = await prisma.product.findMany({
+                where,
+                include: { ...productIncludeBase, vatCode: true },
+                orderBy: { createdAt: "desc" },
+            });
+        } catch (err) {
+            if (!isVatSchemaUnavailableError(err)) throw err;
+            console.warn(
+                "[GET /api/products] Schema IVA non disponibile sul DB — fallback senza relazione VatCode (eseguire: npx prisma db push)"
+            );
+            try {
+                products = await prisma.product.findMany({
+                    where,
+                    include: productIncludeBase,
+                    orderBy: { createdAt: "desc" },
+                });
+            } catch (err2) {
+                if (!isVatSchemaUnavailableError(err2)) throw err2;
+                products = await prisma.product.findMany({
+                    where,
+                    include: productIncludeBase,
+                    omit: { vatCodeId: true },
+                    orderBy: { createdAt: "desc" },
+                });
+            }
+        }
+
+        const mapped = products.map((p: any) => {
             const translations: Record<string, any> = {};
             p.texts.forEach(t => {
                 translations[t.language] = {
@@ -505,7 +540,7 @@ export async function GET(req: NextRequest) {
                 else extraObj[ex.key] = ex.value;
             });
 
-            const vat = p.vatCode;
+            const vat = p.vatCode ?? null;
             const vatRate = vat ? Number(vat.ratePercent.toString()) : null;
 
             return {
