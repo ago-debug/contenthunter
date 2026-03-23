@@ -38,6 +38,22 @@ interface StagingProduct {
     foundInPdf?: { pageNumber: number, pdfId: number }[];
 }
 
+/** Allineato a staging/route.ts per confronti SKU/EAN */
+function normalizeStagingSku(v: unknown): string {
+    return (v ? String(v).trim().toUpperCase() : "") || "";
+}
+function normalizeStagingEan(v: unknown): string {
+    return (v ? String(v).replace(/[^\d]/g, "") : "") || "";
+}
+
+export type ImportLabReport = {
+    at: string;
+    fileName: string;
+    stats: Record<string, number | string | undefined>;
+    duplicatesInBatch: { skuCounts: Record<string, number>; eanCounts: Record<string, number> };
+    clientRows: { totalDataRows: number; sentWithKey: number; skippedNoKeyOnClient: number };
+};
+
 const ensureColorTemplate = (templates: { id: number; key: string; label: string }[]) => {
     const hasColor = templates.some((tpl) => String(tpl.key || "").toLowerCase() === "colore");
     if (hasColor) return templates;
@@ -187,6 +203,40 @@ export default function ImportLab() {
     const [pushOverwriteStockSupplier, setPushOverwriteStockSupplier] = useState(false);
     const [pushOverwriteImages, setPushOverwriteImages] = useState(false);
 
+    const [lastImportReport, setLastImportReport] = useState<ImportLabReport | null>(null);
+    const [showImportReportPanel, setShowImportReportPanel] = useState(true);
+    const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false);
+
+    /** Duplicati SKU/EAN nel listino staging corrente (stesso DB) */
+    const stagingDuplicateSets = useMemo(() => {
+        const skuOcc = new Map<string, number>();
+        const eanOcc = new Map<string, number>();
+        for (const p of products) {
+            const sn = normalizeStagingSku(p.sku);
+            const en = normalizeStagingEan(p.ean);
+            if (sn) skuOcc.set(sn, (skuOcc.get(sn) || 0) + 1);
+            if (en) eanOcc.set(en, (eanOcc.get(en) || 0) + 1);
+        }
+        const dupSku = new Set<string>();
+        const dupEan = new Set<string>();
+        for (const [k, c] of skuOcc) {
+            if (c > 1) dupSku.add(k);
+        }
+        for (const [k, c] of eanOcc) {
+            if (c > 1) dupEan.add(k);
+        }
+        return { dupSku, dupEan };
+    }, [products]);
+
+    const stagingRowDuplicateFlags = (p: StagingProduct) => {
+        const sn = normalizeStagingSku(p.sku);
+        const en = normalizeStagingEan(p.ean);
+        return {
+            skuDup: Boolean(sn && stagingDuplicateSets.dupSku.has(sn)),
+            eanDup: Boolean(en && stagingDuplicateSets.dupEan.has(en)),
+        };
+    };
+
     const filteredProducts = useMemo(() => {
         const q = (searchTerm || "").trim().toLowerCase();
         if (!q) return products;
@@ -207,6 +257,30 @@ export default function ImportLab() {
             );
         });
     }, [products, searchTerm]);
+
+    const tableProducts = useMemo(() => {
+        if (!showOnlyDuplicates) return filteredProducts;
+        return filteredProducts.filter((p) => {
+            const sn = normalizeStagingSku(p.sku);
+            const en = normalizeStagingEan(p.ean);
+            if (sn && stagingDuplicateSets.dupSku.has(sn)) return true;
+            if (en && stagingDuplicateSets.dupEan.has(en)) return true;
+            return false;
+        });
+    }, [filteredProducts, showOnlyDuplicates, stagingDuplicateSets]);
+
+    useEffect(() => {
+        if (!catalogIdParam) {
+            setLastImportReport(null);
+            return;
+        }
+        try {
+            const raw = sessionStorage.getItem("importLab_lastReport_" + catalogIdParam);
+            if (raw) setLastImportReport(JSON.parse(raw) as ImportLabReport);
+        } catch {
+            /* ignore */
+        }
+    }, [catalogIdParam]);
 
     useEffect(() => {
         if (catalogIdParam) {
@@ -891,6 +965,12 @@ export default function ImportLab() {
 
         try {
             await axios.delete("/api/repositories/" + catalogIdParam + "/staging");
+            setLastImportReport(null);
+            try {
+                sessionStorage.removeItem("importLab_lastReport_" + catalogIdParam);
+            } catch {
+                /* ignore */
+            }
             toast.success("Listino rimosso con successo");
             fetchRepository(parseInt(catalogIdParam!));
         } catch (err: any) {
@@ -994,6 +1074,30 @@ export default function ImportLab() {
             });
 
             const st = res.data?.stats;
+            const dupBatch = res.data?.duplicatesInBatch as
+                | { skuCounts: Record<string, number>; eanCounts: Record<string, number> }
+                | undefined;
+            const report: ImportLabReport = {
+                at: new Date().toISOString(),
+                fileName: currentImportFile || "listino",
+                stats: st || {},
+                duplicatesInBatch: {
+                    skuCounts: dupBatch?.skuCounts || {},
+                    eanCounts: dupBatch?.eanCounts || {},
+                },
+                clientRows: {
+                    totalDataRows,
+                    sentWithKey,
+                    skippedNoKeyOnClient,
+                },
+            };
+            setLastImportReport(report);
+            try {
+                sessionStorage.setItem("importLab_lastReport_" + catalogIdParam, JSON.stringify(report));
+            } catch {
+                /* ignore */
+            }
+
             let detail =
                 "Righe nel file: " +
                 totalDataRows +
@@ -1019,6 +1123,16 @@ export default function ImportLab() {
                 }
                 if ((st.rowErrors ?? 0) > 0) {
                     detail += " Errori su singole righe: " + st.rowErrors + ".";
+                }
+                const nSkuDup = Object.keys(report.duplicatesInBatch.skuCounts).length;
+                const nEanDup = Object.keys(report.duplicatesInBatch.eanCounts).length;
+                if (nSkuDup > 0 || nEanDup > 0) {
+                    detail +=
+                        " ⚠️ Duplicati nello stesso file: " +
+                        (nSkuDup > 0 ? "SKU " + nSkuDup + " chiavi" : "") +
+                        (nSkuDup > 0 && nEanDup > 0 ? ", " : "") +
+                        (nEanDup > 0 ? "EAN " + nEanDup + " chiavi" : "") +
+                        ". Vedi report sotto.";
                 }
             }
             detail +=
@@ -1564,17 +1678,135 @@ export default function ImportLab() {
                                 >
                                     <div className="max-w-7xl mx-auto space-y-6">
                                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">Contenuto Repository ({filteredProducts.length}/{products.length})</h3>
-                                            <div className="relative group w-full sm:w-80">
-                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                <input
-                                                    placeholder="Filtra per SKU, EAN, Nome, Brand..."
-                                                    className="w-full bg-white border border-slate-100 rounded-xl pl-12 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-sm"
-                                                    value={searchTerm}
-                                                    onChange={e => setSearchTerm(e.target.value)}
-                                                />
+                                            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">
+                                                Contenuto Repository ({tableProducts.length}
+                                                {showOnlyDuplicates ? " visibili" : ""}/{products.length})
+                                            </h3>
+                                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setShowOnlyDuplicates((v) => !v)}
+                                                    className={
+                                                        "px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all shrink-0 " +
+                                                        (showOnlyDuplicates
+                                                            ? "bg-amber-100 border-amber-300 text-amber-900"
+                                                            : "bg-white border-slate-200 text-slate-600 hover:border-amber-200")
+                                                    }
+                                                >
+                                                    {showOnlyDuplicates ? "Mostra tutti" : "Solo duplicati SKU/EAN"}
+                                                </button>
+                                                <div className="relative group w-full sm:w-80">
+                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                                    <input
+                                                        placeholder="Filtra per SKU, EAN, Nome, Brand..."
+                                                        className="w-full bg-white border border-slate-100 rounded-xl pl-12 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-sm"
+                                                        value={searchTerm}
+                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
+
+                                        {lastImportReport && (
+                                            <div
+                                                className={
+                                                    "rounded-2xl border p-5 space-y-3 " +
+                                                    (Object.keys(lastImportReport.duplicatesInBatch.skuCounts).length > 0 ||
+                                                    Object.keys(lastImportReport.duplicatesInBatch.eanCounts).length > 0
+                                                        ? "border-amber-300 bg-amber-50/90"
+                                                        : "border-slate-200 bg-white")
+                                                }
+                                            >
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <FileSpreadsheet className="w-5 h-5 text-slate-700 shrink-0" />
+                                                        <div>
+                                                            <p className="text-[11px] font-black uppercase tracking-widest text-slate-800">
+                                                                Report ultima importazione
+                                                            </p>
+                                                            <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                                                {lastImportReport.fileName} ·{" "}
+                                                                {new Date(lastImportReport.at).toLocaleString("it-IT")}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowImportReportPanel((v) => !v)}
+                                                        className="text-[10px] font-black uppercase text-slate-500 hover:text-slate-800"
+                                                    >
+                                                        {showImportReportPanel ? "Comprimi" : "Espandi"}
+                                                    </button>
+                                                </div>
+                                                {showImportReportPanel && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px]">
+                                                        <div className="space-y-1.5 rounded-xl bg-white/80 border border-slate-100 p-3">
+                                                            <p className="font-black uppercase text-slate-400 text-[10px]">File → invio</p>
+                                                            <ul className="font-bold text-slate-700 space-y-0.5 list-disc list-inside">
+                                                                <li>Righe nel file: {lastImportReport.clientRows.totalDataRows}</li>
+                                                                <li>Inviate (SKU o EAN): {lastImportReport.clientRows.sentWithKey}</li>
+                                                                <li>
+                                                                    Saltate in scheda (senza SKU né EAN):{" "}
+                                                                    {lastImportReport.clientRows.skippedNoKeyOnClient}
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        <div className="space-y-1.5 rounded-xl bg-white/80 border border-slate-100 p-3">
+                                                            <p className="font-black uppercase text-slate-400 text-[10px]">Server staging</p>
+                                                            <ul className="font-bold text-slate-700 space-y-0.5 list-disc list-inside">
+                                                                <li>Nuovi in listino: {String(lastImportReport.stats.stagingCreated ?? "—")}</li>
+                                                                <li>
+                                                                    Aggiornati / merge:{" "}
+                                                                    {String(lastImportReport.stats.stagingMergedOrUpdated ?? "—")}
+                                                                </li>
+                                                                <li>Saltate (no id): {String(lastImportReport.stats.skippedNoIdentifier ?? "—")}</li>
+                                                                <li>Errori riga: {String(lastImportReport.stats.rowErrors ?? "—")}</li>
+                                                            </ul>
+                                                        </div>
+                                                        <div className="md:col-span-2 space-y-2">
+                                                            <p className="font-black uppercase text-amber-800 text-[10px] flex items-center gap-2">
+                                                                <AlertCircle className="w-4 h-4" />
+                                                                Duplicati nello stesso file (più righe con stesso SKU o stesso EAN)
+                                                            </p>
+                                                            {Object.keys(lastImportReport.duplicatesInBatch.skuCounts).length === 0 &&
+                                                            Object.keys(lastImportReport.duplicatesInBatch.eanCounts).length === 0 ? (
+                                                                <p className="text-slate-600 font-bold">Nessun duplicato rilevato nel file.</p>
+                                                            ) : (
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                                    <div className="rounded-xl border border-amber-200 bg-white p-3 max-h-40 overflow-y-auto">
+                                                                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">SKU</p>
+                                                                        <ul className="space-y-1 font-mono text-[11px] text-slate-800">
+                                                                            {Object.entries(lastImportReport.duplicatesInBatch.skuCounts).map(
+                                                                                ([k, c]) => (
+                                                                                    <li key={"sdup-" + k}>
+                                                                                        <span className="font-black">{k}</span>{" "}
+                                                                                        <span className="text-amber-700">×{c}</span>
+                                                                                    </li>
+                                                                                )
+                                                                            )}
+                                                                        </ul>
+                                                                    </div>
+                                                                    <div className="rounded-xl border border-amber-200 bg-white p-3 max-h-40 overflow-y-auto">
+                                                                        <p className="text-[10px] font-black text-slate-500 uppercase mb-2">EAN</p>
+                                                                        <ul className="space-y-1 font-mono text-[11px] text-slate-800">
+                                                                            {Object.entries(lastImportReport.duplicatesInBatch.eanCounts).map(
+                                                                                ([k, c]) => (
+                                                                                    <li key={"edup-" + k}>
+                                                                                        <span className="font-black">{k}</span>{" "}
+                                                                                        <span className="text-amber-700">×{c}</span>
+                                                                                    </li>
+                                                                                )
+                                                                            )}
+                                                                        </ul>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {/* Table Content... */}
 
                                         <div className="main-card overflow-x-auto">
@@ -1590,11 +1822,29 @@ export default function ImportLab() {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-50">
-                                                    {filteredProducts.map((p) => (
-                                                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors group">
+                                                    {tableProducts.map((p) => {
+                                                        const { skuDup, eanDup } = stagingRowDuplicateFlags(p);
+                                                        const dupClass =
+                                                            skuDup || eanDup
+                                                                ? " bg-amber-50/90 border-l-4 border-amber-400"
+                                                                : "";
+                                                        return (
+                                                        <tr key={p.id} className={"hover:bg-slate-50/50 transition-colors group" + dupClass}>
                                                             <td className="px-6 py-4">
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-sm font-black text-slate-900">{p.sku}</span>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                        <span className="text-sm font-black text-slate-900">{p.sku}</span>
+                                                                        {skuDup && (
+                                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-200 text-amber-950">
+                                                                                SKU dup
+                                                                            </span>
+                                                                        )}
+                                                                        {eanDup && (
+                                                                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-orange-200 text-orange-950">
+                                                                                EAN dup
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                     <span className="text-[10px] font-bold text-slate-400">{p.ean || "NS-EAN"}</span>
                                                                 </div>
                                                             </td>
@@ -1655,7 +1905,8 @@ export default function ImportLab() {
                                                                 </button>
                                                             </td>
                                                         </tr>
-                                                    ))}
+                                                    );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>

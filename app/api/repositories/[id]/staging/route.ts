@@ -88,6 +88,24 @@ export async function POST(
         const normalizeEan = (v: any) =>
             (v ? String(v).replace(/[^\d]/g, "") : "") || "";
 
+        /** Duplicati nello stesso file (stesso SKU o stesso EAN su più righe) */
+        const skuOcc = new Map<string, number>();
+        const eanOcc = new Map<string, number>();
+        for (const raw of products) {
+            const sn = normalizeSku(raw.sku);
+            const en = normalizeEan(raw.ean);
+            if (sn) skuOcc.set(sn, (skuOcc.get(sn) || 0) + 1);
+            if (en) eanOcc.set(en, (eanOcc.get(en) || 0) + 1);
+        }
+        const skuCounts: Record<string, number> = {};
+        const eanCounts: Record<string, number> = {};
+        for (const [k, c] of skuOcc) {
+            if (c > 1) skuCounts[k] = c;
+        }
+        for (const [k, c] of eanOcc) {
+            if (c > 1) eanCounts[k] = c;
+        }
+
         let skippedNoIdentifier = 0;
         let stagingCreated = 0;
         let stagingMergedOrUpdated = 0;
@@ -346,6 +364,15 @@ export async function POST(
                 /** Righe che hanno aggiornato uno staging già esistente (DB o riga precedente con stesso SKU/EAN/titolo) */
                 stagingMergedOrUpdated,
                 rowErrors,
+                /** Chiavi duplicate nello stesso invio (file) */
+                duplicateSkuCount: Object.keys(skuCounts).length,
+                duplicateEanCount: Object.keys(eanCounts).length,
+                duplicateSkuRows: Object.values(skuCounts).reduce((a, b) => a + b, 0),
+                duplicateEanRows: Object.values(eanCounts).reduce((a, b) => a + b, 0),
+            },
+            duplicatesInBatch: {
+                skuCounts,
+                eanCounts,
             },
         });
     } catch (err: any) {

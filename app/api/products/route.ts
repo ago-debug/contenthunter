@@ -166,8 +166,33 @@ export async function POST(req: NextRequest) {
                     subCategoryId: resolvedSubCatId || null,
                     subSubCategoryId: resolvedSubSubCatId || null,
                     ean: cleanEan || null,
-                    parentSku: parentSku || null
+                    parentSku: parentSku || null,
                 },
+            });
+        }
+
+        // 2.1 Codice IVA (opzionale; collegato a tabella VatCode)
+        if (Object.prototype.hasOwnProperty.call(body, "vatCodeId")) {
+            const raw = (body as any).vatCodeId;
+            let vatId: number | null = null;
+            if (raw === null || raw === "") {
+                vatId = null;
+            } else {
+                const n = parseInt(String(raw), 10);
+                if (Number.isNaN(n)) {
+                    return NextResponse.json({ error: "Codice IVA (vatCodeId) non valido" }, { status: 400 });
+                }
+                const vc = await prisma.vatCode.findFirst({
+                    where: { id: n, companyId },
+                });
+                if (!vc) {
+                    return NextResponse.json({ error: "Codice IVA non trovato per questa azienda" }, { status: 400 });
+                }
+                vatId = n;
+            }
+            product = await prisma.product.update({
+                where: { id: product.id },
+                data: { vatCodeId: vatId },
             });
         }
 
@@ -446,7 +471,8 @@ export async function GET(req: NextRequest) {
                 images: { select: { id: true, imageUrl: true } },
                 tags: { include: { tag: true } },
                 brandRef: true,
-                bulletPointRefs: true
+                bulletPointRefs: true,
+                vatCode: true,
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -479,6 +505,9 @@ export async function GET(req: NextRequest) {
                 else extraObj[ex.key] = ex.value;
             });
 
+            const vat = p.vatCode;
+            const vatRate = vat ? Number(vat.ratePercent.toString()) : null;
+
             return {
                 id: p.id,
                 sku: p.sku,
@@ -486,6 +515,15 @@ export async function GET(req: NextRequest) {
                 parentSku: p.parentSku,
                 brand: p.brand,
                 category: p.category,
+                vatCodeId: p.vatCodeId ?? null,
+                vatCode: vat
+                    ? {
+                          id: vat.id,
+                          code: vat.code,
+                          label: vat.label,
+                          ratePercent: vatRate,
+                      }
+                    : null,
                 // Maps Text (defaults to it for compatibility)
                 title: itText.title || "",
                 description: itText.description || "",

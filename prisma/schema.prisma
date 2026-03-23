@@ -24,6 +24,7 @@ model Company {
   templates Template[]
   scrapeProjects ScrapeProject[]
   extraFieldTemplates ExtraFieldTemplate[]
+  vatCodes  VatCode[]
 }
 
 model Catalog {
@@ -164,12 +165,33 @@ model Product {
   history        ProductHistory[]
   tags           ProductTag[]
 
+  vatCodeId      Int?
+  vatCode        VatCode?       @relation(fields: [vatCodeId], references: [id], onDelete: SetNull)
+
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
   @@unique([companyId, sku])
   @@index([companyId])
   @@index([brandId])
+  @@index([vatCodeId])
+}
+
+/// Codici IVA per azienda (aliquota % configurabile)
+model VatCode {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String
+  label       String?
+  ratePercent Decimal  @db.Decimal(6, 3)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
 }
 
 model ProductHistory {

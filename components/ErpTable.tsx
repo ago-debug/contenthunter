@@ -139,6 +139,19 @@ const TITLE_FIELD_PRESETS: { id: string; label: string }[] = [
     { id: "price", label: "Prezzo (listino default)" }
 ];
 
+/** Listino IVA inclusa → imponibile (scorporo) in base all'aliquota % */
+function priceNetFromGrossInclVat(gross: string | number | undefined, ratePercent: number | null | undefined): string {
+    const g = parseFloat(String(gross ?? "").replace(/[^0-9.,-]/g, "").replace(",", "."));
+    if (Number.isNaN(g)) return "—";
+    if (ratePercent == null || ratePercent < 0) return "—";
+    const r = ratePercent / 100;
+    const denom = 1 + r;
+    if (denom === 0 || !Number.isFinite(denom)) return "—";
+    const net = g / denom;
+    if (!Number.isFinite(net)) return "—";
+    return net.toFixed(2);
+}
+
 export default function ErpTable() {
     const [products, setProducts] = useState<any[]>([]);
     const [allCategories, setAllCategories] = useState<any[]>([]);
@@ -252,6 +265,13 @@ export default function ErpTable() {
     /** Chiavi ProductExtra aggiuntive, separate da virgola, in coda alla sequenza */
     const [bulkTitleFieldsCustom, setBulkTitleFieldsCustom] = useState("");
 
+    const [vatCodes, setVatCodes] = useState<
+        { id: number; code: string; label: string | null; ratePercent: number }[]
+    >([]);
+    const [newVatCodeInput, setNewVatCodeInput] = useState("");
+    const [newVatRateInput, setNewVatRateInput] = useState("22");
+    const [isSavingVatCode, setIsSavingVatCode] = useState(false);
+
     /** Centro modifiche massive (modale unica) */
     const [showBulkOperationsModal, setShowBulkOperationsModal] = useState(false);
     const [bulkOpFieldPath, setBulkOpFieldPath] = useState("brand");
@@ -322,6 +342,54 @@ export default function ErpTable() {
         } catch (err) { }
     };
 
+    const fetchVatCodes = async () => {
+        try {
+            const res = await axios.get("/api/vat-codes");
+            setVatCodes(Array.isArray(res.data) ? res.data : []);
+        } catch {
+            setVatCodes([]);
+        }
+    };
+
+    const handleCreateVatCode = async () => {
+        const code = newVatCodeInput.trim().toUpperCase();
+        const rate = parseFloat(String(newVatRateInput).replace(",", "."));
+        if (!code) {
+            toast.warning("Inserisci il codice IVA (es. 22, 10, 0).");
+            return;
+        }
+        if (Number.isNaN(rate) || rate < 0 || rate > 100) {
+            toast.warning("Aliquota % deve essere tra 0 e 100.");
+            return;
+        }
+        setIsSavingVatCode(true);
+        try {
+            const res = await axios.post("/api/vat-codes", { code, ratePercent: rate });
+            const row = res.data;
+            setVatCodes((prev) =>
+                [...prev.filter((x) => x.id !== row.id), row].sort((a, b) => a.code.localeCompare(b.code))
+            );
+            if (selectedProduct) {
+                setSelectedProduct({
+                    ...selectedProduct,
+                    vatCodeId: row.id,
+                    vatCode: {
+                        id: row.id,
+                        code: row.code,
+                        label: row.label ?? null,
+                        ratePercent: row.ratePercent,
+                    },
+                });
+            }
+            setNewVatCodeInput("");
+            toast.success("Codice IVA creato.");
+        } catch (e: any) {
+            toast.error(e?.response?.data?.error || "Errore creazione codice IVA");
+        } finally {
+            setIsSavingVatCode(false);
+        }
+    };
+
     useEffect(() => {
         // Reload Woo config when company changes to avoid cross-company leakage.
         setWooConfig({ domain: "", key: "", secret: "" });
@@ -331,6 +399,7 @@ export default function ErpTable() {
         fetchTags();
         fetchBrands();
         fetchCatalogues();
+        fetchVatCodes();
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         if (savedProjectName) setProjectName(savedProjectName);
         fetchProducts();
@@ -1403,6 +1472,7 @@ export default function ErpTable() {
         try {
             const payload = {
                 ...selectedProduct,
+                vatCodeId: selectedProduct.vatCodeId ?? null,
                 // The backend only persists category changes when `overwrite.category === true`.
                 // Without this, UI updates locally but DB remains unchanged.
                 overwrite: { category: true }
@@ -2279,14 +2349,100 @@ export default function ErpTable() {
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
                                                     <div className="w-1 h-3 bg-orange-500 rounded-full"></div> Pricing & Identifiers
                                                 </h4>
-                                                <div className="grid grid-cols-2 gap-5">
+                                                <p className="text-[11px] text-slate-500 font-bold -mt-2">
+                                                    Il prezzo listino è considerato <span className="text-slate-700">IVA inclusa</span>. Il netto viene calcolato in automatico (scorporo) in base al codice IVA.
+                                                </p>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Prezzo Listino (€)</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">
+                                                            Prezzo listino (IVA inclusa) (€)
+                                                        </label>
                                                         <input
                                                             value={selectedProduct.price || ""}
                                                             onChange={e => setSelectedProduct({ ...selectedProduct, price: e.target.value })}
                                                             className="w-full bg-orange-50/20 border border-orange-100 rounded-xl px-4 py-3 font-black text-orange-600 focus:outline-none focus:ring-4 focus:ring-orange-50 transition-all text-lg"
                                                         />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">
+                                                            Prezzo IVA esclusa (€)
+                                                        </label>
+                                                        <input
+                                                            readOnly
+                                                            value={priceNetFromGrossInclVat(
+                                                                selectedProduct.price,
+                                                                selectedProduct.vatCode?.ratePercent ??
+                                                                    vatCodes.find((v) => v.id === selectedProduct.vatCodeId)?.ratePercent
+                                                            )}
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-mono font-black text-slate-800 text-lg cursor-not-allowed"
+                                                        />
+                                                    </div>
+                                                    <div className="sm:col-span-2">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">
+                                                            Codice IVA
+                                                        </label>
+                                                        <select
+                                                            value={selectedProduct.vatCodeId ?? ""}
+                                                            onChange={(e) => {
+                                                                const raw = e.target.value;
+                                                                const id = raw === "" ? null : Number(raw);
+                                                                const row = id != null ? vatCodes.find((v) => v.id === id) : null;
+                                                                setSelectedProduct({
+                                                                    ...selectedProduct,
+                                                                    vatCodeId: id,
+                                                                    vatCode: row
+                                                                        ? {
+                                                                              id: row.id,
+                                                                              code: row.code,
+                                                                              label: row.label,
+                                                                              ratePercent: row.ratePercent,
+                                                                          }
+                                                                        : null,
+                                                                });
+                                                            }}
+                                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-900 focus:outline-none text-sm"
+                                                        >
+                                                            <option value="">— Nessun codice IVA —</option>
+                                                            {vatCodes.map((v) => (
+                                                                <option key={v.id} value={v.id}>
+                                                                    {v.code}
+                                                                    {v.label ? ` — ${v.label}` : ""} ({v.ratePercent}%)
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                    <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 space-y-3">
+                                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                            Nuovo codice IVA (tabella aziendale)
+                                                        </p>
+                                                        <div className="flex flex-wrap gap-2 items-end">
+                                                            <div className="flex-1 min-w-[120px]">
+                                                                <label className="text-[9px] font-bold text-slate-400 block mb-1">Codice</label>
+                                                                <input
+                                                                    value={newVatCodeInput}
+                                                                    onChange={(e) => setNewVatCodeInput(e.target.value)}
+                                                                    placeholder="es. 22"
+                                                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold uppercase"
+                                                                />
+                                                            </div>
+                                                            <div className="w-28">
+                                                                <label className="text-[9px] font-bold text-slate-400 block mb-1">Aliquota %</label>
+                                                                <input
+                                                                    value={newVatRateInput}
+                                                                    onChange={(e) => setNewVatRateInput(e.target.value)}
+                                                                    placeholder="22"
+                                                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm font-black"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => void handleCreateVatCode()}
+                                                                disabled={isSavingVatCode}
+                                                                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black disabled:opacity-50"
+                                                            >
+                                                                {isSavingVatCode ? "…" : "Aggiungi"}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Codice EAN</label>
