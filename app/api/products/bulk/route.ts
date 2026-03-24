@@ -798,7 +798,11 @@ export async function POST(req: NextRequest) {
 
             const products = await prisma.product.findMany({
                 where,
-                include: { images: { select: { id: true, imageUrl: true } } },
+                // select minimale: evita crash se il DB non ha ancora colonne nuove (es. vatCodeId)
+                select: {
+                    id: true,
+                    images: { select: { id: true, imageUrl: true } },
+                },
             });
 
             let productsTouched = 0;
