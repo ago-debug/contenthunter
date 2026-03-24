@@ -66,7 +66,12 @@ export async function GET(req: NextRequest) {
     try {
         const products = await prisma.product.findMany({
             where: { companyId: ctx.companyId },
-            include: {
+            select: {
+                sku: true,
+                ean: true,
+                parentSku: true,
+                brand: true,
+                category: true,
                 texts: { where: { language: "it" } },
                 prices: { where: { listName: "default" } },
                 extraFields: true,
@@ -178,7 +183,13 @@ export async function POST(req: NextRequest) {
 
         const products = await prisma.product.findMany({
             where,
-            include: {
+            select: {
+                sku: true,
+                ean: true,
+                parentSku: true,
+                brand: true,
+                category: true,
+                createdAt: true,
                 texts: { where: { language: "it" } },
                 prices: { where: { listName: "default" } },
                 extraFields: true,

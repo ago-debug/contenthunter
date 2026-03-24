@@ -71,7 +71,13 @@ export async function POST(req: NextRequest) {
                 companyId: ctx.companyId,
                 id: { in: ids },
             },
-            include: {
+            select: {
+                sku: true,
+                ean: true,
+                parentSku: true,
+                brand: true,
+                category: true,
+                createdAt: true,
                 texts: { where: { language: "it" } },
                 prices: { where: { listName: "default" } },
                 extraFields: true,
