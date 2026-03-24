@@ -1136,6 +1136,64 @@ export default function ErpTable() {
         }
     };
 
+    const handleDeduplicateImagesByBrand = async () => {
+        if (isBulkWorking) return;
+        if (brandFilter === "all") {
+            toast.info("Seleziona prima un brand dal filtro per eseguire la deduplica.");
+            return;
+        }
+
+        const targetIds = products
+            .filter((p: any) => p.brand === brandFilter)
+            .map((p: any) => Number(p.id))
+            .filter((id: number) => Number.isInteger(id) && id > 0);
+
+        if (targetIds.length === 0) {
+            toast.info("Nessun prodotto trovato per il brand selezionato.");
+            return;
+        }
+
+        if (
+            !window.confirm(
+                `Deduplicare i link immagine per il brand "${brandFilter}" su ${targetIds.length} prodotti?`
+            )
+        ) {
+            return;
+        }
+
+        setIsBulkWorking(true);
+        const toastId = toast.loading("Deduplicazione immagini brand in corso...");
+        try {
+            const res = await axios.post("/api/products/bulk", {
+                action: "dedupe_images",
+                ids: targetIds,
+                brand: brandFilter,
+            });
+            toast.update(toastId, {
+                render:
+                    `Deduplicazione completata (${brandFilter}): ` +
+                    String(res.data?.deletedImages ?? 0) +
+                    " link duplicati rimossi su " +
+                    String(res.data?.productsTouched ?? 0) +
+                    " prodotti.",
+                type: "success",
+                isLoading: false,
+                autoClose: 4000,
+            });
+            fetchProducts();
+        } catch (err) {
+            console.error("Deduplicate brand images error:", err);
+            toast.update(toastId, {
+                render: "Errore durante la deduplicazione immagini per brand.",
+                type: "error",
+                isLoading: false,
+                autoClose: 4500,
+            });
+        } finally {
+            setIsBulkWorking(false);
+        }
+    };
+
     const toggleBulkTitleField = (id: string) => {
         setBulkTitleFieldsSelected((prev) =>
             prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -2012,6 +2070,23 @@ export default function ErpTable() {
                             <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
                         ) : (
                             "Esporta CSV"
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleDeduplicateImagesByBrand}
+                        disabled={isBulkWorking || brandFilter === "all"}
+                        className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                        title={
+                            brandFilter === "all"
+                                ? "Seleziona un brand dal filtro per deduplicare"
+                                : `Rimuove link immagine duplicati per ${brandFilter}`
+                        }
+                    >
+                        {isBulkWorking ? (
+                            <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                        ) : (
+                            "Deduplica immagini brand"
                         )}
                     </button>
 

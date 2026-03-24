@@ -22,8 +22,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "SKU is required" }, { status: 400 });
         }
 
-        const cleanSku = sku.toString().trim();
-        const cleanEan = ean ? ean.toString().trim() : null;
+        // Prisma `String` (senza @db.Text) su MySQL/MariaDB può esplodere con valori molto lunghi.
+        // Clamp difensivo per evitare 500 massivi durante push/import.
+        const clampVarchar = (v: unknown, max = 191): string | null => {
+            if (v === undefined || v === null) return null;
+            const s = String(v).trim();
+            if (!s) return null;
+            return s.length > max ? s.slice(0, max) : s;
+        };
+        const clampText = (v: unknown): string | null => {
+            if (v === undefined || v === null) return null;
+            const s = String(v);
+            return s.length > 65000 ? s.slice(0, 65000) : s;
+        };
+
+        const cleanSku = clampVarchar(sku, 191) || "";
+        const cleanEan = clampVarchar(ean, 191);
+        const cleanParentSku = clampVarchar(parentSku, 191);
+        const cleanBrand = clampVarchar(brand, 191);
+        const cleanCategory = clampVarchar(category, 191);
+        if (!cleanSku) {
+            return NextResponse.json({ error: "SKU is required" }, { status: 400 });
+        }
 
         const overwriteBrand: boolean = overwrite?.brand === true;
         const overwriteCategory: boolean = overwrite?.category === true;
@@ -54,8 +74,8 @@ export async function POST(req: NextRequest) {
         // 1.5 Auto-create Brand and Categories from string values (e.g. from File Import)
         let resolvedBrandId = brandId ? Number(brandId) : undefined;
         try {
-            if (brand && !resolvedBrandId) {
-                const cleanBrandName = brand.toString().trim();
+            if (cleanBrand && !resolvedBrandId) {
+                const cleanBrandName = cleanBrand;
                 if (cleanBrandName) {
                     let dbBrand = await prisma.brand.findFirst({ where: { companyId, name: cleanBrandName } });
                     if (!dbBrand) {
@@ -94,10 +114,10 @@ export async function POST(req: NextRequest) {
             // Auto-category should only run when IDs are genuinely missing (`undefined`),
             // not when they are explicitly cleared by the UI (`null`).
             if (
-                category &&
+                cleanCategory &&
                 (resolvedCatId === undefined || resolvedSubCatId === undefined || resolvedSubSubCatId === undefined)
             ) {
-                const cleanCatString = category.toString().trim();
+                const cleanCatString = cleanCategory;
                 if (cleanCatString) {
                     // Supporta separatori tipici per gerarchie: ">" oppure "/", "|" (oltre a varianti con spazi)
                     const parts = cleanCatString
@@ -131,11 +151,11 @@ export async function POST(req: NextRequest) {
             // Usa sempre SKU/EAN come indici: lo SKU esistente NON viene mai sovrascritto.
             const updateData: any = {};
             if (overwriteBrand) {
-                updateData.brand = brand || undefined;
+                updateData.brand = cleanBrand || undefined;
                 updateData.brandId = resolvedBrandId;
             }
             if (overwriteCategory) {
-                updateData.category = category || undefined;
+                updateData.category = cleanCategory || undefined;
                 updateData.categoryId = resolvedCatId;
                 updateData.subCategoryId = resolvedSubCatId;
                 updateData.subSubCategoryId = resolvedSubSubCatId;
@@ -144,7 +164,7 @@ export async function POST(req: NextRequest) {
                 updateData.ean = cleanEan || undefined;
             }
             if (overwriteParentSku) {
-                updateData.parentSku = parentSku || undefined;
+                updateData.parentSku = cleanParentSku || undefined;
             }
 
             if (Object.keys(updateData).length > 0) {
@@ -160,14 +180,14 @@ export async function POST(req: NextRequest) {
                 data: {
                     companyId,
                     sku: cleanSku,
-                    brand: brand || null,
+                    brand: cleanBrand,
                     brandId: resolvedBrandId || null,
-                    category: category || null,
+                    category: cleanCategory,
                     categoryId: resolvedCatId || null,
                     subCategoryId: resolvedSubCatId || null,
                     subSubCategoryId: resolvedSubSubCatId || null,
-                    ean: cleanEan || null,
-                    parentSku: parentSku || null,
+                    ean: cleanEan,
+                    parentSku: cleanParentSku,
                 },
             });
         }
@@ -219,28 +239,28 @@ export async function POST(req: NextRequest) {
             }
 
             const finalTitle =
-                !existingText ? (title ?? null)
-                    : overwriteTitle && title !== undefined ? (title ?? null)
+                !existingText ? clampVarchar(title, 191)
+                    : overwriteTitle && title !== undefined ? clampVarchar(title, 191)
                         : existingText.title ?? null;
 
             const finalDescription =
-                !existingText ? (description ?? null)
-                    : overwriteLongDescription && description !== undefined ? (description ?? null)
+                !existingText ? clampText(description)
+                    : overwriteLongDescription && description !== undefined ? clampText(description)
                         : existingText.description ?? null;
 
             const finalDocDescription =
-                !existingText ? (docDescription ?? null)
-                    : docDescription !== undefined ? (docDescription ?? null)
+                !existingText ? clampText(docDescription)
+                    : docDescription !== undefined ? clampText(docDescription)
                         : existingText.docDescription ?? null;
 
             const finalBulletPoints =
-                !existingText ? (bulletPoints ?? null)
-                    : overwriteBulletPoints && bulletPoints !== undefined ? (bulletPoints ?? null)
+                !existingText ? clampText(bulletPoints)
+                    : overwriteBulletPoints && bulletPoints !== undefined ? clampText(bulletPoints)
                         : existingText.bulletPoints ?? null;
 
             const finalSeoAi =
-                !existingText ? (seoAiText ?? null)
-                    : overwriteSeoAi && seoAiText !== undefined ? (seoAiText ?? null)
+                !existingText ? clampText(seoAiText)
+                    : overwriteSeoAi && seoAiText !== undefined ? clampText(seoAiText)
                         : existingText.seoAiText ?? null;
 
             await prisma.productText.upsert({
@@ -310,11 +330,13 @@ export async function POST(req: NextRequest) {
             if (extraFields && typeof extraFields === 'object') {
                 for (const [key, value] of Object.entries(extraFields)) {
                     if (hasExtraValue(value)) {
+                        const safeKey = clampVarchar(key, 191);
+                        if (!safeKey) continue;
                         const str = String(value);
                         await prisma.productExtra.upsert({
-                            where: { productId_key: { productId: product.id, key: key } },
+                            where: { productId_key: { productId: product.id, key: safeKey } },
                             update: { value: str },
-                            create: { productId: product.id, key: key, value: str }
+                            create: { productId: product.id, key: safeKey, value: str }
                         });
                     }
                 }
@@ -425,14 +447,14 @@ export async function POST(req: NextRequest) {
                 data: {
                     sku: cleanSku,
                     ean: cleanEan,
-                    parentSku: parentSku || null,
-                    brand: brand || null,
-                    category: category || null,
-                    title: title || null,
-                    description: description || null,
-                    docDescription: docDescription || null,
-                    bulletPoints: bulletPoints || null,
-                    seoAiText: seoAiText || null,
+                    parentSku: cleanParentSku,
+                    brand: cleanBrand,
+                    category: cleanCategory,
+                    title: clampVarchar(title, 191),
+                    description: clampText(description),
+                    docDescription: clampText(docDescription),
+                    bulletPoints: clampText(bulletPoints),
+                    seoAiText: clampText(seoAiText),
                     price: price, // stored as provided
                     extraFields: extraFields || {},
                     timestamp: new Date().toISOString()

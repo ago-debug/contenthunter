@@ -50,9 +50,11 @@ export async function POST(req: NextRequest) {
             prefix?: string;
             search?: string;
             replace?: string;
+            brand?: string;
         };
 
-        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        const requiresIds = action !== "dedupe_images";
+        if (requiresIds && (!ids || !Array.isArray(ids) || ids.length === 0)) {
             return NextResponse.json({ error: "No IDs provided" }, { status: 400 });
         }
 
@@ -760,6 +762,66 @@ export async function POST(req: NextRequest) {
             }
 
             return NextResponse.json({ success: true, updated, skipped });
+        }
+
+        if (action === "dedupe_images") {
+            const brandRaw = String((body as any).brand ?? "").trim();
+            const cleanIds = Array.isArray(ids)
+                ? ids
+                      .map((x: unknown) => Number(x))
+                      .filter((n): n is number => Number.isInteger(n) && n > 0)
+                : [];
+
+            if (cleanIds.length === 0 && !brandRaw) {
+                return NextResponse.json(
+                    { error: "Fornisci almeno ids oppure brand per deduplicare le immagini." },
+                    { status: 400 }
+                );
+            }
+
+            const where: any = {};
+            if (cleanIds.length > 0) where.id = { in: cleanIds };
+            if (brandRaw) where.brand = brandRaw;
+
+            const products = await prisma.product.findMany({
+                where,
+                include: { images: { select: { id: true, imageUrl: true } } },
+            });
+
+            let productsTouched = 0;
+            let deletedImages = 0;
+
+            for (const p of products) {
+                const seen = new Set<string>();
+                const toDelete: number[] = [];
+                for (const img of p.images) {
+                    const norm = String(img.imageUrl || "").trim();
+                    if (!norm) {
+                        toDelete.push(img.id);
+                        continue;
+                    }
+                    if (seen.has(norm)) {
+                        toDelete.push(img.id);
+                    } else {
+                        seen.add(norm);
+                    }
+                }
+                if (toDelete.length > 0) {
+                    await prisma.productImage.deleteMany({
+                        where: { id: { in: toDelete } },
+                    });
+                    productsTouched++;
+                    deletedImages += toDelete.length;
+                }
+            }
+
+            return NextResponse.json({
+                success: true,
+                productsChecked: products.length,
+                productsTouched,
+                deletedImages,
+                filterBrand: brandRaw || null,
+            });
         }
 
         return NextResponse.json({ error: "Invalid bulk action" }, { status: 400 });

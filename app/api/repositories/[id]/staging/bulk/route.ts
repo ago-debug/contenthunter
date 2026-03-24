@@ -19,7 +19,48 @@ export async function POST(
             field?: BulkField;
             value?: string;
             onlyEmpty?: boolean;
+            action?: string;
         };
+
+        if (body?.action === "dedupe_images") {
+            const stagingProducts = await prisma.stagingProduct.findMany({
+                where: { catalogId },
+                include: { images: { select: { id: true, imageUrl: true } } },
+            });
+
+            let productsTouched = 0;
+            let deletedImages = 0;
+
+            for (const sp of stagingProducts) {
+                const seen = new Set<string>();
+                const toDelete: number[] = [];
+                for (const img of sp.images) {
+                    const norm = String(img.imageUrl || "").trim();
+                    if (!norm) {
+                        toDelete.push(img.id);
+                        continue;
+                    }
+                    if (seen.has(norm)) {
+                        toDelete.push(img.id);
+                    } else {
+                        seen.add(norm);
+                    }
+                }
+                if (toDelete.length > 0) {
+                    await prisma.stagingProductImage.deleteMany({
+                        where: { id: { in: toDelete } },
+                    });
+                    productsTouched++;
+                    deletedImages += toDelete.length;
+                }
+            }
+
+            return NextResponse.json({
+                success: true,
+                productsTouched,
+                deletedImages,
+            });
+        }
 
         if (!field || !["brand", "category", "stockLocal", "stockSupplier"].includes(field)) {
             return NextResponse.json({ error: "Campo non supportato per l'aggiornamento massivo." }, { status: 400 });

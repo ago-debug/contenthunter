@@ -8,7 +8,7 @@ import {
     List, Sparkles, Box, Database, HardDrive, Cpu,
     Layers, X, Maximize2, Globe, RefreshCw, AlertCircle,
     FileSpreadsheet, Image as ImageIconLucide, Scissors,
-    Wand2, ScanSearch, ExternalLink, Check, Save
+    Wand2, ScanSearch, ExternalLink, Check, Save, FileDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
@@ -53,6 +53,111 @@ export type ImportLabReport = {
     duplicatesInBatch: { skuCounts: Record<string, number>; eanCounts: Record<string, number> };
     clientRows: { totalDataRows: number; sentWithKey: number; skippedNoKeyOnClient: number };
 };
+
+/** Una riga per ogni prodotto inviato al Master ERP (push da Import Lab). */
+export type PushErpCsvRow = {
+    stagingId: number;
+    skuOrig: string;
+    ean: string;
+    skuInviato: string;
+    esito: "ok" | "errore";
+    httpStatus: string;
+    messaggio: string;
+    dettaglio: string;
+    titolo: string;
+};
+
+export type PushErpReport = {
+    at: string;
+    catalogId: string;
+    repositoryName?: string;
+    successCount: number;
+    errorCount: number;
+    rows: PushErpCsvRow[];
+};
+
+function csvEscapeCell(val: unknown): string {
+    const s = val == null ? "" : String(val);
+    if (/[",\r\n]/.test(s)) {
+        return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+}
+
+function pushErpReportToCsv(rows: PushErpCsvRow[]): string {
+    const header = [
+        "staging_id",
+        "sku_listino",
+        "ean",
+        "sku_inviato_master",
+        "esito",
+        "http_status",
+        "messaggio",
+        "dettaglio_api",
+        "titolo_prodotto",
+    ];
+    const lines = rows.map((r) =>
+        [
+            r.stagingId,
+            r.skuOrig,
+            r.ean,
+            r.skuInviato,
+            r.esito,
+            r.httpStatus,
+            r.messaggio,
+            r.dettaglio,
+            r.titolo,
+        ]
+            .map(csvEscapeCell)
+            .join(",")
+    );
+    return [header.join(","), ...lines].join("\r\n");
+}
+
+/** @returns false se non ci sono righe da esportare (es. solo errori ma 0 errori) */
+function downloadPushErpReportCsvBlob(report: PushErpReport, opts?: { soloErrori?: boolean }): boolean {
+    const rows =
+        opts?.soloErrori === true ? report.rows.filter((r) => r.esito === "errore") : report.rows;
+    if (rows.length === 0) {
+        return false;
+    }
+    const csv = pushErpReportToCsv(rows);
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const ts = report.at.slice(0, 19).replace(/[:.]/g, "-");
+    a.href = url;
+    a.download =
+        opts?.soloErrori === true
+            ? `push_master_erp_solo_errori_${report.catalogId}_${ts}.csv`
+            : `push_master_erp_catalogo_${report.catalogId}_${ts}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    return true;
+}
+
+function axiosErrorToPushDetail(err: unknown): { httpStatus?: number; messaggio: string; dettaglio: string } {
+    const e = err as any;
+    const status = e?.response?.status as number | undefined;
+    const data = e?.response?.data;
+    let messaggio = "";
+    let dettaglio = "";
+    if (data && typeof data === "object" && !Array.isArray(data)) {
+        messaggio = String((data as any).error || (data as any).message || (data as any).details || "").trim();
+        try {
+            dettaglio = JSON.stringify(data);
+        } catch {
+            dettaglio = String(data);
+        }
+    } else if (typeof data === "string") {
+        dettaglio = data;
+        messaggio = data.slice(0, 800);
+    }
+    if (!messaggio) messaggio = (e?.message as string) || "Errore sconosciuto";
+    if (!dettaglio) dettaglio = messaggio;
+    if (dettaglio.length > 8000) dettaglio = dettaglio.slice(0, 8000) + "…";
+    return { httpStatus: status, messaggio, dettaglio };
+}
 
 const ensureColorTemplate = (templates: { id: number; key: string; label: string }[]) => {
     const hasColor = templates.some((tpl) => String(tpl.key || "").toLowerCase() === "colore");
@@ -205,6 +310,7 @@ export default function ImportLab() {
 
     const [lastImportReport, setLastImportReport] = useState<ImportLabReport | null>(null);
     const [showImportReportPanel, setShowImportReportPanel] = useState(true);
+    const [lastPushErpReport, setLastPushErpReport] = useState<PushErpReport | null>(null);
     const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false);
 
     /** Duplicati SKU/EAN nel listino staging corrente (stesso DB) */
@@ -272,11 +378,18 @@ export default function ImportLab() {
     useEffect(() => {
         if (!catalogIdParam) {
             setLastImportReport(null);
+            setLastPushErpReport(null);
             return;
         }
         try {
             const raw = sessionStorage.getItem("importLab_lastReport_" + catalogIdParam);
             if (raw) setLastImportReport(JSON.parse(raw) as ImportLabReport);
+        } catch {
+            /* ignore */
+        }
+        try {
+            const rawPush = sessionStorage.getItem("importLab_pushErpReport_" + catalogIdParam);
+            if (rawPush) setLastPushErpReport(JSON.parse(rawPush) as PushErpReport);
         } catch {
             /* ignore */
         }
@@ -495,6 +608,51 @@ export default function ImportLab() {
         }
     };
 
+    const handleDedupeStagingImages = async () => {
+        if (!catalogIdParam) return;
+        if (!products.length) {
+            toast.info("Non ci sono prodotti in staging.");
+            return;
+        }
+        if (
+            !window.confirm(
+                "Rimuovere immagini duplicate (stesso URL) all'interno di ogni singolo articolo del listino?"
+            )
+        ) {
+            return;
+        }
+
+        setIsBulkUpdating(true);
+        const toastId = toast.loading("Deduplicazione immagini in staging...");
+        try {
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/staging/bulk", {
+                action: "dedupe_images",
+            });
+            toast.update(toastId, {
+                render:
+                    "Deduplicazione completata: " +
+                    String(res.data?.deletedImages ?? 0) +
+                    " link duplicati rimossi su " +
+                    String(res.data?.productsTouched ?? 0) +
+                    " articoli.",
+                type: "success",
+                isLoading: false,
+                autoClose: 3500,
+            });
+            fetchRepository(parseInt(catalogIdParam));
+        } catch (err) {
+            console.error("Deduplicate staging images error:", err);
+            toast.update(toastId, {
+                render: "Errore durante la deduplicazione immagini in staging.",
+                type: "error",
+                isLoading: false,
+                autoClose: 4000,
+            });
+        } finally {
+            setIsBulkUpdating(false);
+        }
+    };
+
     const handleBulkTitleUpdate = async () => {
         if (!catalogIdParam) {
             toast.warning("Seleziona prima un repository per applicare modifiche ai titoli.");
@@ -664,19 +822,21 @@ export default function ImportLab() {
         const toastId = toast.loading("Invio prodotti al Master ERP in corso...");
         let successCount = 0;
         let errorCount = 0;
+        const reportRows: PushErpCsvRow[] = [];
 
         try {
             for (const p of products) {
+                const baseText = (p.texts && p.texts[0]) || {};
+                const basePrice = (p.prices && p.prices[0]) || {};
+                const titoloProd = ((baseText as any).title || "").toString();
+
+                // Master ERP richiede SKU univoco: se manca o è NO-SKU usiamo EAN o id staging
+                const rawSku = (p.sku || "").toString().trim();
+                const effectiveSku = (rawSku && rawSku !== "NO-SKU")
+                    ? rawSku
+                    : (p.ean ? `EAN-${String(p.ean).trim()}` : `STG-${p.id}`);
+
                 try {
-                    const baseText = (p.texts && p.texts[0]) || {};
-                    const basePrice = (p.prices && p.prices[0]) || {};
-
-                    // Master ERP richiede SKU univoco: se manca o è NO-SKU usiamo EAN o id staging
-                    const rawSku = (p.sku || "").toString().trim();
-                    const effectiveSku = (rawSku && rawSku !== "NO-SKU")
-                        ? rawSku
-                        : (p.ean ? `EAN-${String(p.ean).trim()}` : `STG-${p.id}`);
-
                     // Separiamo lo stock dagli altri campi extra, così la checkbox
                     // "Campi extra" non sovrascrive anche `stockLocal/stockSupplier`.
                     const extraObj: Record<string, string> = {};
@@ -747,10 +907,48 @@ export default function ImportLab() {
                     });
 
                     successCount++;
+                    reportRows.push({
+                        stagingId: p.id,
+                        skuOrig: rawSku,
+                        ean: String(p.ean ?? ""),
+                        skuInviato: effectiveSku,
+                        esito: "ok",
+                        httpStatus: "",
+                        messaggio: "",
+                        dettaglio: "",
+                        titolo: titoloProd,
+                    });
                 } catch (err) {
                     console.error("Push singolo prodotto fallito:", err);
                     errorCount++;
+                    const { httpStatus, messaggio, dettaglio } = axiosErrorToPushDetail(err);
+                    reportRows.push({
+                        stagingId: p.id,
+                        skuOrig: rawSku,
+                        ean: String(p.ean ?? ""),
+                        skuInviato: effectiveSku,
+                        esito: "errore",
+                        httpStatus: httpStatus != null ? String(httpStatus) : "",
+                        messaggio,
+                        dettaglio,
+                        titolo: titoloProd,
+                    });
                 }
+            }
+
+            const pushReport: PushErpReport = {
+                at: new Date().toISOString(),
+                catalogId: catalogIdParam,
+                repositoryName: repository?.name,
+                successCount,
+                errorCount,
+                rows: reportRows,
+            };
+            setLastPushErpReport(pushReport);
+            try {
+                sessionStorage.setItem("importLab_pushErpReport_" + catalogIdParam, JSON.stringify(pushReport));
+            } catch {
+                /* ignore */
             }
 
             toast.update(toastId, {
@@ -1521,6 +1719,13 @@ export default function ImportLab() {
                             >
                                 {isBulkUpdating ? "In corso..." : "Applica a tutti"}
                             </button>
+                            <button
+                                onClick={handleDedupeStagingImages}
+                                disabled={isBulkUpdating}
+                                className="px-3 py-1.5 bg-white text-slate-700 rounded-xl font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
+                            >
+                                {isBulkUpdating ? "In corso..." : "Deduplica immagini"}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1807,6 +2012,74 @@ export default function ImportLab() {
                                                 )}
                                             </div>
                                         )}
+
+                                        {lastPushErpReport &&
+                                            lastPushErpReport.catalogId === catalogIdParam &&
+                                            lastPushErpReport.rows.length > 0 && (
+                                                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/80 p-5 space-y-3 shadow-sm">
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div className="flex items-center gap-2 min-w-0">
+                                                            <Database className="w-5 h-5 text-slate-700 shrink-0" />
+                                                            <div className="min-w-0">
+                                                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-800">
+                                                                    Report ultimo push Master ERP
+                                                                </p>
+                                                                <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                                                                    {lastPushErpReport.repositoryName || repository?.name || "Repository"} ·{" "}
+                                                                    {new Date(lastPushErpReport.at).toLocaleString("it-IT")}
+                                                                </p>
+                                                                <p className="text-[11px] font-bold text-slate-600 mt-1">
+                                                                    Sincronizzati:{" "}
+                                                                    <span className="text-emerald-700 font-black">
+                                                                        {lastPushErpReport.successCount}
+                                                                    </span>
+                                                                    · Errori:{" "}
+                                                                    <span className="text-amber-800 font-black">
+                                                                        {lastPushErpReport.errorCount}
+                                                                    </span>
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const ok = downloadPushErpReportCsvBlob(lastPushErpReport);
+                                                                    if (ok) {
+                                                                        toast.success("CSV scaricato (tutte le righe).");
+                                                                    }
+                                                                }}
+                                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black transition-colors shadow-md"
+                                                            >
+                                                                <FileDown className="w-4 h-4" />
+                                                                Scarica CSV completo
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const ok = downloadPushErpReportCsvBlob(lastPushErpReport, {
+                                                                        soloErrori: true,
+                                                                    });
+                                                                    if (!ok) {
+                                                                        toast.info("Nessun errore nel report da esportare.");
+                                                                    } else {
+                                                                        toast.success("CSV errori scaricato.");
+                                                                    }
+                                                                }}
+                                                                disabled={lastPushErpReport.errorCount === 0}
+                                                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                                                            >
+                                                                <FileSpreadsheet className="w-4 h-4" />
+                                                                Solo errori (CSV)
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-slate-500 leading-relaxed">
+                                                        Colonne: staging id, SKU listino, EAN, SKU inviato al Master ERP, esito, codice HTTP,
+                                                        messaggio e dettaglio risposta API, titolo prodotto. Il file usa UTF-8 con BOM per Excel.
+                                                    </p>
+                                                </div>
+                                            )}
 
                                         {/* Table Content... */}
 
