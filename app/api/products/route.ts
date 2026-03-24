@@ -68,11 +68,13 @@ export async function POST(req: NextRequest) {
         stage = "find_existing_product";
         let existingProduct = null;
         existingProduct = await prisma.product.findFirst({
-            where: { companyId, sku: cleanSku }
+            where: { companyId, sku: cleanSku },
+            select: { id: true },
         });
         if (!existingProduct && cleanEan) {
             existingProduct = await prisma.product.findFirst({
-                where: { companyId, ean: cleanEan }
+                where: { companyId, ean: cleanEan },
+                select: { id: true },
             });
         }
 
@@ -189,6 +191,7 @@ export async function POST(req: NextRequest) {
                 product = await prisma.product.update({
                     where: { id: existingProduct.id },
                     data: updateData,
+                    select: { id: true },
                 });
             } else {
                 product = existingProduct;
@@ -207,6 +210,7 @@ export async function POST(req: NextRequest) {
                     ean: cleanEan,
                     parentSku: cleanParentSku,
                 },
+                select: { id: true },
             });
         }
 
@@ -234,6 +238,7 @@ export async function POST(req: NextRequest) {
                 product = await prisma.product.update({
                     where: { id: product.id },
                     data: { vatCodeId: vatId },
+                    select: { id: true },
                 });
             } catch (vatErr) {
                 if (isVatSchemaUnavailableError(vatErr)) {
