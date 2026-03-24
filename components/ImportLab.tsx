@@ -823,6 +823,7 @@ export default function ImportLab() {
         let successCount = 0;
         let errorCount = 0;
         const reportRows: PushErpCsvRow[] = [];
+        let firstDetailedErrorShown = false;
 
         try {
             for (const p of products) {
@@ -918,10 +919,27 @@ export default function ImportLab() {
                         dettaglio: "",
                         titolo: titoloProd,
                     });
-                } catch (err) {
-                    console.error("Push singolo prodotto fallito:", err);
+                } catch (err: any) {
+                    const responseData = err?.response?.data;
+                    console.error("Push singolo prodotto fallito:", {
+                        sku: effectiveSku,
+                        stagingId: p.id,
+                        status: err?.response?.status,
+                        responseData,
+                        err,
+                    });
                     errorCount++;
                     const { httpStatus, messaggio, dettaglio } = axiosErrorToPushDetail(err);
+                    if (!firstDetailedErrorShown) {
+                        firstDetailedErrorShown = true;
+                        const stage = responseData?.stage ? ` (stage: ${responseData.stage})` : "";
+                        toast.warning(
+                            "Primo errore push: " +
+                                (messaggio || "errore sconosciuto") +
+                                stage +
+                                ". Scarica il CSV errori per dettagli."
+                        );
+                    }
                     reportRows.push({
                         stagingId: p.id,
                         skuOrig: rawSku,
