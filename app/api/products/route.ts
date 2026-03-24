@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
     }
     const { companyId } = ctx;
 
+    let stage = "init";
     try {
+        stage = "parse_body";
         const body = await req.json();
         const {
             sku, title, description, docDescription, price, category, brand, brandId,
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
             overwrite
         } = body;
 
+        stage = "validate_sku";
         if (!sku) {
             return NextResponse.json({ error: "SKU is required" }, { status: 400 });
         }
@@ -62,6 +65,7 @@ export async function POST(req: NextRequest) {
         // Priorità: SKU prima, poi EAN. Import Lab / PIM identificano la riga per SKU; se l’EAN è
         // condiviso o duplicato in staging, un match EAN-first aggiornava un altro prodotto e la scheda
         // corretta (SKU) restava vuota.
+        stage = "find_existing_product";
         let existingProduct = null;
         existingProduct = await prisma.product.findFirst({
             where: { companyId, sku: cleanSku }
@@ -73,6 +77,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 1.5 Auto-create Brand and Categories from string values (e.g. from File Import)
+        stage = "resolve_brand";
         let resolvedBrandId = brandId ? Number(brandId) : undefined;
         // Evita FK error: brandId deve esistere e appartenere alla company corrente.
         if (resolvedBrandId !== undefined && !Number.isNaN(resolvedBrandId)) {
@@ -117,6 +122,7 @@ export async function POST(req: NextRequest) {
             return n;
         };
 
+        stage = "resolve_categories";
         let resolvedCatId: number | null | undefined = hasCategoryId ? parseNullableId(body.categoryId) : undefined;
         let resolvedSubCatId: number | null | undefined = hasSubCategoryId ? parseNullableId(body.subCategoryId) : undefined;
         let resolvedSubSubCatId: number | null | undefined = hasSubSubCategoryId ? parseNullableId(body.subSubCategoryId) : undefined;
@@ -157,6 +163,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Create or Update base Product HUB
+        stage = "create_or_update_product";
         let product;
         if (existingProduct) {
             // Usa sempre SKU/EAN come indici: lo SKU esistente NON viene mai sovrascritto.
@@ -204,6 +211,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2.1 Codice IVA (opzionale; collegato a tabella VatCode)
+        stage = "save_vat_code";
         if (Object.prototype.hasOwnProperty.call(body, "vatCodeId")) {
             try {
                 const raw = (body as any).vatCodeId;
@@ -239,6 +247,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 2. Upsert Italian texts con controllo di campo per sovrascrittura
+        stage = "upsert_it_text";
         if (title !== undefined || description !== undefined || docDescription !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
             let existingText: any = null;
             if (existingProduct) {
@@ -298,6 +307,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. Upsert Default Price (solo se autorizzato oppure se il prodotto è nuovo)
+        stage = "upsert_price";
         if (price !== undefined && price !== null && price !== "") {
             const priceStr = price.toString().replace(/[^0-9.,-]/g, "").replace(",", ".");
             const parsedPrice = parseFloat(priceStr);
@@ -319,6 +329,7 @@ export async function POST(req: NextRequest) {
             return String(v).trim() !== "";
         };
 
+        stage = "upsert_extras";
         if (!existingProduct || overwriteExtras) {
             const legacyExtras = [
                 { key: "dimensions", value: dimensions },
@@ -355,6 +366,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 6. Handle relationships with Catalog (Projects)
+        stage = "upsert_catalog_entry";
         if (catalogId) {
             await prisma.catalogEntry.upsert({
                 where: { catalogId_productId: { catalogId: parseInt(catalogId), productId: product.id } },
@@ -364,6 +376,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 7. Handle Tags
+        stage = "sync_tags";
         if (body.productTags && Array.isArray(body.productTags)) {
             await prisma.productTag.deleteMany({
                 where: { productId: product.id }
@@ -380,6 +393,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 8. Handle Translations
+        stage = "sync_translations";
         if (body.translations && typeof body.translations === 'object') {
             for (const [lang, data] of Object.entries(body.translations)) {
                 const d = data as any;
@@ -404,6 +418,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 8.5 Sync BulletPoints to Relational Table
+        stage = "sync_bullets";
         try {
             const itBulletsStr = (body.translations?.['it']?.bulletPoints !== undefined)
                 ? body.translations['it'].bulletPoints
@@ -436,6 +451,7 @@ export async function POST(req: NextRequest) {
         // 9. Handle Images
         // - Nuovi prodotti: sempre scriviamo le immagini se presenti
         // - Prodotti esistenti: scriviamo SOLO se esplicitamente richiesto (overwriteImages === true)
+        stage = "sync_images";
         if (images && Array.isArray(images) && (!existingProduct || overwriteImages)) {
             await prisma.productImage.deleteMany({
                 where: { productId: product.id }
@@ -452,6 +468,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 8. Log modification to History
+        stage = "write_history";
         await prisma.productHistory.create({
             data: {
                 productId: product.id,
@@ -473,9 +490,10 @@ export async function POST(req: NextRequest) {
             }
         });
 
+        stage = "done";
         return NextResponse.json({ success: true, productId: product.id });
     } catch (err: any) {
-        console.error("Product save error details:", err);
+        console.error("Product save error details:", { stage, err });
         if (err instanceof Prisma.PrismaClientKnownRequestError) {
             if (err.code === "P2003") {
                 return NextResponse.json(
@@ -504,7 +522,8 @@ export async function POST(req: NextRequest) {
         }
         return NextResponse.json({
             error: "Save failed",
-            details: err.message
+            details: err.message,
+            stage
         }, { status: 500 });
     }
 }
