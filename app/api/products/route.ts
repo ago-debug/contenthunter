@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { isVatSchemaUnavailableError } from "@/lib/vat-schema-fallback";
+import { Prisma } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
     const ctx = await requireCompanyId(req);
@@ -73,6 +74,16 @@ export async function POST(req: NextRequest) {
 
         // 1.5 Auto-create Brand and Categories from string values (e.g. from File Import)
         let resolvedBrandId = brandId ? Number(brandId) : undefined;
+        // Evita FK error: brandId deve esistere e appartenere alla company corrente.
+        if (resolvedBrandId !== undefined && !Number.isNaN(resolvedBrandId)) {
+            const brandExists = await prisma.brand.findFirst({
+                where: { id: resolvedBrandId, companyId },
+                select: { id: true },
+            });
+            if (!brandExists) {
+                resolvedBrandId = undefined;
+            }
+        }
         try {
             if (cleanBrand && !resolvedBrandId) {
                 const cleanBrandName = cleanBrand;
@@ -465,6 +476,32 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, productId: product.id });
     } catch (err: any) {
         console.error("Product save error details:", err);
+        if (err instanceof Prisma.PrismaClientKnownRequestError) {
+            if (err.code === "P2003") {
+                return NextResponse.json(
+                    {
+                        error: "Relazione non valida (foreign key)",
+                        details:
+                            "Controlla brand/categoria associati al catalogo: uno degli ID collegati non esiste per questa azienda.",
+                        prismaCode: err.code,
+                        meta: err.meta,
+                    },
+                    { status: 400 }
+                );
+            }
+            if (err.code === "P2002") {
+                return NextResponse.json(
+                    {
+                        error: "Vincolo di unicita violato",
+                        details:
+                            "Esiste gia un record con lo stesso valore su un campo univoco (es. SKU nella stessa azienda).",
+                        prismaCode: err.code,
+                        meta: err.meta,
+                    },
+                    { status: 400 }
+                );
+            }
+        }
         return NextResponse.json({
             error: "Save failed",
             details: err.message

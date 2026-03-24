@@ -3,6 +3,19 @@ import { prisma } from "@/lib/prisma";
 
 type BulkField = "brand" | "category" | "stockLocal" | "stockSupplier";
 
+function imageFileNameFromUrl(rawUrl: string): string {
+    const trimmed = String(rawUrl || "").trim();
+    if (!trimmed) return "";
+    const noQuery = trimmed.split("?")[0].split("#")[0];
+    const parts = noQuery.split("/").filter(Boolean);
+    const last = parts[parts.length - 1] || "";
+    try {
+        return decodeURIComponent(last).trim().toLowerCase();
+    } catch {
+        return last.trim().toLowerCase();
+    }
+}
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -35,15 +48,15 @@ export async function POST(
                 const seen = new Set<string>();
                 const toDelete: number[] = [];
                 for (const img of sp.images) {
-                    const norm = String(img.imageUrl || "").trim();
-                    if (!norm) {
+                    const fileName = imageFileNameFromUrl(img.imageUrl || "");
+                    if (!fileName) {
                         toDelete.push(img.id);
                         continue;
                     }
-                    if (seen.has(norm)) {
+                    if (seen.has(fileName)) {
                         toDelete.push(img.id);
                     } else {
-                        seen.add(norm);
+                        seen.add(fileName);
                     }
                 }
                 if (toDelete.length > 0) {
