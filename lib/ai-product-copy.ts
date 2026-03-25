@@ -1,5 +1,14 @@
 import OpenAI from "openai";
 
+/**
+ * Modello OpenAI per descrizioni / SEO prodotto (chat completions).
+ * Imposta sul server: `OPENAI_CHAT_MODEL=gpt-4o-mini` (default, veloce ed economico).
+ * Esempi: `gpt-4o-mini`, `gpt-4o`, `gpt-3.5-turbo` (più vecchio, spesso più economico).
+ */
+export function getOpenAiChatModelForProductCopy(): string {
+    return (process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini").trim() || "gpt-4o-mini";
+}
+
 const SYSTEM =
     "Sei un generatore ultrarapido di schede prodotto professionali. Rispondi SOLO con il contenuto finale, niente introduzioni.";
 
@@ -46,9 +55,10 @@ Genera ESCLUSIVAMENTE questi blocchi in ordine (prima riga di ogni sezione = mar
 ---BULLET_POINTS---
 [5-8 punti, uno per riga]`;
 
+    const model = getOpenAiChatModelForProductCopy();
     const [r1, r2] = await Promise.all([
         openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model,
             messages: [
                 { role: "system", content: SYSTEM },
                 { role: "user", content: part1User },
@@ -57,7 +67,7 @@ Genera ESCLUSIVAMENTE questi blocchi in ordine (prima riga di ogni sezione = mar
             max_tokens: 220,
         }),
         openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model,
             messages: [
                 { role: "system", content: SYSTEM },
                 { role: "user", content: part2User },
@@ -81,7 +91,7 @@ export async function generateProductCopySingle(
     args: { fullPrompt: string; maxTokens: number }
 ): Promise<string> {
     const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getOpenAiChatModelForProductCopy(),
         messages: [
             { role: "system", content: SYSTEM },
             { role: "user", content: args.fullPrompt },
@@ -104,7 +114,7 @@ export async function streamProductCopySingle(
     args: { fullPrompt: string; maxTokens: number }
 ): Promise<ReadableStream<Uint8Array>> {
     const stream = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: getOpenAiChatModelForProductCopy(),
         messages: [
             { role: "system", content: SYSTEM },
             { role: "user", content: args.fullPrompt },

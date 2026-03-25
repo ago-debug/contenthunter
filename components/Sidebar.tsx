@@ -26,6 +26,13 @@ import appMeta from "@/data/app-meta.json";
 
 type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
 
+/** Es. 2.5.0 → 2.5 in etichetta; 2.5.1 resta completo. */
+function formatAppVersionLabel(v: string): string {
+    const p = v.trim().split(".");
+    if (p.length === 3 && p[2] === "0") return `${p[0]}.${p[1]}`;
+    return v;
+}
+
 function isTablesPath(p: string) {
     return p === "/tables" || p.startsWith("/tables/");
 }
@@ -145,14 +152,17 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                 </button>
             </div>
 
-            <nav className="flex-1 space-y-1.5">
+            <nav className="flex-1">
                 {menuGroups.map((group, gIdx) => (
-                    <div key={gIdx} className="space-y-0.5">
+                    <div
+                        key={gIdx}
+                        className={`space-y-0.5 ${gIdx > 0 ? "mt-4 pt-3 border-t border-slate-100" : ""}`}
+                    >
                         {group.collapsible ? (
                             <button
                                 type="button"
                                 onClick={group.onToggle}
-                                className="flex w-full items-center gap-1 px-2 py-1 text-left text-[8px] font-black text-slate-400 uppercase tracking-[0.18em] hover:text-slate-600 transition-colors"
+                                className="flex w-full items-center gap-1.5 px-2 py-1.5 text-left text-[8px] font-semibold text-slate-500 uppercase tracking-[0.12em] hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                             >
                                 <ChevronDown
                                     className={`w-3 h-3 shrink-0 text-slate-400 transition-transform ${group.open ? "" : "-rotate-90"}`}
@@ -161,7 +171,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                                 <span className="flex-1">{group.label}</span>
                             </button>
                         ) : (
-                            <h3 className="px-2 py-1 text-[8px] font-black text-slate-400 uppercase tracking-[0.18em]">
+                            <h3 className="px-2 py-1.5 mb-1 text-[10px] font-black uppercase tracking-[0.22em] text-slate-900 bg-slate-100 border border-slate-200/90 rounded-xl shadow-sm">
                                 {group.label}
                             </h3>
                         )}
@@ -213,7 +223,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                     className="block rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2 hover:bg-slate-50 hover:border-slate-200 transition-colors"
                 >
                     <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em]">Release</p>
-                    <p className="text-sm font-black text-slate-900 mt-0.5">v{appMeta.version}</p>
+                    <p className="text-sm font-black text-slate-900 mt-0.5">v{formatAppVersionLabel(appMeta.version)}</p>
                     <p className="text-[9px] font-bold text-slate-500 mt-0.5 tabular-nums">
                         {new Date(appMeta.lastUpdated).toLocaleString("it-IT", {
                             day: "2-digit",

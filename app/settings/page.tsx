@@ -243,6 +243,16 @@ export default function SettingsPage() {
                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:ring-4 focus:ring-purple-50 focus:bg-white transition-all font-mono"
                                 />
                             </div>
+                            <p className="text-[11px] text-slate-500 leading-relaxed mt-2 ml-1">
+                                <span className="font-bold text-slate-600">Modello per testi prodotto (descrizioni SEO):</span> non si
+                                configura qui. Sul server imposta la variabile d&apos;ambiente{" "}
+                                <code className="font-mono text-[10px] text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded">
+                                    OPENAI_CHAT_MODEL
+                                </code>{" "}
+                                (default <code className="font-mono text-[10px]">gpt-4o-mini</code>, già il più rapido ed economico tra i
+                                modelli consigliati). Esempio in <code className="font-mono text-[10px]">.env</code>:{" "}
+                                <code className="font-mono text-[10px]">OPENAI_CHAT_MODEL=gpt-4o-mini</code>.
+                            </p>
                         </div>
                         <div>
                             <div className="flex items-center justify-between ml-1 mb-2">

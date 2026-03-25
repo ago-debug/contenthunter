@@ -4,6 +4,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import axios from "axios";
 import { Download, X } from "lucide-react";
 import { toast } from "react-toastify";
+import { useSession } from "next-auth/react";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 type AiBulkRow = {
   productId: number;
@@ -105,6 +107,24 @@ function readLocal<T>(key: string, fallback: T): T {
 }
 
 export function ActivityProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+  const companyContext = useCompanyContext();
+
+  /** Stesso criterio di ErpTable: JWT aziendale o azienda scelta dall’admin globale. */
+  const effectiveCompanyId = useMemo(() => {
+    const sid = (session?.user as { companyId?: number | null })?.companyId;
+    if (typeof sid === "number" && Number.isFinite(sid)) return sid;
+    return companyContext?.selectedCompanyId ?? null;
+  }, [session?.user, companyContext?.selectedCompanyId]);
+
+  const activityAxiosConfig = useMemo(
+    () =>
+      effectiveCompanyId != null
+        ? { headers: { "x-company-id": String(effectiveCompanyId) } as Record<string, string> }
+        : null,
+    [effectiveCompanyId]
+  );
+
   const [aiBulkJob, setAiBulkJob] = useState<AiBulkJob | null>(null);
   const [aiBulkReport, setAiBulkReport] = useState<AiBulkReport | null>(null);
   const [showAiBulkReport, setShowAiBulkReport] = useState(false);
@@ -125,7 +145,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const appendNotification = (title: string, message: string) => {
+  const appendNotification = useCallback((title: string, message: string) => {
     const n: ActivityNotification = {
       id: `n_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       at: new Date().toISOString(),
@@ -133,24 +153,33 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       message,
       read: false,
     };
-    const next = [n, ...notifications].slice(0, 200);
-    persistNotifications(next);
+    setNotifications((prev) => {
+      const next = [n, ...prev].slice(0, 200);
+      try {
+        localStorage.setItem(NOTIF_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
     toast.success(`${title}: ${message}`);
-  };
+  }, []);
 
   const refreshActivities = useCallback(async () => {
+    if (!activityAxiosConfig) return;
     try {
-      const { data } = await axios.get("/api/activities");
+      const { data } = await axios.get("/api/activities", activityAxiosConfig);
       setActivities(Array.isArray(data?.activities) ? data.activities : []);
       setOngoingBulkSeoJobs(Array.isArray(data?.ongoingBulkSeoJobs) ? data.ongoingBulkSeoJobs : []);
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [activityAxiosConfig]);
 
-  const refreshCurrentJob = async () => {
+  const refreshCurrentJob = useCallback(async () => {
+    if (!activityAxiosConfig) return;
     try {
-      const { data } = await axios.get("/api/activities/ai-bulk-seo-jobs");
+      const { data } = await axios.get("/api/activities/ai-bulk-seo-jobs", activityAxiosConfig);
       const job = data?.job ?? null;
       setAiBulkJob(job);
       const nowStatus = job ? (job.running ? "running" : job.paused ? "paused" : "done") : null;
@@ -164,16 +193,17 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* ignore */
     }
-  };
+  }, [activityAxiosConfig, refreshActivities, appendNotification]);
 
   useEffect(() => {
+    if (!activityAxiosConfig) return;
     void refreshActivities();
     void refreshCurrentJob();
     const id = setInterval(() => {
       void refreshCurrentJob();
     }, 2000);
     return () => clearInterval(id);
-  }, []);
+  }, [activityAxiosConfig, refreshActivities, refreshCurrentJob]);
 
   const startAiBulkSeoJob = async (input: StartAiBulkSeoInput) => {
     if (aiBulkJob?.running || aiBulkJob?.paused) {
@@ -210,16 +240,18 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleAiBulkPause = async () => {
-    if (!aiBulkJob?.id) return;
-    await axios.patch(`/api/activities/ai-bulk-seo-jobs/${aiBulkJob.id}`, {
-      action: aiBulkJob.paused ? "resume" : "pause",
-    });
+    if (!aiBulkJob?.id || !activityAxiosConfig) return;
+    await axios.patch(
+      `/api/activities/ai-bulk-seo-jobs/${aiBulkJob.id}`,
+      { action: aiBulkJob.paused ? "resume" : "pause" },
+      activityAxiosConfig
+    );
     await refreshCurrentJob();
   };
 
   const stopAiBulkJob = async () => {
-    if (!aiBulkJob?.id) return;
-    await axios.patch(`/api/activities/ai-bulk-seo-jobs/${aiBulkJob.id}`, { action: "stop" });
+    if (!aiBulkJob?.id || !activityAxiosConfig) return;
+    await axios.patch(`/api/activities/ai-bulk-seo-jobs/${aiBulkJob.id}`, { action: "stop" }, activityAxiosConfig);
     await refreshCurrentJob();
     await refreshActivities();
     appendNotification("Attività interrotta", "Generazione SEO AI massiva fermata.");
@@ -232,17 +264,17 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
 
   const unreadNotifications = notifications.filter((n) => !n.read).length;
 
-  const loadReport = async () => {
-    if (!aiBulkJob?.id) return;
-    const { data } = await axios.get(`/api/activities/ai-bulk-seo-jobs/${aiBulkJob.id}/report`);
+  const loadReport = useCallback(async () => {
+    if (!aiBulkJob?.id || !activityAxiosConfig) return;
+    const { data } = await axios.get(`/api/activities/ai-bulk-seo-jobs/${aiBulkJob.id}/report`, activityAxiosConfig);
     setAiBulkReport(data);
-  };
+  }, [aiBulkJob?.id, activityAxiosConfig]);
 
   useEffect(() => {
     if (showAiBulkReport && !aiBulkReport) {
       void loadReport();
     }
-  }, [showAiBulkReport]);
+  }, [showAiBulkReport, aiBulkReport, loadReport]);
 
   const value = useMemo<ActivityContextValue>(
     () => ({

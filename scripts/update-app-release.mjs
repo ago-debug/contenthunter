@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
  * Aggiorna data/app-meta.json e data/changelog.json in base all'ultimo commit.
+ * La versione mostrata in UI viene da package.json ("version") — aggiornala lì per cambiare v2.x.
  * Il post-commit esclude il commit meta ("chore: update app release metadata").
  */
 import { readFileSync, writeFileSync, existsSync } from "fs";
