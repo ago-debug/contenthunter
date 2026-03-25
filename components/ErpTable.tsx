@@ -236,6 +236,14 @@ export default function ErpTable() {
     const effectiveCompanyId =
         (session?.user as any)?.companyId ?? companyContext?.selectedCompanyId ?? null;
 
+    const ensureBrandSelected = (): boolean => {
+        if (brandFilter === "all") {
+            toast.warning('Seleziona prima un brand (non "Tutti i Brand").');
+            return false;
+        }
+        return true;
+    };
+
     const wooStorageKey = effectiveCompanyId != null
         ? `pim_woo_config_${effectiveCompanyId}`
         : "pim_woo_config_all";
@@ -612,6 +620,7 @@ export default function ErpTable() {
     };
 
     const importFromWoo = async () => {
+        if (!ensureBrandSelected()) return;
         if (!wooConfig.domain || !wooConfig.key || !wooConfig.secret) {
             toast.warning("Configura prima l'integrazione WooCommerce nelle impostazioni.");
             setActiveTab("woocommerce");
@@ -663,6 +672,7 @@ export default function ErpTable() {
     };
 
     const exportSelectedToWoo = async () => {
+        if (!ensureBrandSelected()) return;
         if (!selectedIds.length) {
             toast.warning("Seleziona prima almeno un prodotto.");
             return;
@@ -709,6 +719,7 @@ export default function ErpTable() {
     };
 
     const handleBulkTranslateTitle = async () => {
+        if (!ensureBrandSelected()) return;
         if (!selectedIds.length) {
             toast.warning("Seleziona prima almeno un prodotto.");
             return;
@@ -798,6 +809,7 @@ export default function ErpTable() {
     };
 
     const exportSelectedToFile = async (requestedFormat: "excel" | "csv") => {
+        if (!ensureBrandSelected()) return;
         if (!selectedIds.length) {
             toast.warning("Seleziona prima almeno un prodotto.");
             return;
@@ -1062,6 +1074,7 @@ export default function ErpTable() {
     };
 
     const handleBulkDelete = async () => {
+        if (!ensureBrandSelected()) return;
         if (!confirm(`Sei sicuro di voler eliminare massivamente ${selectedIds.length} prodotti?`)) return;
         setIsBulkDeleting(true);
         try {
@@ -1077,6 +1090,7 @@ export default function ErpTable() {
     };
 
     const handleBulkNormalizeTitles = async () => {
+        if (!ensureBrandSelected()) return;
         if (selectedIds.length === 0) return;
         if (!confirm(`Normalizzare i titoli di ${selectedIds.length} prodotti?`)) return;
         setIsBulkWorking(true);
@@ -1103,6 +1117,7 @@ export default function ErpTable() {
     };
 
     const handleBulkAddTitlePrefix = async () => {
+        if (!ensureBrandSelected()) return;
         if (selectedIds.length === 0) return;
         const prefix = window.prompt("Inserisci il testo da aggiungere davanti al titolo:");
         if (prefix === null) return;
@@ -1139,6 +1154,7 @@ export default function ErpTable() {
     };
 
     const handleBulkReplaceTitlePart = async () => {
+        if (!ensureBrandSelected()) return;
         if (selectedIds.length === 0) return;
 
         const search = window.prompt('Testo da sostituire nel titolo (es. "IPLEX Design") - opzionale:');
@@ -1275,6 +1291,7 @@ export default function ErpTable() {
     };
 
     const handleBulkAppendFieldsToTitle = async () => {
+        if (!ensureBrandSelected()) return;
         if (selectedIds.length === 0) return;
         const custom = bulkTitleFieldsCustom
             .split(",")
@@ -1397,6 +1414,7 @@ export default function ErpTable() {
     const BULK_SET_FIELD_BATCH = 40;
 
     const handleBulkSetFieldMass = async () => {
+        if (!ensureBrandSelected()) return;
         if (selectedIds.length === 0) return;
         const fp =
             bulkOpFieldPath === "__extra_custom__"
@@ -1465,6 +1483,7 @@ export default function ErpTable() {
     };
 
     const handleBulkGenerateSeoAi = async (overwriteExisting: boolean) => {
+        if (!ensureBrandSelected()) return;
         if (selectedIds.length === 0) return;
         setShowBulkOperationsModal(false);
         setShowBulkSeoModal(false);
@@ -1984,7 +2003,14 @@ export default function ErpTable() {
                             <SearchableSelect
                                 options={[{ value: 'all', label: 'Tutti i Brand' }, ...allBrands.map((brand: any) => ({ value: brand.name, label: brand.name }))]}
                                 value={brandFilter}
-                                onChange={(val) => setBrandFilter((val as string) || 'all')}
+                                onChange={(val) => {
+                                    const next = (val as string) || "all";
+                                    setBrandFilter(next);
+                                    setSelectedIds([]);
+                                    if (next === "all") {
+                                        setSelectedProduct(null);
+                                    }
+                                }}
                                 placeholder="Brand"
                                 showSearch={true}
                             />
@@ -2158,6 +2184,7 @@ export default function ErpTable() {
                         onClick={importFromWoo}
                         disabled={
                             isImportingWoo ||
+                            brandFilter === "all" ||
                             !wooConfig.domain ||
                             !wooConfig.key ||
                             !wooConfig.secret
@@ -2171,6 +2198,7 @@ export default function ErpTable() {
                         onClick={exportSelectedToWoo}
                         disabled={
                             isMassExportingWoo ||
+                            brandFilter === "all" ||
                             selectedIds.length === 0 ||
                             !wooConfig.domain ||
                             !wooConfig.key
@@ -2186,7 +2214,7 @@ export default function ErpTable() {
 
                     <button
                         onClick={handleBulkTranslateTitle}
-                        disabled={isBulkTranslatingTitle || selectedIds.length === 0}
+                        disabled={isBulkTranslatingTitle || selectedIds.length === 0 || brandFilter === "all"}
                         className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
                     >
                         {isBulkTranslatingTitle ? (
@@ -2199,7 +2227,7 @@ export default function ErpTable() {
                     <button
                         type="button"
                         onClick={() => void exportSelectedToFile("excel")}
-                        disabled={isExportingSelectedFile || selectedIds.length === 0}
+                        disabled={isExportingSelectedFile || selectedIds.length === 0 || brandFilter === "all"}
                         className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
                     >
                         {isExportingSelectedFile ? (
@@ -2211,7 +2239,7 @@ export default function ErpTable() {
                     <button
                         type="button"
                         onClick={() => void exportSelectedToFile("csv")}
-                        disabled={isExportingSelectedFile || selectedIds.length === 0}
+                        disabled={isExportingSelectedFile || selectedIds.length === 0 || brandFilter === "all"}
                         className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
                     >
                         {isExportingSelectedFile ? (
@@ -2241,13 +2269,14 @@ export default function ErpTable() {
                     <button
                         type="button"
                         onClick={() => {
+                            if (!ensureBrandSelected()) return;
                             if (!selectedIds.length) {
                                 toast.warning("Seleziona almeno un prodotto in tabella.");
                                 return;
                             }
                             setShowBulkOperationsModal(true);
                         }}
-                        disabled={selectedIds.length === 0}
+                        disabled={selectedIds.length === 0 || brandFilter === "all"}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-black transition-all border border-slate-900 disabled:opacity-40"
                     >
                         <Layers className="w-4 h-4 shrink-0" />
@@ -4175,7 +4204,7 @@ export default function ErpTable() {
                                 <button
                                     type="button"
                                     onClick={() => setShowBulkOperationsModal(true)}
-                                    disabled={isBulkWorking}
+                                    disabled={isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-white bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25 transition-all text-[11px] font-black uppercase tracking-widest"
                                 >
                                     <Layers className="w-4 h-4" />
@@ -4183,7 +4212,7 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={handleBulkNormalizeTitles}
-                                    disabled={isBulkWorking}
+                                    disabled={isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-emerald-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Wand2 className={`w-4 h-4 ${isBulkWorking ? 'animate-spin' : ''}`} />
@@ -4191,7 +4220,7 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={handleBulkAddTitlePrefix}
-                                    disabled={isBulkWorking}
+                                    disabled={isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-amber-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Plus className="w-4 h-4" />
@@ -4199,7 +4228,7 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={handleBulkReplaceTitlePart}
-                                    disabled={isBulkWorking}
+                                    disabled={isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-cyan-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Wand2 className="w-4 h-4" />
@@ -4207,7 +4236,7 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={() => setShowBulkTitleFieldsModal(true)}
-                                    disabled={isBulkWorking}
+                                    disabled={isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-violet-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Link2 className="w-4 h-4" />
@@ -4215,7 +4244,7 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={() => setShowBulkSeoModal(true)}
-                                    disabled={isBulkWorking}
+                                    disabled={isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-indigo-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Sparkles className="w-4 h-4" />
@@ -4224,7 +4253,7 @@ export default function ErpTable() {
                                 <button
                                     type="button"
                                     onClick={() => void exportSelectedToFile("excel")}
-                                    disabled={isExportingSelectedFile || isBulkWorking}
+                                    disabled={isExportingSelectedFile || isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-sky-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Download className="w-4 h-4" />
@@ -4233,7 +4262,7 @@ export default function ErpTable() {
                                 <button
                                     type="button"
                                     onClick={() => void exportSelectedToFile("csv")}
-                                    disabled={isExportingSelectedFile || isBulkWorking}
+                                    disabled={isExportingSelectedFile || isBulkWorking || brandFilter === "all"}
                                     className="flex items-center gap-2 text-teal-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Download className="w-4 h-4" />
@@ -4241,7 +4270,7 @@ export default function ErpTable() {
                                 </button>
                                 <button
                                     onClick={handleBulkDelete}
-                                    disabled={isBulkDeleting}
+                                    disabled={isBulkDeleting || brandFilter === "all"}
                                     className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
                                 >
                                     <Trash2 className={`w-4 h-4 ${isBulkDeleting ? 'animate-spin' : ''}`} />
@@ -4364,7 +4393,7 @@ export default function ErpTable() {
                                         <button
                                             type="button"
                                             onClick={handleBulkSetFieldMass}
-                                            disabled={isBulkWorking}
+                                            disabled={isBulkWorking || brandFilter === "all"}
                                             className="w-full py-3 px-4 bg-slate-900 text-white font-black uppercase text-xs tracking-widest rounded-xl hover:bg-black disabled:opacity-50"
                                         >
                                             {isBulkWorking ? "Elaborazione…" : "Applica valore ai selezionati"}
@@ -4383,7 +4412,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setTimeout(() => void handleBulkNormalizeTitles(), 0);
                                             }}
-                                            disabled={isBulkWorking}
+                                            disabled={isBulkWorking || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-900 text-[11px] font-black uppercase border border-emerald-100 hover:bg-emerald-100 disabled:opacity-50"
                                         >
                                             Normalizza titoli
@@ -4394,7 +4423,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setTimeout(() => void handleBulkAddTitlePrefix(), 0);
                                             }}
-                                            disabled={isBulkWorking}
+                                            disabled={isBulkWorking || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-amber-50 text-amber-900 text-[11px] font-black uppercase border border-amber-100 hover:bg-amber-100 disabled:opacity-50"
                                         >
                                             Prefisso titolo
@@ -4405,7 +4434,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setTimeout(() => void handleBulkReplaceTitlePart(), 0);
                                             }}
-                                            disabled={isBulkWorking}
+                                            disabled={isBulkWorking || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-cyan-50 text-cyan-900 text-[11px] font-black uppercase border border-cyan-100 hover:bg-cyan-100 disabled:opacity-50"
                                         >
                                             Trova / sostituisci titolo
@@ -4416,7 +4445,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setShowBulkTitleFieldsModal(true);
                                             }}
-                                            disabled={isBulkWorking}
+                                            disabled={isBulkWorking || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-violet-50 text-violet-900 text-[11px] font-black uppercase border border-violet-100 hover:bg-violet-100 disabled:opacity-50"
                                         >
                                             Campi nel titolo
@@ -4435,7 +4464,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setShowBulkSeoModal(true);
                                             }}
-                                            disabled={isBulkWorking}
+                                            disabled={isBulkWorking || brandFilter === "all"}
                                             className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-indigo-50 text-indigo-900 text-[11px] font-black uppercase border border-indigo-100 hover:bg-indigo-100 disabled:opacity-50"
                                         >
                                             <Sparkles className="w-4 h-4" />
@@ -4447,7 +4476,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setTimeout(() => void handleBulkTranslateTitle(), 0);
                                             }}
-                                            disabled={isBulkTranslatingTitle || isBulkWorking}
+                                            disabled={isBulkTranslatingTitle || isBulkWorking || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
                                         >
                                             Traduci titolo ({editLang.toUpperCase()})
@@ -4458,7 +4487,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setTimeout(() => void exportSelectedToFile("excel"), 0);
                                             }}
-                                            disabled={isExportingSelectedFile}
+                                            disabled={isExportingSelectedFile || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
                                         >
                                             Esporta Excel
@@ -4469,7 +4498,7 @@ export default function ErpTable() {
                                                 setShowBulkOperationsModal(false);
                                                 setTimeout(() => void exportSelectedToFile("csv"), 0);
                                             }}
-                                            disabled={isExportingSelectedFile}
+                                            disabled={isExportingSelectedFile || brandFilter === "all"}
                                             className="px-3 py-2 rounded-xl bg-white text-slate-900 text-[11px] font-black uppercase border border-slate-200 hover:bg-slate-50 disabled:opacity-50"
                                         >
                                             Esporta CSV
@@ -4487,7 +4516,7 @@ export default function ErpTable() {
                                             setShowBulkOperationsModal(false);
                                             setTimeout(() => void handleBulkDelete(), 0);
                                         }}
-                                        disabled={isBulkDeleting}
+                                        disabled={isBulkDeleting || brandFilter === "all"}
                                         className="px-4 py-2.5 rounded-xl bg-red-50 text-red-800 text-[11px] font-black uppercase border border-red-100 hover:bg-red-100 disabled:opacity-50"
                                     >
                                         Elimina prodotti selezionati
