@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "83da094eb76efa4fc9fea292bf9609724a150eda",
+      "at": "2026-03-25T13:15:01+01:00",
+      "description": "fix(erp): brand e prodotti con x-company-id (admin globale + race axios)"
+    },
+    {
       "hash": "14e03d705e8b1902979d292dcd004e63996a1b72",
       "at": "2026-03-25T13:12:31+01:00",
       "description": "feat(app): versione e storico modifiche in sidebar + hook post-commit"
