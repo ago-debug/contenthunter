@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -232,10 +232,19 @@ export default function ErpTable() {
         key: "",
         secret: ""
     });
-    const { data: session } = useSession();
+    const { data: session, status: sessionStatus } = useSession();
     const companyContext = useCompanyContext();
     const effectiveCompanyId =
         (session?.user as any)?.companyId ?? companyContext?.selectedCompanyId ?? null;
+
+    /** Header esplicito per admin globale (evita race con axios.defaults nel primo paint). */
+    const companyReq = useMemo(
+        () =>
+            effectiveCompanyId != null
+                ? { headers: { "x-company-id": String(effectiveCompanyId) } }
+                : {},
+        [effectiveCompanyId]
+    );
 
     const ensureBrandSelected = (): boolean => {
         if (!brandFilter) {
@@ -377,35 +386,35 @@ export default function ErpTable() {
 
     const fetchCategories = async () => {
         try {
-            const res = await axios.get('/api/categories?all=true');
+            const res = await axios.get('/api/categories?all=true', companyReq);
             setAllCategories(res.data);
         } catch (err) { }
     };
 
     const fetchTags = async () => {
         try {
-            const res = await axios.get('/api/tags');
+            const res = await axios.get('/api/tags', companyReq);
             setAllTags(res.data);
         } catch (err) { }
     };
 
     const fetchBrands = async () => {
         try {
-            const res = await axios.get('/api/brands');
-            setAllBrands(res.data);
+            const res = await axios.get('/api/brands', companyReq);
+            setAllBrands(Array.isArray(res.data) ? res.data : []);
         } catch (err) { }
     };
 
     const fetchCatalogues = async () => {
         try {
-            const res = await axios.get('/api/catalogues');
+            const res = await axios.get('/api/catalogues', companyReq);
             setCatalogues(Array.isArray(res.data) ? res.data : []);
         } catch (err) { }
     };
 
     const fetchVatCodes = async () => {
         try {
-            const res = await axios.get("/api/vat-codes");
+            const res = await axios.get("/api/vat-codes", companyReq);
             setVatCodes(Array.isArray(res.data) ? res.data : []);
         } catch {
             setVatCodes([]);
@@ -452,6 +461,16 @@ export default function ErpTable() {
     };
 
     useEffect(() => {
+        if (sessionStatus === "loading") return;
+
+        const isGlobalAdmin = Boolean((session?.user as any)?.isGlobalAdmin);
+        if (isGlobalAdmin && effectiveCompanyId == null) {
+            setLoading(false);
+            setAllBrands([]);
+            setProducts([]);
+            return;
+        }
+
         // Reload Woo config when company changes to avoid cross-company leakage.
         setWooConfig({ domain: "", key: "", secret: "" });
         const saved = localStorage.getItem(wooStorageKey);
@@ -464,7 +483,7 @@ export default function ErpTable() {
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         if (savedProjectName) setProjectName(savedProjectName);
         fetchProducts();
-    }, [wooStorageKey]);
+    }, [wooStorageKey, effectiveCompanyId, sessionStatus]);
 
     const testWooConnection = async () => {
         setIsConnectingWoo(true);
@@ -1674,9 +1693,14 @@ export default function ErpTable() {
     };
 
     const fetchProducts = async () => {
+        if (effectiveCompanyId == null) {
+            setLoading(false);
+            setProducts([]);
+            return;
+        }
         setLoading(true);
         try {
-            const res = await axios.get("/api/products");
+            const res = await axios.get("/api/products", companyReq);
             if (Array.isArray(res.data)) {
                 setProducts(res.data);
             } else {

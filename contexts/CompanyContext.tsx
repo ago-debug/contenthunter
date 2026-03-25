@@ -20,7 +20,11 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
                 const n = parseInt(stored, 10);
-                if (!Number.isNaN(n)) setState(n);
+                if (!Number.isNaN(n)) {
+                    // Prima dell’header di default axios, così le fetch figlie nel primo tick hanno x-company-id
+                    axios.defaults.headers.common["x-company-id"] = String(n);
+                    setState(n);
+                }
             }
         } catch (_) {}
     }, []);
@@ -38,11 +42,10 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         } catch (_) {}
     }, []);
 
+    /** Solo imposta l’header quando c’è un id; la rimozione avviene in setSelectedCompanyId(null). */
     useEffect(() => {
         if (selectedCompanyId != null) {
             axios.defaults.headers.common["x-company-id"] = String(selectedCompanyId);
-        } else {
-            delete axios.defaults.headers.common["x-company-id"];
         }
     }, [selectedCompanyId]);
 
