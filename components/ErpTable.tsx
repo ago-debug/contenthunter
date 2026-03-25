@@ -267,8 +267,47 @@ export default function ErpTable() {
         errors: number;
         currentProductId?: number;
     } | null>(null);
+    const [aiBulkReport, setAiBulkReport] = useState<{
+        at: string;
+        overwriteExisting: boolean;
+        total: number;
+        done: number;
+        errors: number;
+        rows: {
+            productId: number;
+            sku: string;
+            title: string;
+            outcome: "ok" | "error";
+            message: string;
+        }[];
+    } | null>(null);
+    const [showAiBulkReport, setShowAiBulkReport] = useState(false);
     const aiBulkStopRef = useRef(false);
     const aiBulkQueueRef = useRef<any[]>([]);
+    const aiBulkRowsRef = useRef<
+        { productId: number; sku: string; title: string; outcome: "ok" | "error"; message: string }[]
+    >([]);
+
+    const csvEscapeCell = (val: unknown): string => {
+        const s = val == null ? "" : String(val);
+        if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+        return s;
+    };
+    const downloadAiBulkReportCsv = (report: NonNullable<typeof aiBulkReport>) => {
+        const header = ["product_id", "sku", "title", "outcome", "message"];
+        const lines = report.rows.map((r) =>
+            [r.productId, r.sku, r.title, r.outcome, r.message].map(csvEscapeCell).join(",")
+        );
+        const csv = [header.join(","), ...lines].join("\r\n");
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const ts = report.at.slice(0, 19).replace(/[:.]/g, "-");
+        a.href = url;
+        a.download = `ai_bulk_report_${ts}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
     const [showBulkTitleFieldsModal, setShowBulkTitleFieldsModal] = useState(false);
     /** Ordine = ordine nel titolo (primo selezionato per primo, poi si può riordinare) */
     const [bulkTitleFieldsSelected, setBulkTitleFieldsSelected] = useState<string[]>([]);
@@ -1439,6 +1478,8 @@ export default function ErpTable() {
 
         aiBulkStopRef.current = false;
         aiBulkQueueRef.current = [...productList];
+        aiBulkRowsRef.current = [];
+        setAiBulkReport(null);
         setAiBulkJob({
             running: true,
             paused: false,
@@ -1558,6 +1599,13 @@ export default function ErpTable() {
                               }
                             : prev
                     );
+                    aiBulkRowsRef.current.push({
+                        productId: product.id,
+                        sku: String(product.sku || ""),
+                        title: String(product.title || product.translations?.[lang]?.title || ""),
+                        outcome: "ok",
+                        message: "",
+                    });
                 } catch (e) {
                     setAiBulkJob((prev) =>
                         prev
@@ -1568,6 +1616,19 @@ export default function ErpTable() {
                               }
                             : prev
                     );
+                    const anyE = e as any;
+                    const msg =
+                        anyE?.response?.data?.details ||
+                        anyE?.response?.data?.error ||
+                        anyE?.message ||
+                        "Errore sconosciuto";
+                    aiBulkRowsRef.current.push({
+                        productId: product.id,
+                        sku: String(product.sku || ""),
+                        title: String(product.title || product.translations?.[lang]?.title || ""),
+                        outcome: "error",
+                        message: String(msg).slice(0, 2000),
+                    });
                 }
 
                 // Yield tra richieste per lasciare la UI reattiva
@@ -1575,6 +1636,14 @@ export default function ErpTable() {
             }
 
             setAiBulkJob((prev) => (prev ? { ...prev, running: false, currentProductId: undefined } : prev));
+            setAiBulkReport({
+                at: new Date().toISOString(),
+                overwriteExisting,
+                total: productList.length,
+                done: productList.length,
+                errors: aiBulkRowsRef.current.filter((r) => r.outcome === "error").length,
+                rows: aiBulkRowsRef.current,
+            });
             // Refresh lista a fine job
             fetchProducts();
         };
@@ -4541,6 +4610,24 @@ export default function ErpTable() {
                             Stop
                         </button>
                     </div>
+                    {aiBulkReport && !aiBulkJob.running && (
+                        <div className="mt-3 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowAiBulkReport(true)}
+                                className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50"
+                            >
+                                Visualizza report
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => downloadAiBulkReportCsv(aiBulkReport)}
+                                className="flex-1 px-3 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black"
+                            >
+                                Scarica CSV
+                            </button>
+                        </div>
+                    )}
                     {!aiBulkJob.running && (
                         <p className="mt-2 text-[11px] text-slate-500">
                             Completato. La lista si aggiorna automaticamente.
@@ -4548,6 +4635,106 @@ export default function ErpTable() {
                     )}
                 </div>
             )}
+
+            {/* Modal report AI bulk */}
+            <AnimatePresence>
+                {showAiBulkReport && aiBulkReport && (
+                    <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            onClick={() => setShowAiBulkReport(false)}
+                        />
+                        <motion.div
+                            initial={{ scale: 0.98, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.98, opacity: 0 }}
+                            className="relative bg-white rounded-2xl shadow-2xl p-5 max-w-4xl w-full border border-gray-100 max-h-[90vh] overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 className="text-lg font-black text-gray-900">Report generazione AI massiva</h3>
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        {new Date(aiBulkReport.at).toLocaleString("it-IT")} · Totale {aiBulkReport.total} · Errori{" "}
+                                        {aiBulkReport.errors}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => downloadAiBulkReportCsv(aiBulkReport)}
+                                        className="px-3 py-2 rounded-xl bg-slate-900 text-white text-[11px] font-black uppercase hover:bg-black"
+                                    >
+                                        Scarica CSV
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAiBulkReport(false)}
+                                        className="p-2 rounded-xl border border-slate-200 hover:bg-slate-50"
+                                        title="Chiudi"
+                                    >
+                                        <X className="w-4 h-4 text-slate-700" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden">
+                                <div className="max-h-[65vh] overflow-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead className="sticky top-0 bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                    ID
+                                                </th>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                    SKU
+                                                </th>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                    Titolo
+                                                </th>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                    Esito
+                                                </th>
+                                                <th className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                    Messaggio
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {aiBulkReport.rows.map((r) => (
+                                                <tr key={`ai-rep-${r.productId}-${r.outcome}`}>
+                                                    <td className="px-3 py-2 text-[11px] font-mono text-slate-700">
+                                                        {r.productId}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-[11px] font-mono text-slate-900">
+                                                        {r.sku}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-[11px] text-slate-700 max-w-[360px] truncate">
+                                                        {r.title}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-[11px] font-black">
+                                                        {r.outcome === "ok" ? (
+                                                            <span className="text-emerald-700">OK</span>
+                                                        ) : (
+                                                            <span className="text-amber-800">ERRORE</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-[11px] text-slate-600 max-w-[520px] truncate">
+                                                        {r.message || "—"}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* Modal: campi dello stesso prodotto concatenati al titolo (IT) */}
             <AnimatePresence>
