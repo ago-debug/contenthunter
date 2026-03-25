@@ -257,6 +257,18 @@ export default function ErpTable() {
     const [isSavingBrand, setIsSavingBrand] = useState(false);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [showBulkSeoModal, setShowBulkSeoModal] = useState(false);
+    /** Job di generazione contenuti AI in background (non blocca la UI) */
+    const [aiBulkJob, setAiBulkJob] = useState<{
+        running: boolean;
+        paused: boolean;
+        overwriteExisting: boolean;
+        total: number;
+        done: number;
+        errors: number;
+        currentProductId?: number;
+    } | null>(null);
+    const aiBulkStopRef = useRef(false);
+    const aiBulkQueueRef = useRef<any[]>([]);
     const [showBulkTitleFieldsModal, setShowBulkTitleFieldsModal] = useState(false);
     /** Ordine = ordine nel titolo (primo selezionato per primo, poi si può riordinare) */
     const [bulkTitleFieldsSelected, setBulkTitleFieldsSelected] = useState<string[]>([]);
@@ -1194,6 +1206,19 @@ export default function ErpTable() {
         }
     };
 
+    const pauseResumeAiBulk = () => {
+        setAiBulkJob((prev) => {
+            if (!prev) return prev;
+            if (!prev.running) return prev;
+            return { ...prev, paused: !prev.paused };
+        });
+    };
+    const stopAiBulk = () => {
+        aiBulkStopRef.current = true;
+        setAiBulkJob((prev) => (prev ? { ...prev, running: false, paused: false } : prev));
+        toast.info("Job AI fermato.");
+    };
+
     const toggleBulkTitleField = (id: string) => {
         setBulkTitleFieldsSelected((prev) =>
             prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -1404,14 +1429,74 @@ export default function ErpTable() {
         if (selectedIds.length === 0) return;
         setShowBulkOperationsModal(false);
         setShowBulkSeoModal(false);
-        setIsBulkWorking(true);
-        const toastId = toast.loading(`Generazione contenuti SEO AI: 0/${selectedIds.length}...`);
+
         const lang = "it";
-        let done = 0;
-        let errors = 0;
-        try {
-            const productList = products.filter((p: any) => selectedIds.includes(p.id));
-            for (const product of productList) {
+        const productList = products.filter((p: any) => selectedIds.includes(p.id));
+        if (productList.length === 0) {
+            toast.info("Nessun prodotto valido selezionato.");
+            return;
+        }
+
+        aiBulkStopRef.current = false;
+        aiBulkQueueRef.current = [...productList];
+        setAiBulkJob({
+            running: true,
+            paused: false,
+            overwriteExisting,
+            total: productList.length,
+            done: 0,
+            errors: 0,
+        });
+
+        const toastId = "ai-bulk-seo";
+        toast.dismiss(toastId);
+        toast.info(
+            `Generazione SEO AI avviata in background (${productList.length} prodotti). Puoi continuare a usare l'interfaccia.`,
+            { toastId, autoClose: 3500 }
+        );
+
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+        const parseAiBlocks = (txt: string) => {
+            const shortMatch = txt.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
+            const descMatch = txt.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+            const bulletMatch = txt.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
+            return {
+                short: shortMatch ? shortMatch[1].trim() : "",
+                desc: descMatch ? descMatch[1].trim() : "",
+                bullets: bulletMatch ? bulletMatch[1].trim() : "",
+            };
+        };
+
+        const runLoop = async () => {
+            while (aiBulkQueueRef.current.length > 0) {
+                if (aiBulkStopRef.current) break;
+
+                // Pausa cooperativa (non blocca UI)
+                if (aiBulkJob?.paused) {
+                    await sleep(400);
+                    continue;
+                }
+
+                const product = aiBulkQueueRef.current.shift();
+                if (!product) break;
+
+                // Evita di lavorare sul prodotto attualmente aperto in scheda
+                if (selectedProduct?.id && selectedProduct.id === product.id) {
+                    aiBulkQueueRef.current.push(product);
+                    await sleep(600);
+                    continue;
+                }
+
+                setAiBulkJob((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              currentProductId: product.id,
+                          }
+                        : prev
+                );
+
                 try {
                     const { images, extraFields, docDescription, ...cleanProductData } = product;
                     const res = await fetch("/api/ai/describe", {
@@ -1432,24 +1517,15 @@ export default function ErpTable() {
                             options: { respectExisting: !overwriteExisting, useExistingAsModel: true },
                         }),
                     });
-                    if (!res.ok) throw new Error(await res.text());
-                    const reader = res.body?.getReader();
-                    const decoder = new TextDecoder();
-                    let accumulated = "";
-                    if (reader) {
-                        while (true) {
-                            const { done: streamDone, value } = await reader.read();
-                            if (streamDone) break;
-                            accumulated += decoder.decode(value, { stream: true });
-                        }
+                    if (!res.ok) {
+                        const t = await res.text().catch(() => "");
+                        throw new Error(t || "AI describe failed");
                     }
-                    const shortMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
-                    const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
-                    const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
-                    const newShort = shortMatch ? shortMatch[1].trim() : "";
-                    const newDesc = descMatch ? descMatch[1].trim() : "";
-                    const newBullets = bulletMatch ? bulletMatch[1].trim() : "";
+
+                    const txt = await res.text();
+                    const blocks = parseAiBlocks(txt);
                     const existing = product.translations?.[lang] || {};
+
                     const payload = {
                         ...product,
                         translations: {
@@ -1458,50 +1534,53 @@ export default function ErpTable() {
                                 ...existing,
                                 seoAiText:
                                     overwriteExisting || !existing.seoAiText
-                                        ? newShort || existing.seoAiText
+                                        ? blocks.short || existing.seoAiText
                                         : existing.seoAiText,
                                 description:
                                     overwriteExisting || !existing.description
-                                        ? newDesc || existing.description
+                                        ? blocks.desc || existing.description
                                         : existing.description,
                                 bulletPoints:
                                     overwriteExisting || !existing.bulletPoints
-                                        ? newBullets || existing.bulletPoints
+                                        ? blocks.bullets || existing.bulletPoints
                                         : existing.bulletPoints,
                             },
                         },
                     };
+
                     await axios.post("/api/products", payload);
+
+                    setAiBulkJob((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  done: prev.done + 1,
+                              }
+                            : prev
+                    );
                 } catch (e) {
-                    errors++;
+                    setAiBulkJob((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  done: prev.done + 1,
+                                  errors: prev.errors + 1,
+                              }
+                            : prev
+                    );
                 }
-                done++;
-                toast.update(toastId, {
-                    render: `Generazione SEO AI: ${done}/${selectedIds.length}${
-                        errors ? ` (${errors} errori)` : ""
-                    }`,
-                });
+
+                // Yield tra richieste per lasciare la UI reattiva
+                await sleep(250);
             }
-            toast.update(toastId, {
-                render: errors
-                    ? `Completato: ${done - errors} aggiornati, ${errors} errori.`
-                    : `${done} prodotti aggiornati con contenuti SEO AI.`,
-                type: errors ? "warning" : "success",
-                isLoading: false,
-                autoClose: 4000,
-            });
-            setSelectedIds([]);
+
+            setAiBulkJob((prev) => (prev ? { ...prev, running: false, currentProductId: undefined } : prev));
+            // Refresh lista a fine job
             fetchProducts();
-        } catch (err) {
-            toast.update(toastId, {
-                render: "Errore generazione SEO AI",
-                type: "error",
-                isLoading: false,
-                autoClose: 4000,
-            });
-        } finally {
-            setIsBulkWorking(false);
-        }
+        };
+
+        // fire-and-forget
+        void runLoop();
     };
 
     const fetchProducts = async () => {
@@ -4404,6 +4483,71 @@ export default function ErpTable() {
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Background AI bulk status (non-bloccante) */}
+            {aiBulkJob && (
+                <div className="fixed bottom-4 right-4 z-[120] bg-white border border-slate-200 shadow-xl rounded-2xl p-4 w-[320px]">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                AI massiva in background
+                            </p>
+                            <p className="text-sm font-black text-slate-900 mt-1">
+                                {aiBulkJob.done}/{aiBulkJob.total}{" "}
+                                {aiBulkJob.errors ? (
+                                    <span className="text-amber-700">({aiBulkJob.errors} errori)</span>
+                                ) : null}
+                            </p>
+                            {aiBulkJob.currentProductId ? (
+                                <p className="text-[11px] text-slate-500 mt-1 truncate">
+                                    In corso su ID: {aiBulkJob.currentProductId}
+                                </p>
+                            ) : null}
+                            <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                    className="h-full bg-indigo-600"
+                                    style={{
+                                        width:
+                                            aiBulkJob.total > 0
+                                                ? `${Math.round((aiBulkJob.done / aiBulkJob.total) * 100)}%`
+                                                : "0%",
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="text-slate-400 hover:text-slate-700"
+                            onClick={() => setAiBulkJob(null)}
+                            title="Nascondi"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                        <button
+                            type="button"
+                            onClick={pauseResumeAiBulk}
+                            disabled={!aiBulkJob.running}
+                            className="flex-1 px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 disabled:opacity-40"
+                        >
+                            {aiBulkJob.paused ? "Riprendi" : "Pausa"}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={stopAiBulk}
+                            className="flex-1 px-3 py-2 rounded-xl border border-red-200 bg-red-50 text-red-800 text-[10px] font-black uppercase tracking-widest hover:bg-red-100"
+                        >
+                            Stop
+                        </button>
+                    </div>
+                    {!aiBulkJob.running && (
+                        <p className="mt-2 text-[11px] text-slate-500">
+                            Completato. La lista si aggiorna automaticamente.
+                        </p>
+                    )}
+                </div>
+            )}
 
             {/* Modal: campi dello stesso prodotto concatenati al titolo (IT) */}
             <AnimatePresence>
