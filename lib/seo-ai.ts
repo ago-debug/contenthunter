@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
 
 export async function generateSeoBlocksForProduct(args: {
   companyId: number;
@@ -34,7 +35,7 @@ export async function generateSeoBlocksForProduct(args: {
           .slice(0, 1200)
       : "";
 
-  const prompt = `
+  const basePrompt = `
 Sei un redattore tecnico B2B. Genera contenuti SEO in italiano per scheda prodotto.
 ${brandGuidelines}
 Non inventare dati, niente tono commerciale aggressivo.
@@ -47,6 +48,9 @@ DATI:
 - Categoria: ${product?.category || ""}
 - Descrizione tecnica: ${product?.docDescription || ""}
 - Campi extra: ${extraFieldsPreview}
+`.trim();
+
+  const fullPromptFallback = `${basePrompt}
 
 RISPONDI SOLO in questo formato:
 ---SHORT_DESCRIPTION---
@@ -55,24 +59,22 @@ RISPONDI SOLO in questo formato:
 [1-3 paragrafi]
 ---BULLET_POINTS---
 [5-8 punti, una riga per punto]
-`.trim();
+`;
 
   const openai = new OpenAI({ apiKey: keys.openai });
-  const completion = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "Sei un generatore di schede tecniche SEO. Rispondi solo con i blocchi richiesti.",
-      },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.4,
-    max_tokens: 900,
-  });
-
-  const txt = completion.choices?.[0]?.message?.content || "";
+  let txt: string;
+  try {
+    txt = await generateProductCopyMerged(openai, {
+      basePrompt,
+      includeTechnicalFields: false,
+    });
+  } catch (e) {
+    console.warn("seo-ai parallel fallback:", e);
+    txt = await generateProductCopySingle(openai, {
+      fullPrompt: fullPromptFallback.trim(),
+      maxTokens: 900,
+    });
+  }
   const shortMatch = txt.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
   const descMatch = txt.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
   const bulletMatch = txt.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);

@@ -5,7 +5,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import {
     Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List, RefreshCw,
-    HardDrive, Filter, Download, ExternalLink, Scissors, Wand2, Globe, ScanSearch, Sparkles,
+    Filter, Download, ExternalLink, Wand2, Globe, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, Languages, ShoppingCart, Box, ChevronDown,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
     Building2, ImagePlus, Link2, ArrowUp, ArrowDown
@@ -172,8 +172,6 @@ export default function ErpTable() {
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
     const [isBulkWorking, setIsBulkWorking] = useState(false);
-    const [pdfSearchResults, setPdfSearchResults] = useState<any[]>([]);
-    const [isSearchingPdf, setIsSearchingPdf] = useState(false);
     const [allTags, setAllTags] = useState<any[]>([]);
     const [editLang, setEditLang] = useState<string>("it");
     const [isTranslating, setIsTranslating] = useState(false);
@@ -186,14 +184,6 @@ export default function ErpTable() {
     const [attrLoading, setAttrLoading] = useState(false);
     const [aiRespectExisting, setAiRespectExisting] = useState(true);
     const [aiUseExistingAsModel, setAiUseExistingAsModel] = useState(true);
-    const [showCatalogCropModal, setShowCatalogCropModal] = useState(false);
-    const [catalogCropCatalogId, setCatalogCropCatalogId] = useState<number | null>(null);
-    const [catalogCropMatches, setCatalogCropMatches] = useState<any[]>([]);
-    const [catalogCropStep, setCatalogCropStep] = useState<'catalog' | 'page' | 'crop'>('catalog');
-    const [catalogCropPage, setCatalogCropPage] = useState<any | null>(null);
-    const [catalogCropImageUrl, setCatalogCropImageUrl] = useState<string | null>(null);
-    const [catalogCropBox, setCatalogCropBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-    const catalogCropImgRef = useRef<HTMLImageElement | null>(null);
     const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
     const [ambientPrompt, setAmbientPrompt] = useState<string>("");
     const [newExtraKey, setNewExtraKey] = useState("");
@@ -302,24 +292,6 @@ export default function ErpTable() {
     const [bulkOpValue, setBulkOpValue] = useState("");
     const [bulkOpOnlyEmpty, setBulkOpOnlyEmpty] = useState(true);
 
-    const [showCataloguesPanel, setShowCataloguesPanel] = useState(false);
-    const [catalogues, setCatalogues] = useState<any[]>([]);
-    const [selectedCatalogueForEdit, setSelectedCatalogueForEdit] = useState<any | null>(null);
-    const [catalogueEditForm, setCatalogueEditForm] = useState({
-        name: "",
-        imageFolderPath: "",
-        status: "draft",
-        lastListinoName: "",
-        pdfs: [] as string[],
-        brandId: "" as number | string
-    });
-    const [isSavingCatalogue, setIsSavingCatalogue] = useState(false);
-    const [isCreatingCatalogue, setIsCreatingCatalogue] = useState(false);
-    const [isUploadingCatalogPdf, setIsUploadingCatalogPdf] = useState(false);
-    const catalogPdfInputRef = useRef<HTMLInputElement>(null);
-    const [newCatalogueForm, setNewCatalogueForm] = useState({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" as string | number });
-    const [showNewCatalogueForm, setShowNewCatalogueForm] = useState(false);
-
     // Filtri avanzati Master ERP
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
     const [filterMissingShortDesc, setFilterMissingShortDesc] = useState(false);
@@ -356,13 +328,6 @@ export default function ErpTable() {
         try {
             const res = await axios.get('/api/brands', companyReq);
             setAllBrands(Array.isArray(res.data) ? res.data : []);
-        } catch (err) { }
-    };
-
-    const fetchCatalogues = async () => {
-        try {
-            const res = await axios.get('/api/catalogues', companyReq);
-            setCatalogues(Array.isArray(res.data) ? res.data : []);
         } catch (err) { }
     };
 
@@ -456,7 +421,6 @@ export default function ErpTable() {
         fetchCategories();
         fetchTags();
         fetchBrands();
-        fetchCatalogues();
         fetchVatCodes();
         const savedProjectName = localStorage.getItem("pdf_catalog_project_name");
         if (savedProjectName) setProjectName(savedProjectName);
@@ -936,89 +900,100 @@ export default function ErpTable() {
                 throw new Error(`AI FAIL: ${detail}`);
             }
 
+            const applyAiStreamChunk = (accumulated: string) => {
+                const shortDescMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
+                const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
+                const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
+                const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
+
+                let newShortDescription = "";
+                let newDescription = "";
+                let newBullets = "";
+                const parsedFields: Record<string, string> = {};
+
+                if (shortDescMatch) {
+                    newShortDescription = shortDescMatch[1].trim();
+                }
+
+                if (descMatch) {
+                    newDescription = descMatch[1].trim();
+                }
+
+                if (bulletMatch) {
+                    newBullets = bulletMatch[1].trim();
+                }
+
+                if (fieldsMatch) {
+                    const fieldsText = fieldsMatch[1].trim();
+                    const lines = fieldsText.split('\n');
+                    lines.forEach((line: string) => {
+                        const [k, ...v] = line.split(':');
+                        if (k && v.length > 0) {
+                            const key = k.trim();
+                            const val = v.join(':').trim();
+                            if (val && !val.includes('[Valore]')) {
+                                parsedFields[key] = val;
+                            }
+                        }
+                    });
+                }
+
+                setSelectedProduct((prev: any) => {
+                    if (!prev) return null;
+                    const tt = { ...(prev.translations || {}) };
+                    if (!tt[editLang]) tt[editLang] = {};
+
+                    const existing = tt[editLang];
+
+                    const shouldOverwriteDesc = !aiRespectExisting || !existing?.description;
+                    const shouldOverwriteShort = !aiRespectExisting || !existing?.seoAiText;
+                    const shouldOverwriteBullets = !aiRespectExisting || !existing?.bulletPoints;
+
+                    tt[editLang] = {
+                        ...tt[editLang],
+                        seoAiText: shouldOverwriteShort && newShortDescription
+                            ? newShortDescription
+                            : existing?.seoAiText,
+                        description: shouldOverwriteDesc && (newDescription || accumulated.includes('---TECHNICAL_FIELDS---'))
+                            ? (newDescription || accumulated.replace('---DESCRIPTION---', '').trim())
+                            : existing?.description,
+                        bulletPoints: shouldOverwriteBullets && newBullets
+                            ? newBullets
+                            : existing?.bulletPoints,
+                    };
+
+                    return {
+                        ...prev,
+                        translations: tt,
+                        extraFields: {
+                            ...(prev.extraFields || {}),
+                            ...parsedFields
+                        }
+                    };
+                });
+            };
+
             const reader = response.body?.getReader();
             const decoder = new TextDecoder();
             let accumulated = "";
+            const UI_THROTTLE_MS = 90;
+            let lastUiFlush = 0;
 
             if (reader) {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    const text = decoder.decode(value, { stream: true });
-                    accumulated += text;
-
-                    // Parse parts using regex
-                    const shortDescMatch = accumulated.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
-                    const descMatch = accumulated.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
-                    const bulletMatch = accumulated.match(/---BULLET_POINTS---([\s\S]*?)(---|$)/);
-                    const fieldsMatch = accumulated.match(/---TECHNICAL_FIELDS---([\s\S]*?)$/);
-
-                    let newShortDescription = "";
-                    let newDescription = "";
-                    let newBullets = "";
-                    let parsedFields: Record<string, string> = {};
-
-                    if (shortDescMatch) {
-                        newShortDescription = shortDescMatch[1].trim();
+                    accumulated += decoder.decode(value, { stream: true });
+                    const now = Date.now();
+                    if (now - lastUiFlush >= UI_THROTTLE_MS) {
+                        lastUiFlush = now;
+                        applyAiStreamChunk(accumulated);
                     }
-
-                    if (descMatch) {
-                        newDescription = descMatch[1].trim();
-                    }
-
-                    if (bulletMatch) {
-                        newBullets = bulletMatch[1].trim();
-                    }
-
-                    if (fieldsMatch) {
-                        const fieldsText = fieldsMatch[1].trim();
-                        const lines = fieldsText.split('\n');
-                        lines.forEach((line: string) => {
-                            const [k, ...v] = line.split(':');
-                            if (k && v.length > 0) {
-                                const key = k.trim();
-                                const val = v.join(':').trim();
-                                if (val && !val.includes('[Valore]')) {
-                                    parsedFields[key] = val;
-                                }
-                            }
-                        });
-                    }
-
-                    setSelectedProduct((prev: any) => {
-                        if (!prev) return null;
-                        const tt = { ...(prev.translations || {}) };
-                        if (!tt[editLang]) tt[editLang] = {};
-
-                        const existing = tt[editLang];
-
-                        const shouldOverwriteDesc = !aiRespectExisting || !existing?.description;
-                        const shouldOverwriteShort = !aiRespectExisting || !existing?.seoAiText;
-                        const shouldOverwriteBullets = !aiRespectExisting || !existing?.bulletPoints;
-
-                        tt[editLang] = {
-                            ...tt[editLang],
-                            seoAiText: shouldOverwriteShort && newShortDescription
-                                ? newShortDescription
-                                : existing?.seoAiText,
-                            description: shouldOverwriteDesc && (newDescription || accumulated.includes('---TECHNICAL_FIELDS---'))
-                                ? (newDescription || accumulated.replace('---DESCRIPTION---', '').trim())
-                                : existing?.description,
-                            bulletPoints: shouldOverwriteBullets && newBullets
-                                ? newBullets
-                                : existing?.bulletPoints,
-                        };
-
-                        return {
-                            ...prev,
-                            translations: tt,
-                            extraFields: {
-                                ...(prev.extraFields || {}),
-                                ...parsedFields
-                            }
-                        };
-                    });
                 }
+                applyAiStreamChunk(accumulated);
+            } else {
+                const text = await response.text();
+                applyAiStreamChunk(text);
             }
 
             toast.dismiss(toastId);
@@ -1033,52 +1008,6 @@ export default function ErpTable() {
 
 
 
-
-    const handleDeepPdfSearch = async () => {
-        if (!selectedProduct) return;
-        setIsSearchingPdf(true);
-        setPdfSearchResults([]);
-        const query = selectedProduct.sku;
-        const toastId = 'deep-pdf-search';
-        toast.loading(`Analisi PDF in corso per ${query}...`, { toastId });
-
-        try {
-            const res = await axios.get(`/api/catalogues/deep-search`, {
-                params: { q: query, catalogId: selectedProduct.catalogId },
-                timeout: 15000 // 15 seconds max for deep DB scan
-            });
-            const results = res.data || [];
-            setPdfSearchResults(results);
-
-            if (results.length > 0) {
-                toast.update(toastId, {
-                    render: `Trovate ${results.length} corrispondenze nei PDF`,
-                    type: "success",
-                    isLoading: false,
-                    autoClose: 3000
-                });
-            } else {
-                toast.update(toastId, {
-                    render: "Nessuna corrispondenza trovata nei documenti PDF storici",
-                    type: "warning",
-                    isLoading: false,
-                    autoClose: 3000
-                });
-            }
-        } catch (err: any) {
-            console.error("Deep search UI error:", err);
-            const errMsg = err.response?.data?.message || err.message || "Errore sconosciuto";
-            toast.update(toastId, {
-                render: `Errore durante il Deep Scan del PDF: ${errMsg}`,
-                type: "error",
-                isLoading: false,
-                autoClose: 5000
-            });
-            setPdfSearchResults([]);
-        } finally {
-            setIsSearchingPdf(false);
-        }
-    };
 
     const handleBulkDelete = async () => {
         if (!ensureBrandSelected()) return;
@@ -1701,19 +1630,12 @@ export default function ErpTable() {
         setIsSearchingWeb(true);
         setWebImages([]);
         try {
-            // Use catalog search sources when product belongs to a catalogue (improves Deep Asset Search)
-            const catalogId = selectedProduct?.catalogId;
-            const catalog = catalogId ? catalogues.find((c: any) => c.id === catalogId) : null;
-            const sourceUrls = (catalog?.searchSources || [])
-                .map((s: any) => (typeof s === 'string' ? s : s?.url).trim())
-                .filter(Boolean);
-            const sourcesParam = sourceUrls.length > 0 ? `&sources=${encodeURIComponent(sourceUrls.join(','))}` : '';
             const res = await axios.get(
-                `/api/search-images?q=${encodeURIComponent(query)}&shopping=true${sourcesParam}`,
+                `/api/search-images?q=${encodeURIComponent(query)}&shopping=true`,
                 companyReq
             );
             setWebImages(res.data.images || []);
-            if (res.data.images?.length === 0) toast.warning("Nessuna immagine trovata. Prova con SKU diverso o configura SerpAPI in Impostazioni / sorgenti catalogo.");
+            if (res.data.images?.length === 0) toast.warning("Nessuna immagine trovata. Prova con SKU diverso o configura SerpAPI in Impostazioni.");
         } catch (err) {
             toast.error("Errore ricerca immagini sul web");
         }
@@ -1914,7 +1836,6 @@ export default function ErpTable() {
                                 </button>
                             </div>
                             <button onClick={() => setShowBrandsPanel(true)} className="p-2 sm:p-2.5 bg-white border border-slate-200 rounded-xl shrink-0" aria-label="Brand"><Building2 className="w-4 h-4" /></button>
-                            <button onClick={() => { setShowCataloguesPanel(true); setSelectedCatalogueForEdit(null); fetchCatalogues(); }} className="p-2 sm:p-2.5 bg-white border border-slate-200 rounded-xl shrink-0" aria-label="Cataloghi"><Box className="w-4 h-4" /></button>
                             <button onClick={() => setShowWooConfig(true)} className="p-2 sm:p-2.5 bg-[#111827] text-white rounded-xl shrink-0" aria-label="Setup"><Settings className="w-4 h-4" /></button>
                         </div>
                     </div>
@@ -2750,14 +2671,6 @@ export default function ErpTable() {
                                                 <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Digital Asset Management
                                             </h4>
                                             <div className="mb-4 flex flex-wrap gap-2 items-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => { setShowCatalogCropModal(true); setCatalogCropStep('catalog'); setCatalogCropCatalogId(null); setCatalogCropMatches([]); setCatalogCropPage(null); setCatalogCropImageUrl(null); setCatalogCropBox(null); }}
-                                                    className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 flex items-center gap-2"
-                                                >
-                                                    <Scissors className="w-4 h-4" />
-                                                    Seleziona da catalogo (crop)
-                                                </button>
                                                 <input
                                                     type="text"
                                                     value={ambientPrompt}
@@ -2864,67 +2777,6 @@ export default function ErpTable() {
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <div className="bg-slate-900 p-10 rounded-[2.5rem] shadow-xl overflow-hidden relative group">
-                                            <div className="absolute top-0 right-0 p-10 opacity-[0.05] group-hover:opacity-[0.1] transition-all">
-                                                <Package className="w-32 h-32 rotate-12" />
-                                            </div>
-                                            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                                                <div>
-                                                    <h4 className="text-xl font-black text-white uppercase tracking-tighter">Deep PDF Asset Extraction</h4>
-                                                    <p className="text-sm font-bold text-slate-400 mt-1 max-w-sm">
-                                                        Analizza il PDF originale del catalogo per estrarre le pagine in cui compare lo SKU: <span className="text-slate-400">{selectedProduct.sku}</span>.
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    onClick={handleDeepPdfSearch}
-                                                    disabled={isSearchingPdf}
-                                                    className="px-8 py-4 bg-white text-slate-900 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-slate-400 hover:text-white transition-all shadow-2xl shrink-0 disabled:opacity-50"
-                                                >
-                                                    {isSearchingPdf ? <RefreshCw className="w-4 h-4 animate-spin mr-2 inline" /> : null}
-                                                    Deep Search in PDF
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {pdfSearchResults.length > 0 && (
-                                            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-50/50 space-y-6 animate-in slide-in-from-top-4">
-                                                <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                                                    <Sparkles className="w-4 h-4" /> Asset Trovati nei Cataloghi Originali
-                                                </h5>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                                    {pdfSearchResults.map((res: any, idx: number) => (
-                                                        <div key={idx} className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-4">
-                                                            <div className="aspect-video relative rounded-xl overflow-hidden border border-slate-200 bg-white">
-                                                                <CorporateImage src={res.imageUrl} alt="PDF Page" className="w-full h-full object-cover" />
-                                                                <div className="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-black px-2 py-1 rounded backdrop-blur">
-                                                                    PG {res.pageNumber}
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{res.catalogName}</p>
-                                                                <p className="text-xs font-bold text-slate-600 italic">"...{res.snippet}..."</p>
-                                                            </div>
-                                                            <div className="flex gap-2 overflow-x-auto pb-2">
-                                                                {res.subImages?.map((sub: any, sIdx: number) => (
-                                                                    <div
-                                                                        key={sIdx}
-                                                                        onClick={async () => {
-                                                                            const newImages = [...(selectedProduct.images || []), { id: Date.now().toString(), url: await saveImageToServer(sub.preview, selectedProduct.sku) }];
-                                                                            setSelectedProduct({ ...selectedProduct, images: newImages });
-                                                                            toast.success("Asset PDF recuperato!");
-                                                                        }}
-                                                                        className="w-12 h-12 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-slate-900 overflow-hidden shrink-0"
-                                                                    >
-                                                                        <CorporateImage src={sub.preview} alt="Sub Asset" className="w-full h-full object-contain" />
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                             <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
@@ -3687,470 +3539,6 @@ export default function ErpTable() {
                             </div>
                         </motion.div>
                     </div>
-                )}
-            </AnimatePresence>
-
-            {/* Catalogues Panel Modal */}
-            <AnimatePresence>
-                {showCataloguesPanel && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={() => { setShowCataloguesPanel(false); setSelectedCatalogueForEdit(null); setShowNewCatalogueForm(false); }}
-                            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                        />
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0, y: 10 }}
-                            animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-                            onClick={e => e.stopPropagation()}
-                            className="relative bg-white w-full max-w-2xl max-h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col"
-                        >
-                            <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center shrink-0">
-                                <div>
-                                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">
-                                        {showNewCatalogueForm ? "Nuovo catalogo" : selectedCatalogueForEdit ? `Modifica: ${selectedCatalogueForEdit.name}` : "Gestione Cataloghi"}
-                                    </h3>
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                                        {showNewCatalogueForm ? "Nome, cartella immagini e PDF" : selectedCatalogueForEdit ? "Modifica info, cartella e PDF del catalogo" : "Modifica info, cartelle e PDF dai cataloghi"}
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => { setShowCataloguesPanel(false); setSelectedCatalogueForEdit(null); setShowNewCatalogueForm(false); }}
-                                    className="p-3 bg-white border border-gray-200 rounded-2xl hover:bg-gray-100 transition-all shadow-sm"
-                                >
-                                    <X className="w-5 h-5 text-gray-400" />
-                                </button>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                                {showNewCatalogueForm ? (
-                                    <div className="space-y-6">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Nome catalogo</label>
-                                            <input
-                                                value={newCatalogueForm.name}
-                                                onChange={e => setNewCatalogueForm(prev => ({ ...prev, name: e.target.value }))}
-                                                placeholder="Es. Listino 2024"
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Path cartella immagini</label>
-                                            <div className="relative">
-                                                <HardDrive className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <input
-                                                    value={newCatalogueForm.imageFolderPath}
-                                                    onChange={e => setNewCatalogueForm(prev => ({ ...prev, imageFolderPath: e.target.value }))}
-                                                    placeholder="/var/www/images/project_a"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-11 pr-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">PDF (path)</label>
-                                                <button type="button" onClick={() => setNewCatalogueForm(prev => ({ ...prev, pdfs: [...prev.pdfs, ""] }))} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900">+ Aggiungi PDF</button>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">Brand</label>
-                                                <select value={newCatalogueForm.brandId} onChange={e => setNewCatalogueForm(prev => ({ ...prev, brandId: e.target.value }))} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm">
-                                                    <option value="">Nessuno</option>
-                                                    {(allBrands || []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto">
-                                                {newCatalogueForm.pdfs.map((path, idx) => (
-                                                    <div key={idx} className="flex gap-2">
-                                                        <input
-                                                            value={path}
-                                                            onChange={e => { const u = [...newCatalogueForm.pdfs]; u[idx] = e.target.value; setNewCatalogueForm(prev => ({ ...prev, pdfs: u })); }}
-                                                            placeholder="/uploads/catalogo.pdf"
-                                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                                        />
-                                                        <button type="button" onClick={() => setNewCatalogueForm(prev => ({ ...prev, pdfs: prev.pdfs.filter((_, i) => i !== idx) }))} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-3 pt-2">
-                                            <button onClick={() => setShowNewCatalogueForm(false)} className="py-4 px-6 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200">Annulla</button>
-                                            <button
-                                                disabled={!newCatalogueForm.name.trim() || isCreatingCatalogue}
-                                                onClick={async () => {
-                                                    setIsCreatingCatalogue(true);
-                                                    try {
-                                                        await axios.post("/api/catalogues", {
-                                                            name: newCatalogueForm.name.trim(),
-                                                            imageFolderPath: newCatalogueForm.imageFolderPath.trim() || undefined,
-                                                            pdfs: newCatalogueForm.pdfs.filter(p => p.trim() !== ""),
-                                                            brandId: newCatalogueForm.brandId ? Number(newCatalogueForm.brandId) : null
-                                                        });
-                                                        toast.success("Catalogo creato");
-                                                        setNewCatalogueForm({ name: "", imageFolderPath: "", pdfs: [""], brandId: "" });
-                                                        setShowNewCatalogueForm(false);
-                                                        fetchCatalogues();
-                                                    } catch (err: any) {
-                                                        toast.error(err?.response?.data?.error || "Errore creazione");
-                                                    }
-                                                    setIsCreatingCatalogue(false);
-                                                }}
-                                                className="flex-1 py-4 bg-[#111827] text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-black flex items-center justify-center gap-2 disabled:opacity-50"
-                                            >
-                                                {isCreatingCatalogue ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                                                Crea catalogo
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : selectedCatalogueForEdit ? (
-                                    <div className="space-y-6">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Nome</label>
-                                            <input
-                                                value={catalogueEditForm.name}
-                                                onChange={e => setCatalogueEditForm(prev => ({ ...prev, name: e.target.value }))}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Path cartella immagini</label>
-                                            <div className="relative">
-                                                <HardDrive className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <input
-                                                    value={catalogueEditForm.imageFolderPath}
-                                                    onChange={e => setCatalogueEditForm(prev => ({ ...prev, imageFolderPath: e.target.value }))}
-                                                    placeholder="/var/www/images/project_a"
-                                                    className="w-full bg-gray-50 border border-gray-200 rounded-xl pl-11 pr-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Stato</label>
-                                            <select
-                                                value={catalogueEditForm.status}
-                                                onChange={e => setCatalogueEditForm(prev => ({ ...prev, status: e.target.value }))}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                            >
-                                                <option value="draft">Bozza</option>
-                                                <option value="processing">In elaborazione</option>
-                                                <option value="staging">Staging</option>
-                                                <option value="completed">Completato</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Ultimo listino (opzionale)</label>
-                                            <input
-                                                value={catalogueEditForm.lastListinoName}
-                                                onChange={e => setCatalogueEditForm(prev => ({ ...prev, lastListinoName: e.target.value }))}
-                                                placeholder="Nome file listino"
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 mb-2 block">Brand (cartella export: nomeBrand/images)</label>
-                                            <select
-                                                value={catalogueEditForm.brandId}
-                                                onChange={e => setCatalogueEditForm(prev => ({ ...prev, brandId: e.target.value }))}
-                                                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                            >
-                                                <option value="">Nessuno</option>
-                                                {(allBrands || []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-[#111827] ml-1 block">PDF – carica dal PC o path</label>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        ref={catalogPdfInputRef}
-                                                        type="file"
-                                                        accept=".pdf,application/pdf"
-                                                        className="hidden"
-                                                        onChange={async (e) => {
-                                                            const file = e.target.files?.[0];
-                                                            if (!file || !selectedCatalogueForEdit) return;
-                                                            e.target.value = "";
-                                                            setIsUploadingCatalogPdf(true);
-                                                            const toastId = toast.loading(`Caricamento ${file.name}...`);
-                                                            try {
-                                                                const blob = new Blob([file], { type: "application/pdf" });
-                                                                const res = await axios.post(`/api/repositories/${selectedCatalogueForEdit.id}/pdfs`, blob, {
-                                                                    headers: { "Content-Type": "application/pdf", "X-File-Name": encodeURIComponent(file.name) },
-                                                                    maxContentLength: Infinity,
-                                                                    maxBodyLength: Infinity
-                                                                });
-                                                                const path = res.data?.filePath;
-                                                                if (path) setCatalogueEditForm(prev => ({ ...prev, pdfs: [...prev.pdfs, path] }));
-                                                                toast.update(toastId, { render: "PDF caricato.", type: "success", isLoading: false, autoClose: 2000 });
-                                                            } catch (err: any) {
-                                                                toast.update(toastId, { render: err?.response?.data?.error || "Errore upload", type: "error", isLoading: false, autoClose: 3000 });
-                                                            } finally {
-                                                                setIsUploadingCatalogPdf(false);
-                                                            }
-                                                        }}
-                                                    />
-                                                    <button type="button" onClick={() => catalogPdfInputRef.current?.click()} disabled={isUploadingCatalogPdf} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900 flex items-center gap-1 disabled:opacity-50">
-                                                        {isUploadingCatalogPdf ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
-                                                        Carica dal PC
-                                                    </button>
-                                                    <button type="button" onClick={() => setCatalogueEditForm(prev => ({ ...prev, pdfs: [...prev.pdfs, ""] }))} className="text-[9px] font-black uppercase text-slate-600 hover:text-slate-900">+ Path</button>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2 max-h-32 overflow-y-auto">
-                                                {catalogueEditForm.pdfs.map((path, idx) => (
-                                                    <div key={idx} className="flex gap-2">
-                                                        <input
-                                                            value={path}
-                                                            onChange={e => { const u = [...catalogueEditForm.pdfs]; u[idx] = e.target.value; setCatalogueEditForm(prev => ({ ...prev, pdfs: u })); }}
-                                                            placeholder="/uploads/catalogo.pdf"
-                                                            className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-slate-200"
-                                                        />
-                                                        <button type="button" onClick={() => setCatalogueEditForm(prev => ({ ...prev, pdfs: prev.pdfs.filter((_, i) => i !== idx) }))} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-3 pt-2">
-                                            <button onClick={() => { setSelectedCatalogueForEdit(null); }} className="py-4 px-6 bg-gray-100 text-gray-700 font-bold rounded-2xl hover:bg-gray-200">Indietro</button>
-                                            <button
-                                                disabled={isSavingCatalogue}
-                                                onClick={async () => {
-                                                    if (!selectedCatalogueForEdit) return;
-                                                    setIsSavingCatalogue(true);
-                                                    try {
-                                                        await axios.patch(`/api/catalogues/${selectedCatalogueForEdit.id}`, {
-                                                            name: catalogueEditForm.name.trim(),
-                                                            imageFolderPath: catalogueEditForm.imageFolderPath.trim() || null,
-                                                            status: catalogueEditForm.status,
-                                                            lastListinoName: catalogueEditForm.lastListinoName.trim() || null,
-                                                            pdfs: catalogueEditForm.pdfs.filter(p => p.trim() !== ""),
-                                                            brandId: catalogueEditForm.brandId ? Number(catalogueEditForm.brandId) : null
-                                                        });
-                                                        toast.success("Catalogo aggiornato");
-                                                        setSelectedCatalogueForEdit(null);
-                                                        fetchCatalogues();
-                                                    } catch (err: any) {
-                                                        toast.error(err?.response?.data?.error || "Errore salvataggio");
-                                                    }
-                                                    setIsSavingCatalogue(false);
-                                                }}
-                                                className="flex-1 py-4 bg-[#111827] text-white font-black uppercase tracking-widest text-xs rounded-2xl hover:bg-black flex items-center justify-center gap-2 disabled:opacity-50"
-                                            >
-                                                {isSavingCatalogue ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                                Salva modifiche
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <button
-                                            onClick={() => setShowNewCatalogueForm(true)}
-                                            className="w-full py-4 mb-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-black uppercase tracking-widest text-xs rounded-2xl flex items-center justify-center gap-2 transition-all border-2 border-dashed border-slate-200"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                            Nuovo catalogo
-                                        </button>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {catalogues.map((cat: any) => (
-                                                <div
-                                                    key={cat.id}
-                                                    className="bg-gray-50 border border-gray-100 rounded-2xl p-5 flex items-center gap-4 hover:border-slate-200 transition-all"
-                                                >
-                                                    <div className="w-14 h-14 rounded-xl bg-white border border-gray-200 flex items-center justify-center overflow-hidden shrink-0">
-                                                        <Box className="w-7 h-7 text-gray-400" />
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="font-black text-gray-900 truncate">{cat.name}</p>
-                                                        <p className="text-[11px] font-bold text-gray-500 mt-0.5">
-                                                            {cat.pdfs?.length ?? 0} PDF · {cat.imageFolderPath ? "Cartella configurata" : "Nessuna cartella"}
-                                                        </p>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedCatalogueForEdit(cat);
-                                                            setCatalogueEditForm({
-                                                                name: cat.name || "",
-                                                                imageFolderPath: cat.imageFolderPath || "",
-                                                                status: cat.status || "draft",
-                                                                lastListinoName: cat.lastListinoName || "",
-                                                                pdfs: (cat.pdfs || []).map((p: any) => p.filePath || p.fileName || ""),
-                                                                brandId: cat.brandId ?? ""
-                                                            });
-                                                        }}
-                                                        className="p-2.5 bg-[#111827] text-white rounded-xl hover:bg-black transition-all shrink-0"
-                                                    >
-                                                        <Settings className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {catalogues.length === 0 && (
-                                            <p className="text-center text-gray-400 text-sm py-8">Nessun catalogo. Clicca &quot;Nuovo catalogo&quot; per crearne uno.</p>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-
-            {/* Modal Seleziona da catalogo (crop) */}
-            <AnimatePresence>
-                {showCatalogCropModal && selectedProduct && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowCatalogCropModal(false)}>
-                        <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-                                <h3 className="text-lg font-black text-slate-900">Seleziona da catalogo – {selectedProduct.sku}</h3>
-                                <button onClick={() => setShowCatalogCropModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X className="w-5 h-5" /></button>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-6">
-                                {catalogCropStep === 'catalog' && (
-                                    <div className="space-y-4">
-                                        <label className="text-[10px] font-black uppercase text-slate-600 block">Scegli catalogo</label>
-                                        <select
-                                            value={catalogCropCatalogId ?? ""}
-                                            onChange={e => { const v = e.target.value; setCatalogCropCatalogId(v ? parseInt(v) : null); }}
-                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
-                                        >
-                                            <option value="">-- Seleziona --</option>
-                                            {(catalogues || []).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                        </select>
-                                        <button
-                                            disabled={!catalogCropCatalogId}
-                                            onClick={async () => {
-                                                if (!catalogCropCatalogId) return;
-                                                try {
-                                                    const r = await axios.get(`/api/catalogues/${catalogCropCatalogId}/page-matches`);
-                                                    const list = Array.isArray(r.data) ? r.data : [];
-                                                    const forProduct = list.filter((p: any) => (p.matchedProducts || []).some((m: any) => m.productId === selectedProduct.id));
-                                                    setCatalogCropMatches(forProduct);
-                                                    setCatalogCropStep('page');
-                                                } catch { toast.error("Errore caricamento pagine"); }
-                                            }}
-                                            className="px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase disabled:opacity-50"
-                                        >
-                                            Carica pagine associate
-                                        </button>
-                                    </div>
-                                )}
-                                {catalogCropStep === 'page' && (
-                                    <div className="space-y-4">
-                                        <button onClick={() => { setCatalogCropStep('catalog'); setCatalogCropMatches([]); }} className="text-[10px] font-black uppercase text-slate-500 hover:text-slate-700">← Cambia catalogo</button>
-                                        <p className="text-[10px] font-black uppercase text-slate-600">Pagine con SKU/EAN di questo prodotto ({catalogCropMatches.length})</p>
-                                        {catalogCropMatches.length === 0 ? (
-                                            <p className="text-gray-500 py-6">Nessuna pagina trovata. Assicurati che il prodotto sia nel catalogo e che le pagine siano state sincronizzate.</p>
-                                        ) : (
-                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                                                {catalogCropMatches.map((page: any, idx: number) => {
-                                                    const src = page.imageUrl?.startsWith("data:") || page.imageUrl?.startsWith("/") ? page.imageUrl : page.imageUrl;
-                                                    return (
-                                                        <button
-                                                            key={page.pageId || idx}
-                                                            type="button"
-                                                            className="relative aspect-[3/4] rounded-xl overflow-hidden border-2 border-gray-200 hover:border-slate-900 bg-gray-50"
-                                                            onClick={() => { setCatalogCropPage(page); setCatalogCropImageUrl(page.imageUrl); setCatalogCropStep('crop'); setCatalogCropBox(null); }}
-                                                        >
-                                                            <img src={src} alt={`Pagina ${page.pageNumber}`} className="w-full h-full object-contain" />
-                                                            <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1.5 py-0.5 rounded">Pg {page.pageNumber}</span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {catalogCropStep === 'crop' && catalogCropImageUrl && (
-                                    <div className="space-y-4">
-                                        <button onClick={() => { setCatalogCropStep('page'); setCatalogCropPage(null); setCatalogCropImageUrl(null); }} className="text-[10px] font-black uppercase text-slate-500 hover:text-slate-700">← Scegli altra pagina</button>
-                                        <p className="text-[10px] font-black uppercase text-slate-600">Seleziona l’area da usare come immagine prodotto (trascina sul riquadro). Oppure usa l’immagine intera.</p>
-                                        <div
-                                            className="relative inline-block max-w-full bg-gray-100 rounded-xl overflow-hidden cursor-crosshair"
-                                            style={{ maxHeight: "60vh" }}
-                                            onMouseDown={(e) => {
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                const x = (e.clientX - rect.left) / rect.width;
-                                                const y = (e.clientY - rect.top) / rect.height;
-                                                setCatalogCropBox({ x, y, width: 0, height: 0 });
-                                            }}
-                                            onMouseMove={(e) => {
-                                                if (!catalogCropBox || e.buttons !== 1) return;
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                const x = (e.clientX - rect.left) / rect.width;
-                                                const y = (e.clientY - rect.top) / rect.height;
-                                                const x0 = catalogCropBox.x;
-                                                const y0 = catalogCropBox.y;
-                                                setCatalogCropBox({ x: Math.min(x0, x), y: Math.min(y0, y), width: Math.abs(x - x0), height: Math.abs(y - y0) });
-                                            }}
-                                            onMouseUp={() => {}}
-                                            onMouseLeave={() => {}}
-                                        >
-                                            <img
-                                                ref={el => { catalogCropImgRef.current = el ?? null; }}
-                                                src={catalogCropImageUrl}
-                                                alt="Crop"
-                                                className="max-w-full max-h-[60vh] object-contain block select-none pointer-events-none"
-                                                draggable={false}
-                                                onLoad={() => setCatalogCropBox(null)}
-                                            />
-                                            {catalogCropBox && catalogCropBox.width > 0 && catalogCropBox.height > 0 && (
-                                                <div
-                                                    className="absolute border-2 border-slate-900 bg-slate-900/20 pointer-events-none"
-                                                    style={{
-                                                        left: `${catalogCropBox.x * 100}%`,
-                                                        top: `${catalogCropBox.y * 100}%`,
-                                                        width: `${catalogCropBox.width * 100}%`,
-                                                        height: `${catalogCropBox.height * 100}%`
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <button onClick={() => setCatalogCropBox(null)} className="px-4 py-2 bg-gray-100 rounded-xl font-bold text-xs">Reimposta selezione</button>
-                                            <button
-                                                onClick={async () => {
-                                                    const img = catalogCropImgRef.current;
-                                                    if (!img || !selectedProduct?.id) return;
-                                                    let dataUrl: string;
-                                                    if (catalogCropBox && catalogCropBox.width > 0.02 && catalogCropBox.height > 0.02) {
-                                                        const c = document.createElement("canvas");
-                                                        c.width = img.naturalWidth * catalogCropBox.width;
-                                                        c.height = img.naturalHeight * catalogCropBox.height;
-                                                        const ctx = c.getContext("2d");
-                                                        if (!ctx) return;
-                                                        ctx.drawImage(img, img.naturalWidth * catalogCropBox.x, img.naturalHeight * catalogCropBox.y, img.naturalWidth * catalogCropBox.width, img.naturalHeight * catalogCropBox.height, 0, 0, c.width, c.height);
-                                                        dataUrl = c.toDataURL("image/jpeg", 0.92);
-                                                    } else {
-                                                        const c = document.createElement("canvas");
-                                                        c.width = img.naturalWidth;
-                                                        c.height = img.naturalHeight;
-                                                        const ctx = c.getContext("2d");
-                                                        if (!ctx) return;
-                                                        ctx.drawImage(img, 0, 0);
-                                                        dataUrl = c.toDataURL("image/jpeg", 0.92);
-                                                    }
-                                                    try {
-                                                        const r = await axios.post(`/api/products/${selectedProduct.id}/image-from-crop`, { dataUrl, brandName: selectedProduct.brand || "" });
-                                                        const newImages = [...(selectedProduct.images || []), { id: r.data.id, url: r.data.imageUrl }];
-                                                        setSelectedProduct({ ...selectedProduct, images: newImages });
-                                                        toast.success("Immagine salvata in " + (selectedProduct.brand ? `${selectedProduct.brand}/images` : "products"));
-                                                        setShowCatalogCropModal(false);
-                                                    } catch (err: any) {
-                                                        toast.error(err?.response?.data?.error || "Errore salvataggio");
-                                                    }
-                                                }}
-                                                className="px-6 py-3 bg-slate-900 text-white rounded-xl font-black text-xs uppercase"
-                                            >
-                                                Associa immagine (salva in cartella brand)
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    </motion.div>
                 )}
             </AnimatePresence>
 

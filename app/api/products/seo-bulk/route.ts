@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { OpenAI } from "openai";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
 
 export const maxDuration = 300;
 
@@ -88,7 +89,7 @@ ${brand.aiContentGuidelines}
                 }
             }
 
-            const prompt = `
+            const basePrompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
 ${brandGuidelines}
 NON usare formule di marketing generiche o frasi come "Scopri", "Perfetto per", "Ideale per", "Non lasciarti sfuggire", "Scegli", "Approfitta" o simili.
@@ -111,6 +112,9 @@ REGOLE TASSATIVE:
 1. Usa ESCLUSIVAMENTE i dati forniti o fatti di cui hai certezza assoluta (100%). Non inventare informazioni tecniche, specifiche o varianti inesistenti.
 2. Mantieni uno stile sobrio, senza call-to-action o frasi emozionali. Testo "piatto", chiaro e focalizzato sulle caratteristiche.
 3. Se un'informazione non è presente nei dati, lascia il campo vuoto o non forzare un contenuto.
+`.trim();
+
+            const fullPromptFallback = `${basePrompt}
 
 FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 
@@ -124,21 +128,19 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 [Estrai 5-8 punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
 `;
 
-            const completion = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [
-                    {
-                        role: "system",
-                        content:
-                            "Sei un generatore ultrarapido di schede prodotto professionali. Rispondi SOLO con il contenuto finale, niente introduzioni.",
-                    },
-                    { role: "user", content: prompt },
-                ],
-                temperature: 0.5,
-                max_tokens: 800,
-            });
-
-            const content = completion.choices[0]?.message?.content || "";
+            let content: string;
+            try {
+                content = await generateProductCopyMerged(openai, {
+                    basePrompt,
+                    includeTechnicalFields: false,
+                });
+            } catch (parallelErr) {
+                console.warn("[SEO BULK] parallel fallback", parallelErr);
+                content = await generateProductCopySingle(openai, {
+                    fullPrompt: fullPromptFallback.trim(),
+                    maxTokens: 800,
+                });
+            }
             if (!content) {
                 throw new Error("Risposta AI vuota");
             }

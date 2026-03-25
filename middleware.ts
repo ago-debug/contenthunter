@@ -1,4 +1,5 @@
 import { withAuth } from "next-auth/middleware";
+import { getNextAuthSecret } from "@/lib/nextauth-secret";
 
 export default withAuth({
     pages: {
@@ -6,9 +7,8 @@ export default withAuth({
     },
     callbacks: {
         authorized: ({ req, token }) => {
-            // Allow public access to storage, images and uploads
+            // Allow public access to storage and static uploads (PDF worker / asset pubblici)
             if (req.nextUrl.pathname.startsWith("/api/storage")) return true;
-            if (req.nextUrl.pathname.startsWith("/api/proxy-image")) return true;
             if (req.nextUrl.pathname.startsWith("/uploads/")) return true;
 
             if (req.nextUrl.pathname.startsWith("/api/") && !token) {
@@ -17,7 +17,7 @@ export default withAuth({
             return !!token;
         }
     },
-    secret: process.env.NEXTAUTH_SECRET || "7f5e8aeb9cdd90123fabcde456890123",
+    secret: getNextAuthSecret(),
 });
 
 export const config = {
@@ -32,7 +32,7 @@ export const config = {
          * - favicon.ico (favicon file)
          * - api/fix-auth (auto-fix plesk dev env)
          * - uploads (static files)
-         * - api/storage (forced public for pdf worker)
+         * - api/storage (forced public for pdf worker; proxy-image richiede login)
          */
         "/((?!api/register|api/auth|api/fix-auth|api/storage|login|register|_next/static|_next/image|favicon.ico|uploads/).*)",
     ],

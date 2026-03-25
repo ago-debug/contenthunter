@@ -5,7 +5,6 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider } from "@/components/Providers";
 import { CompanyProvider } from "@/contexts/CompanyContext";
-import { CatalogProvider } from "@/components/CatalogContext";
 import LayoutClient from "@/components/LayoutClient";
 import { ActivityProvider } from "@/contexts/ActivityContext";
 
@@ -13,7 +12,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
     title: "Content Hunter",
-    description: "Advanced PDF catalogue disassembly and SKU-Image mapping workspace.",
+    description: "Enterprise PIM: master product data, channels, and integrations.",
 };
 
 export default function RootLayout({
@@ -26,13 +25,11 @@ export default function RootLayout({
             <body className={`${inter.className} bg-[#F4F5F7]`}>
                 <AuthProvider>
                     <CompanyProvider>
-                        <CatalogProvider>
-                            <ActivityProvider>
-                                <LayoutClient>
-                                    {children}
-                                </LayoutClient>
-                            </ActivityProvider>
-                        </CatalogProvider>
+                        <ActivityProvider>
+                            <LayoutClient>
+                                {children}
+                            </LayoutClient>
+                        </ActivityProvider>
                     </CompanyProvider>
                 </AuthProvider>
 

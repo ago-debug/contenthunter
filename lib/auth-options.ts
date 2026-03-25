@@ -2,6 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { getNextAuthSecret } from "@/lib/nextauth-secret";
 
 export const authOptions: NextAuthOptions = {
     providers: [
@@ -73,5 +74,5 @@ export const authOptions: NextAuthOptions = {
             return session;
         },
     },
-    secret: process.env.NEXTAUTH_SECRET || "7f5e8aeb9cdd90123fabcde456890123",
+    secret: getNextAuthSecret(),
 };

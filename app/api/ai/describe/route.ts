@@ -3,6 +3,14 @@ import { OpenAI } from "openai";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import {
+    generateProductCopyMerged,
+    generateProductCopySingle,
+    streamProductCopySingle,
+} from "@/lib/ai-product-copy";
+
+/** Generazione AI può superare il default serverless (60s) su Vercel. */
+export const maxDuration = 120;
 
 export async function POST(req: Request) {
     try {
@@ -11,9 +19,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
         }
         const keys = await resolveIntegrationKeys(ctx.companyId);
+        if (!keys.openai) {
+            console.error("CRITICAL: OPENAI key missing (company settings or OPENAI_API_KEY env)");
+            return NextResponse.json(
+                {
+                    error: "API Key mancante sul server.",
+                    details:
+                        "Configura la chiave OpenAI in Impostazioni per l’azienda o OPENAI_API_KEY sul server.",
+                },
+                { status: 500 }
+            );
+        }
 
         const body = await req.json();
-        console.log("AI DESCRIBE RECEIVED BODY:", JSON.stringify(body, null, 2));
         const { productData, language = "it" } = body;
 
         if (!productData) {
@@ -28,6 +46,7 @@ export async function POST(req: Request) {
                 where: brandId
                     ? { id: brandId, companyId: ctx.companyId }
                     : { name: brandName, companyId: ctx.companyId },
+                select: { name: true, aiContentGuidelines: true },
             });
             if (brand?.aiContentGuidelines) {
                 brandGuidelines = `
@@ -38,7 +57,7 @@ ${brand.aiContentGuidelines}
             }
         }
 
-        const prompt = `
+        const basePrompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
 ${brandGuidelines}
 NON usare formule di marketing generiche o frasi come "Scopri", "Perfetto per", "Ideale per", "Non lasciarti sfuggire", "Scegli", "Approfitta" o simili.
@@ -61,6 +80,9 @@ REGOLE TASSATIVE:
 1. Usa ESCLUSIVAMENTE i dati forniti o fatti di cui hai certezza assoluta (100%). Non inventare informazioni tecniche, specifiche o varianti inesistenti.
 2. Mantieni uno stile sobrio, senza call-to-action o frasi emozionali. Testo "piatto", chiaro e focalizzato sulle caratteristiche.
 3. Se un'informazione non è presente nei dati, lascia il campo vuoto o non forzare un contenuto.
+`.trim();
+
+        const fullPromptFallback = `${basePrompt}
 
 FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 
@@ -80,35 +102,38 @@ Dimensioni: [Valore]
 Peso: [Valore]
 `;
 
-        console.log("AI Describe Request for SKU:", productData.sku);
-        if (!keys.openai) {
-            console.error("CRITICAL: OPENAI key missing (company settings or OPENAI_API_KEY env)");
-            return NextResponse.json(
-                {
-                    error: "API Key mancante sul server.",
-                    details:
-                        "Configura la chiave OpenAI in Impostazioni per l’azienda o OPENAI_API_KEY sul server.",
+        const openai = new OpenAI({ apiKey: keys.openai });
+        const full = fullPromptFallback.trim();
+
+        try {
+            const stream = await streamProductCopySingle(openai, {
+                fullPrompt: full,
+                maxTokens: 800,
+            });
+            return new Response(stream, {
+                headers: {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "no-cache",
+                    "X-Content-Type-Options": "nosniff",
                 },
-                { status: 500 }
-            );
+            });
+        } catch (streamErr) {
+            console.warn("AI describe stream failed, buffered fallback:", streamErr);
         }
 
-        const openai = new OpenAI({ apiKey: keys.openai });
-
-        // Streaming può fallire su alcuni hosting/reverse-proxy (buffering/timeout).
-        // Usiamo risposta non-stream per massima compatibilità.
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "system", content: "Sei un generatore ultrarapido di schede prodotto professionali. Rispondi SOLO con il contenuto finale, niente introduzioni." },
-                { role: "user", content: prompt }
-            ],
-            temperature: 0.5,
-            max_tokens: 800,
-            stream: false,
-        });
-
-        const text = completion.choices?.[0]?.message?.content || "";
+        let text: string;
+        try {
+            text = await generateProductCopyMerged(openai, {
+                basePrompt: basePrompt.trim(),
+                includeTechnicalFields: true,
+            });
+        } catch (parallelErr) {
+            console.warn("AI describe parallel fallback:", parallelErr);
+            text = await generateProductCopySingle(openai, {
+                fullPrompt: full,
+                maxTokens: 800,
+            });
+        }
         return new Response(text, {
             headers: {
                 "Content-Type": "text/plain; charset=utf-8",

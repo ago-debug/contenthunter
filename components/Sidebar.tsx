@@ -6,10 +6,8 @@ import { useSession } from "next-auth/react";
 import {
     Database,
     FileDown,
-    FileText,
     Settings,
     ShieldCheck,
-    Box,
     Globe,
     Cpu,
     Layers,
@@ -43,9 +41,6 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             label: "Core PIM",
             items: [
                 { href: "/", label: "Master ERP", icon: Database },
-                { href: "/pdf", label: "PDF", icon: FileText },
-                { href: "/import", label: "Import Lab", icon: FileDown },
-                { href: "/catalogues", label: "Catalogues", icon: Box },
             ]
         },
         {
