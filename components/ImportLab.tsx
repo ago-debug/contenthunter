@@ -997,7 +997,9 @@ export default function ImportLab() {
         const toastId = toast.loading("Ricerca immagini da cartella (Recursive Scan)...");
 
         try {
-            const res = await axios.post("/api/repositories/" + catalogIdParam + "/associate-images");
+            const res = await axios.post("/api/repositories/" + catalogIdParam + "/associate-images", null, {
+                timeout: 180000,
+            });
 
             if (res.data.success) {
                 toast.update(toastId, {

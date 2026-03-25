@@ -3,6 +3,13 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
 
+/** Aumenta il limite su ambienti serverless (Vercel Pro / Node). */
+export const maxDuration = 300;
+
+function escapeRegex(s: string) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Build a map of all image files in a directory (recursive)
  * Key: filename without extension (lowercase)
@@ -45,6 +52,17 @@ function normalizeToken(value: string) {
         .trim()
         .replace(/\s+/g, " ")
         .replace(/[-\s]+/g, "_");
+}
+
+/** Pre-filtro veloce (stessa logica iniziale di getImageMatchInfo) per evitare regex su milioni di coppie. */
+function couldMatchSkuKey(keyRaw: string, skuRaw: string): boolean {
+    const key = normalizeToken(keyRaw);
+    const sku = normalizeToken(skuRaw);
+    if (!key || !sku) return false;
+    if (key === sku) return true;
+    if (key.startsWith(`${sku}_`)) return true;
+    const tokenRegex = new RegExp(`(^|_)${escapeRegex(sku)}(_|$)`, "i");
+    return tokenRegex.test(key);
 }
 
 function getImageMatchInfo(keyRaw: string, skuRaw: string): { matched: boolean; index: number } {
@@ -97,10 +115,13 @@ function toPublicUrl(baseUrl: string, relPath: string) {
     return `/api/storage?path=${encodeURIComponent(normalizedRelPath)}`;
 }
 
+const CREATE_MANY_CHUNK = 300;
+
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
+    const started = Date.now();
     try {
         const { id } = await params;
         const catalogId = parseInt(id);
@@ -138,7 +159,7 @@ export async function POST(
         let imageMap: Record<string, string[]> = {};
 
         // 1. Load or Build the Image Map
-        // Priority: 
+        // Priority:
         // 1. Remote images_map.json (if URL project)
         // 2. Local images_map.json (external PHP generated)
         // 3. Local images_index.json (internal cache)
@@ -151,7 +172,7 @@ export async function POST(
             const remoteJsonUrl = baseUrl + "images_map.json";
             console.log("Attempting to fetch remote index:", remoteJsonUrl);
             try {
-                const response = await fetch(remoteJsonUrl, { signal: AbortSignal.timeout(5000) });
+                const response = await fetch(remoteJsonUrl, { signal: AbortSignal.timeout(15000) });
                 if (response.ok) {
                     imageMap = await response.json();
                     console.log("Loaded image map from REMOTE URL");
@@ -167,7 +188,7 @@ export async function POST(
 
             if (targetPath) {
                 try {
-                    const indexData = fs.readFileSync(targetPath, 'utf-8');
+                    const indexData = fs.readFileSync(targetPath, "utf-8");
                     imageMap = JSON.parse(indexData);
                     console.log(`Loaded image map from local file: ${path.basename(targetPath)}`);
                     loaded = true;
@@ -188,22 +209,34 @@ export async function POST(
             }
         }
 
-        // 2. Fetch all products in staging for this catalog
+        const imageKeys = Object.keys(imageMap || {});
+        const totalCandidateKeys = imageKeys.length;
+
+        // 2. Tutti i prodotti staging + immagini esistenti in UNA query (evita N+1)
         const products = await prisma.stagingProduct.findMany({
-            where: { catalogId }
+            where: { catalogId },
+            select: {
+                id: true,
+                sku: true,
+                images: { select: { imageUrl: true } }
+            }
         });
 
         let associatedCount = 0;
         let matchedProducts = 0;
-        let totalCandidateKeys = Object.keys(imageMap || {}).length;
 
-        // 3. Match and update
+        const toCreate: { stagingProductId: number; imageUrl: string }[] = [];
+
         for (const product of products) {
             if (!product.sku) continue;
 
             const sku = String(product.sku || "").trim();
+            const existingUrls = new Set((product.images || []).map((row) => row.imageUrl));
+
             const groupedMatches: { index: number; paths: string[] }[] = [];
-            for (const key of Object.keys(imageMap)) {
+
+            for (const key of imageKeys) {
+                if (!couldMatchSkuKey(key, sku)) continue;
                 const info = getImageMatchInfo(key, sku);
                 if (!info.matched) continue;
                 groupedMatches.push({ index: info.index, paths: imageMap[key] });
@@ -214,35 +247,30 @@ export async function POST(
                 .sort((a, b) => a.index - b.index)
                 .forEach((entry) => matches.push(...entry.paths));
 
-            if (matches.length > 0) {
-                matchedProducts++;
-                // Deduplica forte:
-                // - evita doppioni nello stesso run
-                // - evita duplicati già presenti in DB per lo stesso prodotto
-                const existingRows = await prisma.stagingProductImage.findMany({
-                    where: { stagingProductId: product.id },
-                    select: { imageUrl: true }
-                });
-                const existingUrls = new Set(existingRows.map((row) => row.imageUrl));
-                const seenInThisRun = new Set<string>();
+            if (matches.length === 0) continue;
 
-                for (const relPath of matches) {
-                    const imageUrl = toPublicUrl(baseUrl, relPath);
-                    if (seenInThisRun.has(imageUrl)) continue;
-                    seenInThisRun.add(imageUrl);
-                    if (existingUrls.has(imageUrl)) continue;
+            matchedProducts++;
+            const seenInThisRun = new Set<string>();
 
-                    await prisma.stagingProductImage.create({
-                        data: {
-                            stagingProductId: product.id,
-                            imageUrl
-                        }
-                    });
-                    existingUrls.add(imageUrl);
-                    associatedCount++;
-                }
+            for (const relPath of matches) {
+                const imageUrl = toPublicUrl(baseUrl, relPath);
+                if (seenInThisRun.has(imageUrl)) continue;
+                seenInThisRun.add(imageUrl);
+                if (existingUrls.has(imageUrl)) continue;
+
+                toCreate.push({ stagingProductId: product.id, imageUrl });
+                existingUrls.add(imageUrl);
+                associatedCount++;
             }
         }
+
+        for (let i = 0; i < toCreate.length; i += CREATE_MANY_CHUNK) {
+            const chunk = toCreate.slice(i, i + CREATE_MANY_CHUNK);
+            if (chunk.length === 0) continue;
+            await prisma.stagingProductImage.createMany({ data: chunk });
+        }
+
+        const ms = Date.now() - started;
 
         return NextResponse.json({
             success: true,
@@ -256,6 +284,7 @@ export async function POST(
                 totalProducts: products.length,
                 matchedProducts,
                 totalCandidateKeys,
+                durationMs: ms,
             },
         });
     } catch (err: any) {
