@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { OpenAI } from "openai";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export const maxDuration = 300;
 
@@ -17,9 +18,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
     }
     const { companyId } = ctx;
+    const keys = await resolveIntegrationKeys(companyId);
 
-    if (!process.env.OPENAI_API_KEY) {
-        return NextResponse.json({ error: "OPENAI_API_KEY mancante sul server." }, { status: 500 });
+    if (!keys.openai) {
+        return NextResponse.json(
+            { error: "Chiave OpenAI mancante: Impostazioni azienda o OPENAI_API_KEY sul server." },
+            { status: 500 }
+        );
     }
 
     let body: BulkSeoBody;
@@ -36,7 +41,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "productIds deve essere un array non vuoto" }, { status: 400 });
     }
 
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openai = new OpenAI({ apiKey: keys.openai });
 
     let successCount = 0;
     let errorCount = 0;

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { requireCompanyId } from "@/lib/auth-api";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 // Some dependencies (and/or Node versions) may expect `globalThis.File`.
 // We polyfill it defensively to avoid build/runtime crashes.
@@ -453,6 +455,12 @@ async function crawlOfficialSourcesForImages(args: {
 }
 
 export async function GET(req: NextRequest) {
+    const ctx = await requireCompanyId(req);
+    if (!ctx) {
+        return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+    }
+    const keys = await resolveIntegrationKeys(ctx.companyId);
+
     const { searchParams } = new URL(req.url);
 
     // UI uses both `q` and `query` params in different places.
@@ -480,7 +488,7 @@ export async function GET(req: NextRequest) {
     const ean: string | null = candidates.ean ?? null;
     const skuToken: string | null = candidates.skuToken ?? null;
 
-    const serpApiKey = process.env.SERPAPI_KEY || process.env.SERPAPI || "";
+    const serpApiKey = keys.serpapi;
 
     const maxImages = 24;
     let images: any[] = [];

@@ -7,8 +7,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const MODEL = "gemini-2.5-flash";
 
-function getClient() {
-    const key = process.env.GEMINI_API_KEY;
+function getClient(apiKeyOverride?: string | null) {
+    const key = (apiKeyOverride && String(apiKeyOverride).trim()) || process.env.GEMINI_API_KEY;
     if (!key) return null;
     return new GoogleGenerativeAI(key);
 }
@@ -88,8 +88,11 @@ export type SummarizeResult = {
 /**
  * Extract products from catalog PDF using Gemini (NotebookLM-style document understanding).
  */
-export async function extractProductsFromPdf(pdfBase64: string): Promise<ExtractResult> {
-    const genAI = getClient();
+export async function extractProductsFromPdf(
+    pdfBase64: string,
+    opts?: { geminiApiKey?: string | null }
+): Promise<ExtractResult> {
+    const genAI = getClient(opts?.geminiApiKey);
     if (!genAI) throw new Error("GEMINI_API_KEY not configured.");
 
     const model = genAI.getGenerativeModel({
@@ -133,8 +136,11 @@ export async function extractProductsFromPdf(pdfBase64: string): Promise<Extract
 /**
  * Summarize the PDF (NotebookLM-style overview).
  */
-export async function summarizePdf(pdfBase64: string): Promise<SummarizeResult> {
-    const genAI = getClient();
+export async function summarizePdf(
+    pdfBase64: string,
+    opts?: { geminiApiKey?: string | null }
+): Promise<SummarizeResult> {
+    const genAI = getClient(opts?.geminiApiKey);
     if (!genAI) throw new Error("GEMINI_API_KEY not configured.");
 
     const model = genAI.getGenerativeModel({
@@ -176,8 +182,12 @@ export async function summarizePdf(pdfBase64: string): Promise<SummarizeResult> 
 /**
  * Ask a question about the PDF (NotebookLM-style Q&A). Prefer short questions.
  */
-export async function askAboutPdf(pdfBase64: string, question: string): Promise<{ answer: string }> {
-    const genAI = getClient();
+export async function askAboutPdf(
+    pdfBase64: string,
+    question: string,
+    opts?: { geminiApiKey?: string | null }
+): Promise<{ answer: string }> {
+    const genAI = getClient(opts?.geminiApiKey);
     if (!genAI) throw new Error("GEMINI_API_KEY not configured.");
 
     const model = genAI.getGenerativeModel({

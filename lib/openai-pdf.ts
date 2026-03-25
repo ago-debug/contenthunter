@@ -1,8 +1,8 @@
 import { OpenAI } from "openai";
 import type { ExtractResult, ExtractedProduct, SummarizeResult } from "@/lib/gemini-pdf";
 
-function getOpenAI() {
-    const key = process.env.OPENAI_API_KEY;
+function getOpenAI(apiKeyOverride?: string | null) {
+    const key = (apiKeyOverride && String(apiKeyOverride).trim()) || process.env.OPENAI_API_KEY;
     if (!key) {
         throw new Error("OPENAI_API_KEY non configurata sul server.");
     }
@@ -52,8 +52,8 @@ FORMATO:
   "sections": string[]
 }`.trim();
 
-async function callJsonModel(system: string, user: string): Promise<any> {
-    const client = getOpenAI();
+async function callJsonModel(system: string, user: string, openaiApiKey?: string | null): Promise<any> {
+    const client = getOpenAI(openaiApiKey);
     const resp = await client.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -71,7 +71,10 @@ async function callJsonModel(system: string, user: string): Promise<any> {
     return JSON.parse(raw);
 }
 
-export async function openaiExtractProductsFromPdf(pdfBase64: string): Promise<ExtractResult> {
+export async function openaiExtractProductsFromPdf(
+    pdfBase64: string,
+    opts?: { openaiApiKey?: string | null }
+): Promise<ExtractResult> {
     // Per semplicità, passiamo il PDF come base64 nel prompt; per documenti grandi
     // conviene prima estrarre il testo lato nostro.
     const user = `Questo è un PDF codificato in base64. Usa solo i contenuti reali che riesci a interpretare, non inventare nulla.
@@ -83,14 +86,18 @@ Se il PDF è troppo lungo, concentrati sulle prime pagine dove compaiono prodott
 
     const json = await callJsonModel(
         "Sei un estrattore di prodotti da cataloghi PDF. Rispondi sempre e solo in JSON valido.",
-        `${EXTRACT_PROMPT}\n\n${user}`
+        `${EXTRACT_PROMPT}\n\n${user}`,
+        opts?.openaiApiKey
     );
 
     const products = Array.isArray(json.products) ? (json.products as ExtractedProduct[]) : [];
     return { products };
 }
 
-export async function openaiSummarizePdf(pdfBase64: string): Promise<SummarizeResult> {
+export async function openaiSummarizePdf(
+    pdfBase64: string,
+    opts?: { openaiApiKey?: string | null }
+): Promise<SummarizeResult> {
     const user = `Questo è un PDF codificato in base64. Estrarre una panoramica sintetica senza inventare contenuti.
 
 BASE64_PDF:
@@ -99,7 +106,8 @@ ${pdfBase64.substring(0, 10000)}
 
     const json = await callJsonModel(
         "Sei un assistente che riassume documenti PDF tecnici/commerciali. Rispondi sempre in JSON valido.",
-        `${SUMMARIZE_PROMPT}\n\n${user}`
+        `${SUMMARIZE_PROMPT}\n\n${user}`,
+        opts?.openaiApiKey
     );
 
     return {
@@ -109,8 +117,12 @@ ${pdfBase64.substring(0, 10000)}
     };
 }
 
-export async function openaiAskAboutPdf(pdfBase64: string, question: string): Promise<{ answer: string }> {
-    const client = getOpenAI();
+export async function openaiAskAboutPdf(
+    pdfBase64: string,
+    question: string,
+    opts?: { openaiApiKey?: string | null }
+): Promise<{ answer: string }> {
+    const client = getOpenAI(opts?.openaiApiKey);
     const system =
         "Sei un assistente che risponde a domande su un singolo documento PDF. Usa solo quello che trovi nel documento; se non trovi la risposta, dillo esplicitamente. Rispondi in italiano.";
 

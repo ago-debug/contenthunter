@@ -3,6 +3,7 @@ import { askAboutPdf } from "@/lib/gemini-pdf";
 import { openaiAskAboutPdf } from "@/lib/openai-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export const maxDuration = 120;
 
@@ -23,6 +24,7 @@ export async function POST(
         if (!access) {
             return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
         }
+        const keys = await resolveIntegrationKeys(access.companyId);
 
         const body = await req.json().catch(() => ({}));
         const question = typeof body.question === "string" ? body.question.trim() : "";
@@ -52,8 +54,8 @@ export async function POST(
         const provider = process.env.PDF_AI_PROVIDER || "gemini";
         const { answer } =
             provider === "openai"
-                ? await openaiAskAboutPdf(base64, question)
-                : await askAboutPdf(base64, question);
+                ? await openaiAskAboutPdf(base64, question, { openaiApiKey: keys.openai })
+                : await askAboutPdf(base64, question, { geminiApiKey: keys.gemini });
         return NextResponse.json({ answer });
     } catch (err: any) {
         console.error("[Gemini PDF] Ask error:", err);

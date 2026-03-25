@@ -845,7 +845,11 @@ export default function WorkspaceClient() {
 
             const response = await fetch("/api/ai/describe", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(effectiveCompanyId != null ? { "x-company-id": String(effectiveCompanyId) } : {}),
+                },
+                credentials: "include",
                 body: JSON.stringify({
                     productData: {
                         ...cleanProductData,

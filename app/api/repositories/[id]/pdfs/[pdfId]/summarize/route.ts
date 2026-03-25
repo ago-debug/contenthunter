@@ -3,6 +3,7 @@ import { summarizePdf } from "@/lib/gemini-pdf";
 import { openaiSummarizePdf } from "@/lib/openai-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export const maxDuration = 120;
 
@@ -24,6 +25,7 @@ export async function GET(
         if (!access) {
             return NextResponse.json({ error: "Non autorizzato" }, { status: 403 });
         }
+        const keys = await resolveIntegrationKeys(access.companyId);
 
         const pdfBuffer = await getPdfBuffer(catalogId, parsedPdfId);
         if (!pdfBuffer) {
@@ -47,8 +49,8 @@ export async function GET(
         const provider = process.env.PDF_AI_PROVIDER || "gemini";
         const result =
             provider === "openai"
-                ? await openaiSummarizePdf(base64)
-                : await summarizePdf(base64);
+                ? await openaiSummarizePdf(base64, { openaiApiKey: keys.openai })
+                : await summarizePdf(base64, { geminiApiKey: keys.gemini });
         return NextResponse.json(result);
     } catch (err: any) {
         console.error("[Gemini PDF] Summarize error:", err);

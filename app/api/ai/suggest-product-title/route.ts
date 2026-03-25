@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import axios from "axios";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -55,6 +57,12 @@ function collectWebContext(data: any): string[] {
 
 export async function POST(req: Request) {
     try {
+        const ctx = await requireCompanyId(req);
+        if (!ctx) {
+            return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+        }
+        const keys = await resolveIntegrationKeys(ctx.companyId);
+
         const body = await req.json().catch(() => ({}));
         const sku = String(body.sku ?? "").trim();
         const ean = String(body.ean ?? "").trim();
@@ -72,7 +80,9 @@ export async function POST(req: Request) {
         let producerDomain: string | null = null;
 
         if (brandId && Number.isFinite(brandId)) {
-            const b = await prisma.brand.findFirst({ where: { id: brandId } });
+            const b = await prisma.brand.findFirst({
+                where: { id: brandId, companyId: ctx.companyId },
+            });
             if (b) {
                 producerLabel = producerLabel || b.name;
                 producerDomain = b.producerDomain || null;
@@ -86,7 +96,7 @@ ${b.aiContentGuidelines}
             }
         }
 
-        const serpKey = process.env.SERPAPI_KEY || process.env.SERPAPI || "";
+        const serpKey = keys.serpapi;
         const webLines: string[] = [];
 
         if (serpKey) {
@@ -155,19 +165,19 @@ ${b.aiContentGuidelines}
                       .filter(Boolean)
                       .slice(0, 45)
                       .join("\n")}`
-                : "Nessun risultato web automatico (configura SERPAPI_KEY sul server per abilitare la ricerca).";
+                : "Nessun risultato web automatico (configura SerpAPI in Impostazioni azienda o SERPAPI_KEY sul server).";
 
-        if (!process.env.OPENAI_API_KEY) {
+        if (!keys.openai) {
             return NextResponse.json(
                 {
-                    error: "OPENAI_API_KEY mancante sul server.",
-                    details: "Servono chiavi SerpAPI (opzionale) e OpenAI per generare il titolo.",
+                    error: "Chiave OpenAI mancante.",
+                    details: "Configura OpenAI in Impostazioni per l’azienda o OPENAI_API_KEY sul server.",
                 },
                 { status: 500 }
             );
         }
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const openai = new OpenAI({ apiKey: keys.openai });
 
         const prompt = `Sei un catalog manager B2B. Genera UN SOLO titolo prodotto in ${language}, chiaro e professionale, adatto a scheda ERP/PIM.
 ${brandGuidelines}

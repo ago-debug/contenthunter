@@ -4,6 +4,7 @@ import { extractProductsFromPdf } from "@/lib/gemini-pdf";
 import { openaiExtractProductsFromPdf } from "@/lib/openai-pdf";
 import { ensureCatalogAccess } from "@/lib/auth-api";
 import { getPdfBuffer, tryNormalizePdfBuffer, MAX_PDF_SIZE_FOR_GEMINI_BYTES } from "@/lib/pdf-service";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export const maxDuration = 300;
 export const config = {
@@ -27,6 +28,7 @@ export async function POST(
         if (!access) {
             return NextResponse.json({ error: "Non autorizzato o catalogo non trovato" }, { status: 403 });
         }
+        const keys = await resolveIntegrationKeys(access.companyId);
 
         const pdfBuffer = await getPdfBuffer(catalogId, parsedPdfId);
         if (!pdfBuffer) {
@@ -52,8 +54,8 @@ export async function POST(
             const provider = process.env.PDF_AI_PROVIDER || "gemini";
             const result =
                 provider === "openai"
-                    ? await openaiExtractProductsFromPdf(pdfBase64)
-                    : await extractProductsFromPdf(pdfBase64);
+                    ? await openaiExtractProductsFromPdf(pdfBase64, { openaiApiKey: keys.openai })
+                    : await extractProductsFromPdf(pdfBase64, { geminiApiKey: keys.gemini });
             extractedProducts = result?.products ?? [];
         } catch (geminiErr: any) {
             console.error("[Gemini PDF] Extract API error:", geminiErr);

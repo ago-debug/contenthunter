@@ -475,6 +475,30 @@ export default function ErpTable() {
         setWooConfig({ domain: "", key: "", secret: "" });
         const saved = localStorage.getItem(wooStorageKey);
         if (saved) setWooConfig(JSON.parse(saved));
+        axios
+            .get<{
+                wooDomain?: string;
+                wooConsumerKey?: string;
+                wooConsumerSecret?: string;
+            }>("/api/company/integration-settings", companyReq)
+            .then(({ data }) => {
+                if (data?.wooDomain != null || data?.wooConsumerKey || data?.wooConsumerSecret) {
+                    const next = {
+                        domain: data.wooDomain ?? "",
+                        key: data.wooConsumerKey ?? "",
+                        secret: data.wooConsumerSecret ?? "",
+                    };
+                    setWooConfig(next);
+                    try {
+                        localStorage.setItem(wooStorageKey, JSON.stringify(next));
+                    } catch {
+                        /* ignore */
+                    }
+                }
+            })
+            .catch(() => {
+                /* server settings opzionali */
+            });
         fetchCategories();
         fetchTags();
         fetchBrands();
@@ -778,7 +802,11 @@ export default function ErpTable() {
                 try {
                     const res = await fetch("/api/ai/translate", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(effectiveCompanyId != null ? { "x-company-id": String(effectiveCompanyId) } : {}),
+                        },
+                        credentials: "include",
                         body: JSON.stringify({
                             textData: { title: sourceTitle },
                             targetLanguage: targetLang,
@@ -927,7 +955,11 @@ export default function ErpTable() {
 
             const response = await fetch("/api/ai/describe", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(effectiveCompanyId != null ? { "x-company-id": String(effectiveCompanyId) } : {}),
+                },
+                credentials: "include",
                 body: JSON.stringify({
                     productData: {
                         ...cleanProductData,
@@ -1582,7 +1614,11 @@ export default function ErpTable() {
                     const { images, extraFields, docDescription, ...cleanProductData } = product;
                     const res = await fetch("/api/ai/describe", {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...(effectiveCompanyId != null ? { "x-company-id": String(effectiveCompanyId) } : {}),
+                        },
+                        credentials: "include",
                         body: JSON.stringify({
                             productData: {
                                 ...cleanProductData,
@@ -1780,7 +1816,11 @@ export default function ErpTable() {
 
             const response = await fetch("/api/ai/translate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(effectiveCompanyId != null ? { "x-company-id": String(effectiveCompanyId) } : {}),
+                },
+                credentials: "include",
                 body: JSON.stringify({
                     textData: dataToTranslate,
                     targetLanguage: editLang
@@ -1824,7 +1864,11 @@ export default function ErpTable() {
         try {
             const res = await fetch("/api/ai/suggest-product-title", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(effectiveCompanyId != null ? { "x-company-id": String(effectiveCompanyId) } : {}),
+                },
+                credentials: "include",
                 body: JSON.stringify({
                     sku: selectedProduct.sku,
                     ean: selectedProduct.ean,
@@ -1854,7 +1898,7 @@ export default function ErpTable() {
             toast.success(
                 n > 0
                     ? `Titolo generato (lingua ${editLang.toUpperCase()}, ${n} riferimenti web).`
-                    : `Titolo generato (lingua ${editLang.toUpperCase()}). Configura SERPAPI_KEY per la ricerca web.`
+                    : `Titolo generato (lingua ${editLang.toUpperCase()}). Configura SerpAPI in Impostazioni per la ricerca web.`
             );
         } catch (e: any) {
             toast.dismiss(toastId);
@@ -1876,9 +1920,12 @@ export default function ErpTable() {
                 .map((s: any) => (typeof s === 'string' ? s : s?.url).trim())
                 .filter(Boolean);
             const sourcesParam = sourceUrls.length > 0 ? `&sources=${encodeURIComponent(sourceUrls.join(','))}` : '';
-            const res = await axios.get(`/api/search-images?q=${encodeURIComponent(query)}&shopping=true${sourcesParam}`);
+            const res = await axios.get(
+                `/api/search-images?q=${encodeURIComponent(query)}&shopping=true${sourcesParam}`,
+                companyReq
+            );
             setWebImages(res.data.images || []);
-            if (res.data.images?.length === 0) toast.warning("Nessuna immagine trovata. Prova con SKU diverso o aggiungi SERPAPI_KEY / sorgenti catalogo.");
+            if (res.data.images?.length === 0) toast.warning("Nessuna immagine trovata. Prova con SKU diverso o configura SerpAPI in Impostazioni / sorgenti catalogo.");
         } catch (err) {
             toast.error("Errore ricerca immagini sul web");
         }

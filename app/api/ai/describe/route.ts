@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import { OpenAI } from "openai";
 import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export async function POST(req: Request) {
     try {
+        const ctx = await requireCompanyId(req);
+        if (!ctx) {
+            return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+        }
+        const keys = await resolveIntegrationKeys(ctx.companyId);
+
         const body = await req.json();
         console.log("AI DESCRIBE RECEIVED BODY:", JSON.stringify(body, null, 2));
         const { productData, language = "it" } = body;
@@ -17,7 +25,9 @@ export async function POST(req: Request) {
         const brandId = productData.brandId != null ? Number(productData.brandId) : null;
         if (brandName || brandId) {
             const brand = await prisma.brand.findFirst({
-                where: brandId ? { id: brandId } : { name: brandName }
+                where: brandId
+                    ? { id: brandId, companyId: ctx.companyId }
+                    : { name: brandName, companyId: ctx.companyId },
             });
             if (brand?.aiContentGuidelines) {
                 brandGuidelines = `
@@ -71,19 +81,19 @@ Peso: [Valore]
 `;
 
         console.log("AI Describe Request for SKU:", productData.sku);
-        if (!process.env.OPENAI_API_KEY) {
-            console.error("CRITICAL: OPENAI_API_KEY is not defined in process.env");
+        if (!keys.openai) {
+            console.error("CRITICAL: OPENAI key missing (company settings or OPENAI_API_KEY env)");
             return NextResponse.json(
                 {
                     error: "API Key mancante sul server.",
                     details:
-                        "Configura OPENAI_API_KEY nelle variabili ambiente del server (Plesk/Hosting).",
+                        "Configura la chiave OpenAI in Impostazioni per l’azienda o OPENAI_API_KEY sul server.",
                 },
                 { status: 500 }
             );
         }
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const openai = new OpenAI({ apiKey: keys.openai });
 
         // Streaming può fallire su alcuni hosting/reverse-proxy (buffering/timeout).
         // Usiamo risposta non-stream per massima compatibilità.

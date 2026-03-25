@@ -14,6 +14,14 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Chiavi API e WooCommerce per questa azienda (fallback: variabili ambiente server)
+  openaiApiKey       String? @db.Text
+  serpapiKey         String? @db.Text
+  geminiApiKey       String? @db.Text
+  wooDomain          String? @db.Text
+  wooConsumerKey     String? @db.Text
+  wooConsumerSecret  String? @db.Text
+
   users     User[]
   catalogs  Catalog[]
   products  Product[]

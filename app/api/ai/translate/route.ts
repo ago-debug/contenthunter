@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { OpenAI } from "openai";
+import { requireCompanyId } from "@/lib/auth-api";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 
 export async function POST(req: Request) {
     try {
+        const ctx = await requireCompanyId(req);
+        if (!ctx) {
+            return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+        }
+        const keys = await resolveIntegrationKeys(ctx.companyId);
+
         const body = await req.json();
         const { textData, targetLanguage = "en" } = body;
 
@@ -26,11 +34,14 @@ ${JSON.stringify(textData, null, 2)}
 RESTITUISCI SOLO IL JSON TRADOTTO, SENZA COMMENTI O INTRODUZIONI. IL FORMATO DEVE ESSERE IDENTICO ALL'INPUT.
 `;
 
-        if (!process.env.OPENAI_API_KEY) {
-            return NextResponse.json({ error: "API Key mancante sul server." }, { status: 500 });
+        if (!keys.openai) {
+            return NextResponse.json(
+                { error: "API Key mancante: configura OpenAI in Impostazioni azienda o sul server." },
+                { status: 500 }
+            );
         }
 
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const openai = new OpenAI({ apiKey: keys.openai });
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
