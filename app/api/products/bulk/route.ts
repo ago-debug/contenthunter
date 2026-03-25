@@ -282,11 +282,18 @@ export async function POST(req: NextRequest) {
 
             const products = await prisma.product.findMany({
                 where: { id: { in: cleanIds } },
-                include: {
-                    extraFields: true,
-                    texts: { where: { language } },
-                    prices: { where: { listName: "default" } }
-                }
+                // select minimale: compatibile con DB legacy senza vatCodeId
+                select: {
+                    id: true,
+                    sku: true,
+                    ean: true,
+                    parentSku: true,
+                    brand: true,
+                    category: true,
+                    extraFields: { select: { key: true, value: true } },
+                    texts: { where: { language }, select: { id: true, title: true } },
+                    prices: { where: { listName: "default" }, select: { price: true } },
+                },
             });
 
             let updatedCount = 0;
@@ -452,11 +459,35 @@ export async function POST(req: NextRequest) {
                 const batch = cleanIds.slice(i, i + CHUNK);
                 const products = await prisma.product.findMany({
                     where: { id: { in: batch } },
-                    include: {
-                        texts: { where: { language: "it" } },
-                        extraFields: true,
-                        prices: { where: { listName: "default" } }
-                    }
+                    // select minimale: compatibile con DB legacy senza vatCodeId
+                    select: {
+                        id: true,
+                        sku: true,
+                        ean: true,
+                        parentSku: true,
+                        brand: true,
+                        category: true,
+                        brandId: true,
+                        categoryId: true,
+                        subCategoryId: true,
+                        subSubCategoryId: true,
+                        texts: {
+                            where: { language: "it" },
+                            select: {
+                                id: true,
+                                title: true,
+                                description: true,
+                                docDescription: true,
+                                bulletPoints: true,
+                                seoAiText: true,
+                            },
+                        },
+                        extraFields: { select: { key: true, value: true } },
+                        prices: {
+                            where: { listName: "default" },
+                            select: { price: true, currency: true },
+                        },
+                    },
                 });
 
                 for (const p of products) {
