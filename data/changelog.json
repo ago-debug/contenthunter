@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "0a6af9686e37723e0580fa12ee8c6afb12a9e592",
+      "at": "2026-03-25T13:54:50+01:00",
+      "description": "feat(activity): job AI persistente, widget globale, notifiche e pagina attività"
+    },
+    {
       "hash": "9321573f16ded3fdbcfdbbcefccdc52b8f3a9826",
       "at": "2026-03-25T13:42:00+01:00",
       "description": "fix(tables): payload numerici, errori API leggibili e input IVA"
