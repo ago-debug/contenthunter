@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "d53f3c84d831dffd1238d39a6f40cae3e301e2c2",
+      "at": "2026-03-25T20:58:18+01:00",
+      "description": "ui(sidebar): menu compatto, sezioni collassabili, versione 2.5"
+    },
+    {
       "hash": "9a26725abf3230a5f18ae19f719cbcbfa30510ec",
       "at": "2026-03-25T19:08:52+01:00",
       "description": "Rimuove gestione PDF dall’app PIM; velocizza e streama generazione AI"
