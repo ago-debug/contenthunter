@@ -3,15 +3,11 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import {
-    Settings,
-    Search
-} from "lucide-react";
-import Sidebar from "@/components/Sidebar";
 import { AuthProvider } from "@/components/Providers";
 import { CompanyProvider } from "@/contexts/CompanyContext";
 import { CatalogProvider } from "@/components/CatalogContext";
 import LayoutClient from "@/components/LayoutClient";
+import { ActivityProvider } from "@/contexts/ActivityContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,9 +27,11 @@ export default function RootLayout({
                 <AuthProvider>
                     <CompanyProvider>
                         <CatalogProvider>
-                            <LayoutClient>
-                                {children}
-                            </LayoutClient>
+                            <ActivityProvider>
+                                <LayoutClient>
+                                    {children}
+                                </LayoutClient>
+                            </ActivityProvider>
                         </CatalogProvider>
                     </CompanyProvider>
                 </AuthProvider>

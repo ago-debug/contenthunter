@@ -20,6 +20,7 @@ import {
     Globe2,
     Percent,
     History,
+    Bell,
 } from "lucide-react";
 import appMeta from "@/data/app-meta.json";
 
@@ -66,7 +67,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         },
         {
             label: "System & AI",
-            items: systemItems,
+            items: [...systemItems, { href: "/activities", label: "Attività", icon: Bell }],
         },
         {
             label: "Scraping",

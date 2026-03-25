@@ -5,8 +5,10 @@ import { useSession, signOut } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import { useCompanyContext } from "@/contexts/CompanyContext";
-import { Search, Settings, LogOut, User as UserIcon, Menu, Building2, ChevronDown } from "lucide-react";
+import { useActivityContext } from "@/contexts/ActivityContext";
+import { Settings, LogOut, User as UserIcon, Menu, Building2, ChevronDown, Bell } from "lucide-react";
 import axios from "axios";
+import Link from "next/link";
 
 type CompanyOption = { id: number; name: string; slug: string };
 
@@ -19,6 +21,8 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
     const [companies, setCompanies] = useState<CompanyOption[]>([]);
     const [companiesLoaded, setCompaniesLoaded] = useState(false);
     const [companyDropdownOpen, setCompanyDropdownOpen] = useState(false);
+    const [notifOpen, setNotifOpen] = useState(false);
+    const { notifications, unreadNotifications, markAllNotificationsRead } = useActivityContext();
 
     const isGlobalAdmin = !!(session?.user as any)?.isGlobalAdmin;
 
@@ -90,14 +94,7 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                     >
                         <Menu className="w-6 h-6" />
                     </button>
-                    <div className="flex-1 min-w-0 max-w-2xl relative group">
-                        <Search className="absolute left-3 lg:left-6 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Cerca asset, SKU..."
-                            className="w-full h-10 lg:h-12 bg-gray-50 border border-gray-100 rounded-xl lg:rounded-2xl pl-10 lg:pl-16 pr-4 text-sm focus:outline-none focus:ring-2 lg:focus:ring-4 focus:ring-[#E6D3C1]/20 focus:bg-white transition-all"
-                        />
-                    </div>
+                    <div className="flex-1" />
                     <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                         {isGlobalAdmin && companyContext && (
                             <div className="relative hidden sm:block">
@@ -141,6 +138,52 @@ export default function LayoutClient({ children }: { children: React.ReactNode }
                                                     {c.name}
                                                 </button>
                                             ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        {session && (
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNotifOpen((v) => !v);
+                                        if (unreadNotifications > 0) markAllNotificationsRead();
+                                    }}
+                                    className="p-2.5 lg:p-3 bg-gray-50 rounded-xl border border-gray-100 text-gray-500 hover:text-gray-900 transition-colors touch-manipulation relative"
+                                    aria-label="Notifiche attività"
+                                >
+                                    <Bell className="w-5 h-5" />
+                                    {unreadNotifications > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center">
+                                            {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                                        </span>
+                                    )}
+                                </button>
+                                {notifOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-[90]" aria-hidden onClick={() => setNotifOpen(false)} />
+                                        <div className="absolute right-0 top-full mt-1 py-1 bg-white border border-slate-200 rounded-xl shadow-xl z-[95] min-w-[280px] max-w-[360px]">
+                                            <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Notifiche attività</p>
+                                                <Link href="/activities" onClick={() => setNotifOpen(false)} className="text-[10px] font-black text-slate-600 hover:text-slate-900">
+                                                    Apri attività
+                                                </Link>
+                                            </div>
+                                            <div className="max-h-72 overflow-y-auto">
+                                                {notifications.length === 0 ? (
+                                                    <p className="px-3 py-4 text-xs font-semibold text-slate-500">Nessuna notifica.</p>
+                                                ) : (
+                                                    notifications.slice(0, 8).map((n) => (
+                                                        <div key={n.id} className="px-3 py-2.5 border-b last:border-b-0 border-slate-100">
+                                                            <p className="text-[11px] font-black text-slate-800">{n.title}</p>
+                                                            <p className="text-[11px] text-slate-600 mt-0.5">{n.message}</p>
+                                                            <p className="text-[10px] text-slate-400 mt-1">{new Date(n.at).toLocaleString("it-IT")}</p>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
                                         </div>
                                     </>
                                 )}
