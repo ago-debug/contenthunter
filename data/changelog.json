@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "fba34dcc7d7c432d2b2d5f293f2bcc56d54c876a",
+      "at": "2026-03-26T00:09:14+01:00",
+      "description": "fix(activities): header x-company-id per API attività e job AI bulk"
+    },
+    {
       "hash": "d53f3c84d831dffd1238d39a6f40cae3e301e2c2",
       "at": "2026-03-25T20:58:18+01:00",
       "description": "ui(sidebar): menu compatto, sezioni collassabili, versione 2.5"
