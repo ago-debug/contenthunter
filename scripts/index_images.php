@@ -9,8 +9,7 @@
  *
  * Formato JSON: { "nomefile_senza_estensione_minuscolo": ["percorso/relativo.jpg", ...], ... }
  *
- * Estensioni come in app/api/repositories/[id]/associate-images/route.ts: jpg, jpeg, png, webp, gif
- * (SVG escluso: il PIM non lo indicizza nello stesso set.)
+ * Estensioni allineate a lib/image-map-extensions.ts
  */
 
 declare(strict_types=1);
@@ -31,17 +30,20 @@ if (PHP_SAPI !== 'cli') {
     header('Content-Type: application/json; charset=utf-8');
 }
 
-/** Stesso elenco di associate-images/route.ts (buildImageMap) */
-const ALLOWED_EXT = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+/** Stesso elenco di lib/image-map-extensions.ts */
+const ALLOWED_EXT = [
+    'jpg', 'jpeg', 'jfif', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'svg', 'ico', 'avif', 'heic',
+];
 
 /**
  * @param array<string, list<string>> $map
  * @return array<string, list<string>>
  */
-function scanImages(string $dir, string $rootReal, array &$map): array
+function scanImages(string $dir, string $rootDirNorm, array &$map, array &$stats): array
 {
     $items = @scandir($dir);
     if ($items === false) {
+        $stats['dirs_unreadable']++;
         return $map;
     }
 
@@ -49,7 +51,6 @@ function scanImages(string $dir, string $rootReal, array &$map): array
         if ($item === '.' || $item === '..') {
             continue;
         }
-        // Non indicizzare lo script né i JSON generati (evita ricorsione / rumore)
         if ($item === 'index_images.php' || $item === 'images_map.json' || $item === 'images_index.json') {
             continue;
         }
@@ -57,7 +58,11 @@ function scanImages(string $dir, string $rootReal, array &$map): array
         $fullPath = $dir . DIRECTORY_SEPARATOR . $item;
 
         if (is_dir($fullPath)) {
-            scanImages($fullPath, $rootReal, $map);
+            scanImages($fullPath, $rootDirNorm, $map, $stats);
+            continue;
+        }
+
+        if (!is_file($fullPath)) {
             continue;
         }
 
@@ -69,7 +74,8 @@ function scanImages(string $dir, string $rootReal, array &$map): array
         }
 
         $key = strtolower((string) $info['filename']);
-        $relPath = relativePathFromRoot($fullPath, $rootReal);
+        $relPath = relativePathFromRoot($fullPath, $rootDirNorm);
+        $stats['files_indexed']++;
 
         if (!isset($map[$key])) {
             $map[$key] = [];
@@ -82,24 +88,61 @@ function scanImages(string $dir, string $rootReal, array &$map): array
     return $map;
 }
 
-function relativePathFromRoot(string $fullPath, string $rootReal): string
+/**
+ * Percorso relativo alla root (solo slash /), senza dipendere solo da realpath
+ * (evita path assoluti o vuoti su Windows / symlink).
+ */
+function relativePathFromRoot(string $fullPath, string $rootDirNorm): string
 {
-    $full = realpath($fullPath);
-    $root = $rootReal;
-    if ($full === false) {
-        return str_replace('\\', '/', $fullPath);
-    }
-    $prefix = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    $norm = static function (string $p): string {
+        return str_replace('\\', '/', $p);
+    };
+
+    $root = rtrim($norm($rootDirNorm), '/');
+    $full = $norm($fullPath);
+
+    $prefix = $root . '/';
     if (strncmp($full, $prefix, strlen($prefix)) === 0) {
-        $rel = substr($full, strlen($prefix));
-    } else {
-        // fallback
-        $rel = str_replace(rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR, '', $full);
+        return substr($full, strlen($prefix));
     }
-    return str_replace('\\', '/', $rel);
+
+    $rr = realpath($rootDirNorm);
+    $rf = realpath($fullPath);
+    if ($rr !== false && $rf !== false) {
+        $r = rtrim(str_replace('\\', '/', $rr), '/') . '/';
+        $f = str_replace('\\', '/', $rf);
+        if (strncmp($f, $r, strlen($r)) === 0) {
+            return substr($f, strlen($r));
+        }
+    }
+
+    // Windows: confronto case-insensitive per prefisso
+    $isWin = (defined('PHP_OS_FAMILY') && PHP_OS_FAMILY === 'Windows')
+        || (stripos((string) PHP_OS, 'WIN') === 0);
+    if ($isWin) {
+        $rp = rtrim(str_replace('\\', '/', $rootDirNorm), '/') . '/';
+        $fp = str_replace('\\', '/', $fullPath);
+        if (strlen($fp) >= strlen($rp) && strcasecmp(substr($fp, 0, strlen($rp)), $rp) === 0) {
+            return substr($fp, strlen($rp));
+        }
+    }
+
+    // Ultimo tentativo: strip prefisso root case-insensitive (path UNC / symlink)
+    $stripped = preg_replace('#^' . preg_quote($root, '#') . '/#i', '', $full, 1);
+    if ($stripped !== $full && $stripped !== '') {
+        return $stripped;
+    }
+
+    return ltrim(str_replace('\\', '/', str_replace($root . '/', '', $full)), '/');
 }
 
 try {
+    if (PHP_SAPI !== 'cli') {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+    }
+    @ini_set('memory_limit', '512M');
+
     $start = microtime(true);
     $rootDir = __DIR__;
     $rootReal = realpath($rootDir);
@@ -107,8 +150,11 @@ try {
         throw new RuntimeException('Impossibile risolvere il percorso della cartella.');
     }
 
+    $rootDirNorm = str_replace('\\', '/', $rootReal);
     $imageMap = [];
-    scanImages($rootDir, $rootReal, $imageMap);
+    $stats = ['files_indexed' => 0, 'dirs_unreadable' => 0];
+
+    scanImages($rootDir, $rootDirNorm, $imageMap, $stats);
 
     $outFile = $rootDir . DIRECTORY_SEPARATOR . 'images_map.json';
     $json = json_encode(
@@ -128,6 +174,8 @@ try {
         'message' => 'Indice generato con successo',
         'file' => 'images_map.json',
         'keys' => count($imageMap),
+        'files_indexed' => $stats['files_indexed'],
+        'dirs_unreadable' => $stats['dirs_unreadable'],
         'execution_time_sec' => $duration,
     ];
 

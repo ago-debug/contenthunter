@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { prisma } from "@/lib/prisma";
+import { isImageMapExtension } from "@/lib/image-map-extensions";
 
 /** Aumenta il limite su ambienti serverless (Vercel Pro / Node). */
 export const maxDuration = 300;
@@ -34,7 +35,7 @@ function buildImageMap(root: string, imageMap: Record<string, string[]> = {}) {
             }
 
             const ext = path.extname(file).toLowerCase();
-            if (![".jpg", ".jpeg", ".png", ".webp", ".gif"].includes(ext)) continue;
+            if (!isImageMapExtension(ext)) continue;
 
             const nameWithoutExt = path.basename(file, ext).toLowerCase();
             const relativePath = path.relative(root, fullPath);

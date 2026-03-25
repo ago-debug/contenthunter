@@ -17,7 +17,22 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const EXTS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
+/** Allineato a lib/image-map-extensions.ts */
+const EXTS = [
+    ".jpg",
+    ".jpeg",
+    ".jfif",
+    ".png",
+    ".webp",
+    ".gif",
+    ".bmp",
+    ".tif",
+    ".tiff",
+    ".svg",
+    ".ico",
+    ".avif",
+    ".heic",
+];
 
 function buildImageMap(root) {
     const imageMap = {};
