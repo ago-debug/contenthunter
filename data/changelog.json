@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "b858c0660da8e6f8569346af77a4c41828c10125",
+      "at": "2026-03-25T16:08:20+01:00",
+      "description": "feat(activity): coda SEO AI server-side con job persistenti e storico attività"
+    },
+    {
       "hash": "0a6af9686e37723e0580fa12ee8c6afb12a9e592",
       "at": "2026-03-25T13:54:50+01:00",
       "description": "feat(activity): job AI persistente, widget globale, notifiche e pagina attività"
