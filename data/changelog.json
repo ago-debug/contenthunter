@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "9321573f16ded3fdbcfdbbcefccdc52b8f3a9826",
+      "at": "2026-03-25T13:42:00+01:00",
+      "description": "fix(tables): payload numerici, errori API leggibili e input IVA"
+    },
+    {
       "hash": "a7180384c59809fe7a21eaf570f5e6c5b2d12536",
       "at": "2026-03-25T13:25:48+01:00",
       "description": "fix(tables): ricarica TableManager su cambio azienda e header x-company-id"
