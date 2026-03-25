@@ -20,6 +20,47 @@ interface TableManagerProps {
     }[];
 }
 
+function getAxiosErrorMessage(err: unknown, fallback: string): string {
+    const e = err as {
+        response?: { data?: { error?: string; details?: string }; status?: number };
+        message?: string;
+    };
+    const d = e?.response?.data;
+    const msg = (typeof d?.error === "string" && d.error.trim() ? d.error : null) ||
+        (typeof d?.details === "string" && d.details.trim() ? d.details : null);
+    if (msg) return msg;
+    const st = e?.response?.status;
+    if (st === 403) return "Non autorizzato o azienda non specificata (seleziona l’azienda in alto).";
+    if (st === 409) return "Conflitto: esiste già un elemento con questi dati.";
+    if (st === 503) return "Database non aggiornato (tabella mancante). Esegui prisma db push sul server.";
+    if (st === 400) return "Dati non validi. Controlla i campi obbligatori.";
+    return e?.message || fallback;
+}
+
+function buildPayload(
+    formData: Record<string, unknown>,
+    fields: TableManagerProps["fields"],
+    isCreate: boolean
+): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const f of fields) {
+        const raw = formData[f.key];
+        if (raw === undefined) continue;
+        if (f.type === "number") {
+            if (raw === "" || raw === null) {
+                out[f.key] = raw;
+                continue;
+            }
+            const n = typeof raw === "number" ? raw : parseFloat(String(raw).replace(",", "."));
+            out[f.key] = Number.isNaN(n) ? raw : n;
+        } else {
+            out[f.key] = raw;
+        }
+    }
+    if (isCreate) delete out.id;
+    return out;
+}
+
 export default function TableManager({ title, endpoint, fields }: TableManagerProps) {
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -55,7 +96,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
             setData(resp.data);
         } catch (err) {
             console.error(err);
-            toast.error("Errore nel caricamento dei dati");
+            toast.error(getAxiosErrorMessage(err, "Errore nel caricamento dei dati"));
         } finally {
             setLoading(false);
         }
@@ -67,12 +108,14 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        const isCreate = !editingItem;
+        const payload = buildPayload(formData, fields, isCreate);
         try {
             if (editingItem) {
-                await axios.put(`${endpoint}/${editingItem.id}`, formData, reqConfig);
+                await axios.put(`${endpoint}/${editingItem.id}`, payload, reqConfig);
                 toast.success("Elemento aggiornato");
             } else {
-                await axios.post(endpoint, formData, reqConfig);
+                await axios.post(endpoint, payload, reqConfig);
                 toast.success("Elemento creato");
             }
             setShowModal(false);
@@ -81,7 +124,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
             fetchData();
         } catch (err) {
             console.error(err);
-            toast.error("Errore nel salvataggio");
+            toast.error(getAxiosErrorMessage(err, "Errore nel salvataggio"));
         }
     };
 
@@ -93,7 +136,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
             fetchData();
         } catch (err) {
             console.error(err);
-            toast.error("Errore nell'eliminazione");
+            toast.error(getAxiosErrorMessage(err, "Errore nell'eliminazione"));
         }
     };
 
@@ -107,7 +150,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
             setSelectedIds([]);
             fetchData();
         } catch (err: any) {
-            toast.error(err.response?.data?.error ?? "Errore eliminazione massiva");
+            toast.error(getAxiosErrorMessage(err, "Errore eliminazione massiva"));
         } finally {
             setIsBulkDeleting(false);
         }
@@ -303,16 +346,23 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                                         <textarea
                                             rows={5}
                                             className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white transition-all resize-y min-h-[100px]"
-                                            value={formData[f.key] || ""}
+                                            value={formData[f.key] ?? ""}
                                             onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
                                             placeholder="Tono, stile e linee guida per i contenuti AI di questo brand…"
                                         />
                                     ) : (
                                         <input
                                             type={f.type === "number" ? "number" : "text"}
+                                            step={f.type === "number" ? "any" : undefined}
                                             required={f.required !== false}
                                             className="w-full h-12 bg-slate-50 border border-slate-100 rounded-2xl px-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-slate-900/5 focus:bg-white transition-all"
-                                            value={formData[f.key] || ""}
+                                            value={
+                                                f.type === "number"
+                                                    ? (formData[f.key] === 0 || formData[f.key] === "0"
+                                                          ? formData[f.key]
+                                                          : (formData[f.key] ?? ""))
+                                                    : (formData[f.key] ?? "")
+                                            }
                                             onChange={(e) => setFormData({ ...formData, [f.key]: e.target.value })}
                                         />
                                     )}
