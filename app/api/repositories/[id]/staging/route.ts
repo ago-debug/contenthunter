@@ -244,10 +244,15 @@ export async function POST(
                 });
 
                 // Prezzo per questo listino (listName)
-                if (p.price) {
+                {
+                    const hasIncomingPrice =
+                        p.price !== undefined &&
+                        p.price !== null &&
+                        String(p.price).trim() !== "";
+
                     // Robust price parsing:
                     // 1. Remove currency symbols and other non-digit/dot/comma chars (except sign)
-                    let priceStr = p.price.toString().replace(/[^0-9,.-]/g, '');
+                    let priceStr = hasIncomingPrice ? String(p.price).replace(/[^0-9,.-]/g, "") : "";
 
                     // 2. Handle European format (1.234,56) vs US format (1,234.56)
                     if (priceStr.includes(',') && priceStr.includes('.')) {
@@ -266,17 +271,19 @@ export async function POST(
                         priceStr = priceStr.replace(',', '.');
                     }
 
-                    const parsedPrice = parseFloat(priceStr);
-                    if (!isNaN(parsedPrice)) {
-                        const existingPrice = await prisma.stagingProductPrice.findUnique({
-                            where: {
-                                stagingProductId_listName: {
-                                    stagingProductId: staging.id,
-                                    listName,
-                                },
-                            },
-                        });
+                    const parsedPrice = priceStr ? parseFloat(priceStr) : NaN;
+                    const hasMeaningfulPrice = Number.isFinite(parsedPrice) && parsedPrice > 0;
 
+                    const existingPrice = await prisma.stagingProductPrice.findUnique({
+                        where: {
+                            stagingProductId_listName: {
+                                stagingProductId: staging.id,
+                                listName,
+                            },
+                        },
+                    });
+
+                    if (hasMeaningfulPrice) {
                         if (!existingPrice) {
                             await prisma.stagingProductPrice.create({
                                 data: {
@@ -295,6 +302,31 @@ export async function POST(
                                 },
                                 data: { price: parsedPrice },
                             });
+                        }
+                    } else {
+                        /**
+                         * Evita di "azzerare" il prezzo durante il merge.
+                         * Se il file non porta un prezzo valido (>0) e per questo listino non esiste ancora un prezzo,
+                         * copiamo l'ultimo prezzo disponibile da altri listini (se presente).
+                         */
+                        if (!existingPrice) {
+                            const fallback = await prisma.stagingProductPrice.findFirst({
+                                where: {
+                                    stagingProductId: staging.id,
+                                    price: { gt: 0 },
+                                    NOT: { listName },
+                                },
+                                orderBy: { id: "desc" },
+                            });
+                            if (fallback) {
+                                await prisma.stagingProductPrice.create({
+                                    data: {
+                                        stagingProductId: staging.id,
+                                        listName,
+                                        price: fallback.price,
+                                    },
+                                });
+                            }
                         }
                     }
                 }
