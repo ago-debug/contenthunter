@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "b730f401c88e6b904c292bdf64d16b984c8a6be0",
+      "at": "2026-03-25T18:30:11+01:00",
+      "description": "feat(ui): job in corso in Attività, ClearableSearchInput e API ongoing"
+    },
+    {
       "hash": "b858c0660da8e6f8569346af77a4c41828c10125",
       "at": "2026-03-25T16:08:20+01:00",
       "description": "feat(activity): coda SEO AI server-side con job persistenti e storico attività"
