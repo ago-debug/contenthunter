@@ -33,6 +33,8 @@ model Company {
   scrapeProjects ScrapeProject[]
   extraFieldTemplates ExtraFieldTemplate[]
   vatCodes  VatCode[]
+  aiBulkSeoJobs AiBulkSeoJob[]
+  activities ActivityLog[]
 }
 
 model Catalog {
@@ -252,6 +254,66 @@ model ProductExtra {
 
   @@unique([productId, key])
   @@index([productId], map: "ProductExtra_productId_fkey")
+}
+
+/// Job server-side per generazione SEO AI massiva (continua anche senza client connesso)
+model AiBulkSeoJob {
+  id               Int      @id @default(autoincrement())
+  companyId        Int
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status           String   @default("running") // running | paused | completed | stopped | failed
+  overwriteExisting Boolean @default(false)
+  total            Int      @default(0)
+  done             Int      @default(0)
+  errors           Int      @default(0)
+  brand            String?
+  catalogue        String?
+  startedAt        DateTime @default(now())
+  finishedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items            AiBulkSeoJobItem[]
+
+  @@index([companyId, status])
+  @@index([createdAt])
+}
+
+model AiBulkSeoJobItem {
+  id         Int      @id @default(autoincrement())
+  jobId       Int
+  job         AiBulkSeoJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  productId   Int
+  sku         String
+  title       String?
+  status      String   @default("pending") // pending | processing | success | error | skipped
+  message     String?  @db.Text
+  attempts    Int      @default(0)
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobId, status])
+  @@index([productId])
+}
+
+/// Storico attività globale (sidebar Attività)
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        String   // es: ai_bulk_seo
+  status      String   // completed | stopped | failed
+  description String
+  brand       String?
+  catalogue   String?
+  total       Int      @default(0)
+  done        Int      @default(0)
+  errors      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([type, status])
 }
 
 /// Definizione di campi extra personalizzati per listini / prodotti
