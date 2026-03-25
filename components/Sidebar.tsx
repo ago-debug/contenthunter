@@ -19,7 +19,9 @@ import {
     X,
     Globe2,
     Percent,
+    History,
 } from "lucide-react";
+import appMeta from "@/data/app-meta.json";
 
 type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
 
@@ -32,6 +34,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         { href: "/settings", label: "Settings", icon: Settings },
         { href: "/admin", label: "Control Center", icon: ShieldCheck },
         ...(isGlobalAdmin ? [{ href: "/admin/companies", label: "Gestione aziende", icon: Building2 }] : []),
+        { href: "/changelog", label: "Storico modifiche", icon: History },
     ];
 
     const menuGroups = [
@@ -136,6 +139,26 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                     </div>
                 ))}
             </nav>
+
+            <div className="mt-4 px-2">
+                <Link
+                    href="/changelog"
+                    onClick={() => onClose?.()}
+                    className="block rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-3 hover:bg-slate-50 hover:border-slate-200 transition-colors"
+                >
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Release</p>
+                    <p className="text-sm font-black text-slate-900 mt-1">v{appMeta.version}</p>
+                    <p className="text-[10px] font-bold text-slate-500 mt-1 tabular-nums">
+                        {new Date(appMeta.lastUpdated).toLocaleString("it-IT", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                        })}
+                    </p>
+                </Link>
+            </div>
 
             <div className="mt-8 pt-6 border-t border-slate-100">
                 <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100 transition-all cursor-pointer group mb-4">

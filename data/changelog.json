@@ -1,0 +1,154 @@
+{
+  "entries": [
+    {
+      "hash": "e1fc258c7844d73aec506c19f77e0c20d4e558a5",
+      "at": "2026-03-25T13:03:09+01:00",
+      "description": "feat(master-erp): genera titolo da SKU/EAN, brand e ricerca web"
+    },
+    {
+      "hash": "6c467b3f2fd27cf25a8b7097389cf0a495b6b3fc",
+      "at": "2026-03-25T12:57:29+01:00",
+      "description": "fix(images-map): più estensioni e percorsi relativi più robusti"
+    },
+    {
+      "hash": "86903d3cb499344e7d877f5aac6cb4dbd89fbd91",
+      "at": "2026-03-25T12:53:09+01:00",
+      "description": "docs: script PHP index_images.php allineato al formato PIM images_map.json"
+    },
+    {
+      "hash": "c7cea09b21c9410d6a9daebe770f496e4c3bc5dc",
+      "at": "2026-03-25T12:50:18+01:00",
+      "description": "chore: script npm run build-images-map per images_map.json"
+    },
+    {
+      "hash": "e56e68c07606acff1243746aad45654ae0e8e0b1",
+      "at": "2026-03-25T12:43:38+01:00",
+      "description": "fix(associate-images): evita 504 con URL remoto senza indice"
+    },
+    {
+      "hash": "2deb78e67a93b207618b9008b6e4f33f9a9f26a1",
+      "at": "2026-03-25T11:51:20+01:00",
+      "description": "fix(import-lab): associazione immagini più veloce (evita 504)"
+    },
+    {
+      "hash": "37f19cbc9279f2596697c5fb0e61f276cc2fc454",
+      "at": "2026-03-25T11:15:24+01:00",
+      "description": "feat(master-erp): filtro senza categoria e selezione inversa"
+    },
+    {
+      "hash": "aae71e89cdd58d2f2ff375e461e98e3f2307ba5b",
+      "at": "2026-03-25T11:10:56+01:00",
+      "description": "fix(import-lab): evita prezzo a 0 nel merge listini"
+    },
+    {
+      "hash": "eb231e421bfcb3448968b6d57adace633fd3a364",
+      "at": "2026-03-25T11:00:51+01:00",
+      "description": "feat: richiedi brand selezionato per operazioni Master ERP"
+    },
+    {
+      "hash": "7aacdbe9caffea1e5831916ba914475f73f19725",
+      "at": "2026-03-25T10:56:37+01:00",
+      "description": "feat: report per job AI massivo (vista + CSV)"
+    },
+    {
+      "hash": "33013fde8f19c2b930f648366cdccffb15202396",
+      "at": "2026-03-25T10:52:46+01:00",
+      "description": "feat: generazione SEO AI massiva in background (UI free)"
+    },
+    {
+      "hash": "22f46fa4f339833413714ba25f66bebcd0c23f18",
+      "at": "2026-03-25T10:35:14+01:00",
+      "description": "fix: AI describe no-stream + debug associazione immagini"
+    },
+    {
+      "hash": "5f71764e5067909f3743f4191e56898586163c76",
+      "at": "2026-03-25T10:18:46+01:00",
+      "description": "fix: bulk operations Master ERP compatibili con DB legacy"
+    },
+    {
+      "hash": "67829c8908d0d2b93390ff3cd767aad70aa6d610",
+      "at": "2026-03-24T10:26:13+01:00",
+      "description": "fix: export Master ERP compatibile con schema DB legacy"
+    },
+    {
+      "hash": "3b69a3c9dae2725b117bf21f6e060b9739d3ec11",
+      "at": "2026-03-24T10:11:22+01:00",
+      "description": "fix: deduplica immagini Master ERP compatibile con schema legacy"
+    },
+    {
+      "hash": "10fe8d8caf5599c2fe624c86e23ffc33c10e7700",
+      "at": "2026-03-24T10:09:22+01:00",
+      "description": "chore: migliora diagnostica errori push in Import Lab"
+    },
+    {
+      "hash": "d8005b489b084edfdfb491c5f3f924b858a8957f",
+      "at": "2026-03-24T10:06:54+01:00",
+      "description": "fix: compatibilita push prodotti con schema DB senza vatCodeId"
+    },
+    {
+      "hash": "15415c6328c6079bb566974601ea6bf267de400a",
+      "at": "2026-03-24T09:42:55+01:00",
+      "description": "chore: aggiunge stage diagnostici a POST /api/products"
+    },
+    {
+      "hash": "23406180924c35d01d51cc416e690c2549cc192b",
+      "at": "2026-03-24T09:26:19+01:00",
+      "description": "fix: deduplica immagini per filename e chiarisce errori product save"
+    },
+    {
+      "hash": "1ca5aeb7ad3232bc28bed09694b82547e68af2fc",
+      "at": "2026-03-24T09:19:22+01:00",
+      "description": "feat: deduplica immagini in Import Lab e Master ERP"
+    },
+    {
+      "hash": "b2698765c4c1f717140c7b510787c37f2f0c33a3",
+      "at": "2026-03-23T18:22:54+01:00",
+      "description": "feat: Gestione Tabelle sidebar, VAT codes API/table, Import Lab meta catalogue GET"
+    },
+    {
+      "hash": "cd562ac21796f65a5c89d074405a43e240d6ed0f",
+      "at": "2026-03-23T18:14:22+01:00",
+      "description": "fix: explicit any on forEach/map callbacks in GET /api/products (noImplicitAny)"
+    },
+    {
+      "hash": "c4d0f76fca6d9cf36c9d843744d65e2cbbaaddc7",
+      "at": "2026-03-23T18:10:11+01:00",
+      "description": "chore: rimuovi PDF di test da public/uploads + aggiungi catalog_images/images_map.json"
+    },
+    {
+      "hash": "7f34f99cacc8c121f667017e81aba6d7188f8957",
+      "at": "2026-03-23T18:08:31+01:00",
+      "description": "fix: fallback API quando schema IVA non è ancora sul DB (500 su /api/products e /vat-codes)"
+    },
+    {
+      "hash": "0f51b4ca59cd479d64734a3ce62cdcc07f2ac266",
+      "at": "2026-03-23T18:02:26+01:00",
+      "description": "fix(ImportLab): Map.forEach instead of for..of on Map (TS build)"
+    },
+    {
+      "hash": "c8dc572f4511c83b12fb7ce7f034d91716b94764",
+      "at": "2026-03-23T17:52:37+01:00",
+      "description": "fix: Map iteration in staging route (TS without downlevelIteration)"
+    },
+    {
+      "hash": "c409e4f7ccd5b8b78cfdca8d3d68a78f03c99bc1",
+      "at": "2026-03-23T17:50:47+01:00",
+      "description": "feat: codici IVA su prodotto + report import con duplicati SKU/EAN"
+    },
+    {
+      "hash": "a888ad1185bd571df249d04d1e5d0c84fd6dd1ef",
+      "at": "2026-03-23T13:30:20+01:00",
+      "description": "fix(erp): export selezionati con x-company-id + pulsanti Excel/CSV"
+    },
+    {
+      "hash": "6a2cef123999ffe5929b25f1063ea65a619cd566",
+      "at": "2026-03-20T22:07:14+01:00",
+      "description": "feat(bulk): tutti i campi prodotto in modifica massiva + API bulk_set_field estesa"
+    },
+    {
+      "hash": "33a9c994b384acd927ea849338fca406ddc7309b",
+      "at": "2026-03-20T21:23:22+01:00",
+      "description": "feat(pim): filtri extra (chiave/valore) campi scheda"
+    }
+  ]
+}
