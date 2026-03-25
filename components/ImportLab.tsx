@@ -1857,7 +1857,9 @@ export default function ImportLab() {
                         </button>
 
                         <button
+                            type="button"
                             onClick={handleFolderImageAssociation}
+                            title="Con URL remoto serve images_map.json sul server (generabile con: npm run build-images-map — vedi script nel repo)."
                             className="px-5 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2.5"
                         >
                             <HardDrive className="w-4 h-4 text-blue-500" />
