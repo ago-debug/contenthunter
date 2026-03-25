@@ -125,6 +125,10 @@ export async function POST(
     try {
         const { id } = await params;
         const catalogId = parseInt(id);
+        const body = await req.json().catch(() => ({}));
+        const allowLocalScanFallback =
+            body?.allowLocalScanFallback === true ||
+            req.nextUrl.searchParams.get("allowLocalScan") === "1";
 
         const catalog = await prisma.catalog.findUnique({
             where: { id: catalogId }
@@ -166,20 +170,29 @@ export async function POST(
         // 4. Fresh Scan
 
         let loaded = false;
+        let remoteIndexUrlLoaded: string | null = null;
 
         // Try remote fetch if it's a URL project
         if (baseUrl) {
-            const remoteJsonUrl = baseUrl + "images_map.json";
-            console.log("Attempting to fetch remote index:", remoteJsonUrl);
-            try {
-                const response = await fetch(remoteJsonUrl, { signal: AbortSignal.timeout(15000) });
-                if (response.ok) {
-                    imageMap = await response.json();
-                    console.log("Loaded image map from REMOTE URL");
-                    loaded = true;
+            const remoteCandidates = ["images_map.json", "images_index.json"];
+            for (const name of remoteCandidates) {
+                const remoteJsonUrl = baseUrl + name;
+                console.log("Attempting to fetch remote index:", remoteJsonUrl);
+                try {
+                    const response = await fetch(remoteJsonUrl, {
+                        signal: AbortSignal.timeout(60000),
+                        headers: { Accept: "application/json" },
+                    });
+                    if (response.ok) {
+                        imageMap = await response.json();
+                        remoteIndexUrlLoaded = remoteJsonUrl;
+                        console.log("Loaded image map from REMOTE URL:", remoteJsonUrl);
+                        loaded = true;
+                        break;
+                    }
+                } catch (e) {
+                    console.log("Remote index fetch failed:", remoteJsonUrl, e);
                 }
-            } catch (e) {
-                console.log("Remote index not found or unreachable. Falling back to local/scan.");
             }
         }
 
@@ -199,6 +212,26 @@ export async function POST(
         }
 
         if (!loaded) {
+            /**
+             * Con percorso immagini = URL remoto: NON fare fallback sulla scansione di
+             * `public/catalog_images` (cartella globale, enorme → timeout 504).
+             * Serve un indice JSON sul server remoto, oppure un path locale esplicito.
+             */
+            if (baseUrl && !allowLocalScanFallback) {
+                return NextResponse.json(
+                    {
+                        error:
+                            "Indice immagini remoto non disponibile. Carica sul server immagini un file " +
+                            "`images_map.json` (o `images_index.json`) nella stessa cartella dell'URL configurato, " +
+                            "oppure usa un percorso cartella locale sul server. " +
+                            "Evitiamo la scansione automatica della cartella globale che causerebbe timeout.",
+                        code: "REMOTE_IMAGE_INDEX_REQUIRED",
+                        hint: `Tentativi: ${baseUrl}images_map.json , ${baseUrl}images_index.json. Solo emergenza: POST JSON {"allowLocalScanFallback":true} per forzare la scansione locale (può essere lentissima).`,
+                    },
+                    { status: 422 }
+                );
+            }
+
             console.log("No index found (remote or local), scanning subdirectories...");
             imageMap = buildImageMap(localPath);
             // Save internal index for next time (if local folder is writable)
@@ -231,11 +264,15 @@ export async function POST(
             if (!product.sku) continue;
 
             const sku = String(product.sku || "").trim();
+            const skuN = normalizeToken(sku);
+            if (!skuN) continue;
+
             const existingUrls = new Set((product.images || []).map((row) => row.imageUrl));
 
             const groupedMatches: { index: number; paths: string[] }[] = [];
 
             for (const key of imageKeys) {
+                if (key.length < skuN.length) continue;
                 if (!couldMatchSkuKey(key, sku)) continue;
                 const info = getImageMatchInfo(key, sku);
                 if (!info.matched) continue;
@@ -281,6 +318,8 @@ export async function POST(
                 localPath,
                 baseUrl,
                 loadedFrom: loaded ? (baseUrl ? "remote_or_local_index" : "local_index_or_scan") : "scan",
+                remoteIndexUrl: remoteIndexUrlLoaded,
+                allowLocalScanFallback,
                 totalProducts: products.length,
                 matchedProducts,
                 totalCandidateKeys,

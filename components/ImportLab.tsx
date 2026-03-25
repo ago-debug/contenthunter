@@ -997,9 +997,11 @@ export default function ImportLab() {
         const toastId = toast.loading("Ricerca immagini da cartella (Recursive Scan)...");
 
         try {
-            const res = await axios.post("/api/repositories/" + catalogIdParam + "/associate-images", null, {
-                timeout: 180000,
-            });
+            const res = await axios.post(
+                "/api/repositories/" + catalogIdParam + "/associate-images",
+                {},
+                { timeout: 180000 }
+            );
 
             if (res.data.success) {
                 toast.update(toastId, {
@@ -1013,12 +1015,19 @@ export default function ImportLab() {
                 fetchRepository(parseInt(catalogIdParam));
             }
         } catch (err: any) {
-            const errorMsg = err.response?.data?.error || "Errore durante l'associazione immagini.";
+            const data = err.response?.data;
+            const code = data?.code;
+            let errorMsg =
+                (typeof data?.error === "string" && data.error) ||
+                "Errore durante l'associazione immagini.";
+            if (code === "REMOTE_IMAGE_INDEX_REQUIRED" && typeof data?.hint === "string") {
+                errorMsg = `${errorMsg} (${data.hint})`;
+            }
             toast.update(toastId, {
                 render: errorMsg,
                 type: "error",
                 isLoading: false,
-                autoClose: 4000
+                autoClose: code === "REMOTE_IMAGE_INDEX_REQUIRED" ? 12000 : 4000
             });
         }
     };
