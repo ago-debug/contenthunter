@@ -55,12 +55,20 @@ function getImageMatchInfo(keyRaw: string, skuRaw: string): { matched: boolean; 
     // Exact name = primary image
     if (key === sku) return { matched: true, index: 0 };
 
-    // Name must start with SKU and then continue with details/index.
-    if (!(key.startsWith(`${sku}_`) || key.startsWith(`${sku}-`) || key.startsWith(`${sku} `))) {
+    // Primary rule: name starts with SKU (normalized)
+    const startsWithSku = key.startsWith(`${sku}_`) || key === sku;
+
+    // Fallback rule (più permissivo): SKU contenuto come token (es. IMG_<SKU>_01)
+    const tokenRegex = new RegExp(`(^|_)${sku}(_|$)`, "i");
+    const containsSkuToken = tokenRegex.test(key);
+
+    if (!startsWithSku && !containsSkuToken) {
         return { matched: false, index: Number.MAX_SAFE_INTEGER };
     }
 
-    const restRaw = keyRaw.slice(skuRaw.length).trim();
+    // Per calcolare l'indice, usa l'ultima sequenza numerica come "ordine"
+    // (es. _1, _01, _002). Se assente -> 0.
+    const restRaw = keyRaw;
     const rest = normalizeToken(restRaw);
     if (!rest) return { matched: true, index: 0 };
 
@@ -186,6 +194,8 @@ export async function POST(
         });
 
         let associatedCount = 0;
+        let matchedProducts = 0;
+        let totalCandidateKeys = Object.keys(imageMap || {}).length;
 
         // 3. Match and update
         for (const product of products) {
@@ -205,6 +215,7 @@ export async function POST(
                 .forEach((entry) => matches.push(...entry.paths));
 
             if (matches.length > 0) {
+                matchedProducts++;
                 // Deduplica forte:
                 // - evita doppioni nello stesso run
                 // - evita duplicati già presenti in DB per lo stesso prodotto
@@ -233,7 +244,20 @@ export async function POST(
             }
         }
 
-        return NextResponse.json({ success: true, count: associatedCount });
+        return NextResponse.json({
+            success: true,
+            count: associatedCount,
+            debug: {
+                catalogId,
+                inputPath,
+                localPath,
+                baseUrl,
+                loadedFrom: loaded ? (baseUrl ? "remote_or_local_index" : "local_index_or_scan") : "scan",
+                totalProducts: products.length,
+                matchedProducts,
+                totalCandidateKeys,
+            },
+        });
     } catch (err: any) {
         console.error("Batch Association error:", err);
         return NextResponse.json({ error: err.message }, { status: 500 });

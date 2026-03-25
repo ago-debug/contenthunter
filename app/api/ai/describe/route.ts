@@ -73,12 +73,21 @@ Peso: [Valore]
         console.log("AI Describe Request for SKU:", productData.sku);
         if (!process.env.OPENAI_API_KEY) {
             console.error("CRITICAL: OPENAI_API_KEY is not defined in process.env");
-            return NextResponse.json({ error: "API Key mancante sul server." }, { status: 500 });
+            return NextResponse.json(
+                {
+                    error: "API Key mancante sul server.",
+                    details:
+                        "Configura OPENAI_API_KEY nelle variabili ambiente del server (Plesk/Hosting).",
+                },
+                { status: 500 }
+            );
         }
 
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        const stream = await openai.chat.completions.create({
+        // Streaming può fallire su alcuni hosting/reverse-proxy (buffering/timeout).
+        // Usiamo risposta non-stream per massima compatibilità.
+        const completion = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
                 { role: "system", content: "Sei un generatore ultrarapido di schede prodotto professionali. Rispondi SOLO con il contenuto finale, niente introduzioni." },
@@ -86,35 +95,14 @@ Peso: [Valore]
             ],
             temperature: 0.5,
             max_tokens: 800,
-            stream: true,
+            stream: false,
         });
 
-        console.log("OpenAI Stream initiated successfully");
-
-        const responseStream = new ReadableStream({
-            async start(controller) {
-                const encoder = new TextEncoder();
-                try {
-                    for await (const chunk of stream) {
-                        const content = chunk.choices[0]?.delta?.content || "";
-                        if (content) {
-                            controller.enqueue(encoder.encode(content));
-                        }
-                    }
-                } catch (err: any) {
-                    console.error("Stream processing error:", err);
-                    controller.error(err);
-                } finally {
-                    controller.close();
-                }
-            },
-        });
-
-        return new Response(responseStream, {
+        const text = completion.choices?.[0]?.message?.content || "";
+        return new Response(text, {
             headers: {
                 "Content-Type": "text/plain; charset=utf-8",
                 "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
             },
         });
     } catch (err: any) {
