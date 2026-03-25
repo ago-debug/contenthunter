@@ -361,6 +361,7 @@ export default function ErpTable() {
     const [filterMissingShortDesc, setFilterMissingShortDesc] = useState(false);
     const [filterMissingLongDesc, setFilterMissingLongDesc] = useState(false);
     const [filterMissingImages, setFilterMissingImages] = useState(false);
+    const [filterMissingCategory, setFilterMissingCategory] = useState(false);
     const [filterPriceMin, setFilterPriceMin] = useState<string>("");
     const [filterPriceMax, setFilterPriceMax] = useState<string>("");
     const [filterStockMin, setFilterStockMin] = useState<string>("");
@@ -1835,6 +1836,11 @@ export default function ErpTable() {
             const imgs = p.images || [];
             if (Array.isArray(imgs) && imgs.length > 0) return false;
         }
+        if (filterMissingCategory) {
+            const categoryText = String(p.category ?? "").trim();
+            const categoryIdMissing = p.categoryId == null;
+            if (categoryText.length > 0 || !categoryIdMissing) return false;
+        }
 
         // Filtro prezzo da / a
         const priceNum = parseFloat((p.price ?? "0").toString().replace(/[^0-9.,-]/g, "").replace(",", "."));
@@ -1916,6 +1922,21 @@ export default function ErpTable() {
     });
 
     const hasSheetFilters = Object.values(sheetFilters).some((v) => (v || "").trim());
+    const invertSelectionOnFiltered = () => {
+        if (!filteredProducts.length) {
+            toast.info("Nessun prodotto nei risultati correnti.");
+            return;
+        }
+        const filteredIds = filteredProducts.map((p: any) => p.id);
+        const filteredSet = new Set<number>(filteredIds);
+        const currentSet = new Set<number>(selectedIds);
+
+        const nextSet = new Set<number>(selectedIds.filter((id) => !filteredSet.has(id)));
+        for (const id of filteredIds) {
+            if (!currentSet.has(id)) nextSet.add(id);
+        }
+        setSelectedIds(Array.from(nextSet));
+    };
 
     const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: any }) => (
         <button
@@ -2095,6 +2116,15 @@ export default function ErpTable() {
                                     onChange={(e) => setFilterMissingImages(e.target.checked)}
                                 />
                                 <span className="font-bold text-slate-700">Senza immagini</span>
+                            </label>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-slate-900"
+                                    checked={filterMissingCategory}
+                                    onChange={(e) => setFilterMissingCategory(e.target.checked)}
+                                />
+                                <span className="font-bold text-slate-700">Senza categoria</span>
                             </label>
 
                             <div className="flex items-center gap-2 ml-2">
@@ -2281,6 +2311,15 @@ export default function ErpTable() {
                     >
                         <Layers className="w-4 h-4 shrink-0" />
                         Modifiche massive
+                    </button>
+                    <button
+                        type="button"
+                        onClick={invertSelectionOnFiltered}
+                        disabled={filteredProducts.length === 0}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-40"
+                        title="Inverte la selezione sui risultati correnti (es. filtro ricerca titolo)"
+                    >
+                        Selezione inversa
                     </button>
                 </div>
 
