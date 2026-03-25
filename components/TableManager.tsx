@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Edit2, Search, RefreshCw, X } from "lucide-react";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { useSession } from "next-auth/react";
+import { useCompanyContext } from "@/contexts/CompanyContext";
 
 interface TableManagerProps {
     title: string;
@@ -27,11 +29,29 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
     const [formData, setFormData] = useState<any>({});
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const { data: session, status: sessionStatus } = useSession();
+    const companyContext = useCompanyContext();
+    const effectiveCompanyId =
+        (session?.user as any)?.companyId ?? companyContext?.selectedCompanyId ?? null;
+    const reqConfig = useMemo(
+        () =>
+            effectiveCompanyId != null
+                ? { headers: { "x-company-id": String(effectiveCompanyId) } }
+                : {},
+        [effectiveCompanyId]
+    );
 
     const fetchData = async () => {
+        if (sessionStatus === "loading") return;
+        const isGlobalAdmin = Boolean((session?.user as any)?.isGlobalAdmin);
+        if (isGlobalAdmin && effectiveCompanyId == null) {
+            setData([]);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
-            const resp = await axios.get(endpoint);
+            const resp = await axios.get(endpoint, reqConfig);
             setData(resp.data);
         } catch (err) {
             console.error(err);
@@ -42,17 +62,17 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
     };
 
     useEffect(() => {
-        fetchData();
-    }, [endpoint]);
+        void fetchData();
+    }, [endpoint, effectiveCompanyId, sessionStatus, reqConfig]);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             if (editingItem) {
-                await axios.put(`${endpoint}/${editingItem.id}`, formData);
+                await axios.put(`${endpoint}/${editingItem.id}`, formData, reqConfig);
                 toast.success("Elemento aggiornato");
             } else {
-                await axios.post(endpoint, formData);
+                await axios.post(endpoint, formData, reqConfig);
                 toast.success("Elemento creato");
             }
             setShowModal(false);
@@ -68,7 +88,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
     const handleDelete = async (id: number) => {
         if (!confirm("Sei sicuro di voler eliminare questo elemento?")) return;
         try {
-            await axios.delete(`${endpoint}/${id}`);
+            await axios.delete(`${endpoint}/${id}`, reqConfig);
             toast.success("Elemento eliminato");
             fetchData();
         } catch (err) {
@@ -82,7 +102,7 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
         if (!confirm(`Eliminare ${selectedIds.length} elementi selezionati?`)) return;
         setIsBulkDeleting(true);
         try {
-            await axios.post(`${endpoint}/bulk`, { ids: selectedIds, action: "delete" });
+            await axios.post(`${endpoint}/bulk`, { ids: selectedIds, action: "delete" }, reqConfig);
             toast.success(`${selectedIds.length} elementi eliminati`);
             setSelectedIds([]);
             fetchData();
