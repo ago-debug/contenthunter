@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search } from 'lucide-react';
+import { ClearableSearchInput } from '@/components/ClearableSearchInput';
 
 interface Option {
     value: string | number;
@@ -84,14 +85,16 @@ export function SearchableSelect({
             }}
         >
             {showSearch && (
-                <div className="p-2 border-b border-gray-50 flex items-center gap-2 bg-slate-50/50 shrink-0">
-                    <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                    <input
-                        type="text"
-                        className="w-full bg-transparent border-none focus:outline-none text-sm font-bold"
-                        placeholder="Cerca..."
+                <div className="p-2 border-b border-gray-50 bg-slate-50/50 shrink-0">
+                    <ClearableSearchInput
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={setSearchTerm}
+                        placeholder="Cerca..."
+                        className="w-full"
+                        iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                        inputClassName="w-full bg-transparent border-none focus:outline-none text-sm font-bold pl-9"
+                        paddingRightEmpty="pr-2"
+                        paddingRightFilled="pr-9"
                         onClick={(e) => e.stopPropagation()}
                         autoFocus
                     />

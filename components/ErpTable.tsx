@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from "framer-motion";
 import EdgeScroll from "./EdgeScroll";
+import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 import { SearchableSelect } from "./SearchableSelect";
 import { MultiSearchableSelect } from "./MultiSearchableSelect";
 import { useSession } from "next-auth/react";
@@ -1983,16 +1984,17 @@ export default function ErpTable() {
                                 className={`w-3 h-3 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}
                             />
                         </button>
-                        <div className="relative w-[180px] sm:w-[240px] shrink-0">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="Cerca SKU/Titolo/Brand"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full h-9 bg-white border border-gray-200 rounded-xl pl-8 pr-3 text-[11px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
-                            />
-                        </div>
+                        <ClearableSearchInput
+                            value={searchTerm}
+                            onChange={setSearchTerm}
+                            placeholder="Cerca SKU/Titolo/Brand"
+                            className="w-[180px] sm:w-[240px] shrink-0"
+                            iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                            inputClassName="w-full h-9 bg-white border border-gray-200 rounded-xl pl-8 text-[11px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                            paddingRightEmpty="pr-3"
+                            paddingRightFilled="pr-9"
+                            clearButtonClassName="absolute right-0.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                        />
                     </div>
 
                     {/* Sezione Filtri Avanzati a scomparsa */}
@@ -2093,13 +2095,16 @@ export default function ErpTable() {
                                             <span className="text-[9px] font-black uppercase text-slate-400 truncate" title={label}>
                                                 {label}
                                             </span>
-                                            <input
-                                                type="text"
+                                            <ClearableSearchInput
+                                                showSearchIcon={false}
                                                 value={sheetFilters[key] ?? ""}
-                                                onChange={(e) =>
-                                                    setSheetFilters((prev) => ({ ...prev, [key]: e.target.value }))
+                                                onChange={(v) =>
+                                                    setSheetFilters((prev) => ({ ...prev, [key]: v }))
                                                 }
-                                                className="w-full min-w-0 bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-bold text-slate-800 placeholder:text-slate-300"
+                                                className="w-full min-w-0"
+                                                inputClassName="w-full min-w-0 bg-white border border-slate-200 rounded-lg pl-2 py-1.5 text-[11px] font-bold text-slate-800 placeholder:text-slate-300"
+                                                paddingRightEmpty="pr-2"
+                                                paddingRightFilled="pr-8"
                                                 placeholder="Filtra…"
                                             />
                                         </label>

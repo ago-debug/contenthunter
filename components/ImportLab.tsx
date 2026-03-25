@@ -18,6 +18,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import * as XLSX from "xlsx";
 import { useCatalog } from "./CatalogContext";
 import PdfVisualWorkspace from "./PdfVisualWorkspace";
+import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 
 if (typeof window !== "undefined") {
     // Robust CDN for ESM-based PDF.js workers
@@ -1932,15 +1933,16 @@ export default function ImportLab() {
                                                 >
                                                     {showOnlyDuplicates ? "Mostra tutti" : "Solo duplicati SKU/EAN"}
                                                 </button>
-                                                <div className="relative group w-full sm:w-80">
-                                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                                                    <input
-                                                        placeholder="Filtra per SKU, EAN, Nome, Brand..."
-                                                        className="w-full bg-white border border-slate-100 rounded-xl pl-12 pr-4 py-2.5 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-sm"
-                                                        value={searchTerm}
-                                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                                    />
-                                                </div>
+                                                <ClearableSearchInput
+                                                    value={searchTerm}
+                                                    onChange={setSearchTerm}
+                                                    placeholder="Filtra per SKU, EAN, Nome, Brand..."
+                                                    className="relative group w-full sm:w-80"
+                                                    iconClassName="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                                                    inputClassName="w-full bg-white border border-slate-100 rounded-xl pl-12 py-2.5 text-xs font-bold focus:outline-none focus:ring-4 focus:ring-slate-100 transition-all shadow-sm"
+                                                    paddingRightEmpty="pr-4"
+                                                    paddingRightFilled="pr-10"
+                                                />
                                             </div>
                                         </div>
 

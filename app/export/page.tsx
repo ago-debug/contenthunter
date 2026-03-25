@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileDown, List, Database, Search, Filter, CheckSquare, Square, Package, CheckCircle2 } from "lucide-react";
+import { FileDown, List, Database, Filter, CheckSquare, Square, Package, CheckCircle2 } from "lucide-react";
 import axios from "axios";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 
 // Stessi campi della scheda prodotto (Master ERP)
@@ -173,16 +174,16 @@ export default function ExportPage() {
                     </div>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-                    <div className="relative group min-h-[44px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Cerca SKU, titolo, brand..."
-                            className="w-full h-11 min-h-[44px] pl-9 pr-4 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#E6D3C1]/30 focus:border-[#E6D3C1]"
-                            value={filterSearch}
-                            onChange={(e) => setFilterSearch(e.target.value)}
-                        />
-                    </div>
+                    <ClearableSearchInput
+                        value={filterSearch}
+                        onChange={setFilterSearch}
+                        placeholder="Cerca SKU, titolo, brand..."
+                        className="relative group min-h-[44px]"
+                        iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                        inputClassName="w-full h-11 min-h-[44px] pl-9 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#E6D3C1]/30 focus:border-[#E6D3C1]"
+                        paddingRightEmpty="pr-4"
+                        paddingRightFilled="pr-10"
+                    />
                     <SearchableSelect
                         options={[
                             { value: "all", label: "Tutti i Brand" },
@@ -317,16 +318,16 @@ export default function ExportPage() {
                             </p>
                         </div>
                     </div>
-                    <div className="w-full md:w-80 relative group min-h-[44px]">
-                        <Search className="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Filtra anteprima..."
-                            className="w-full h-11 min-h-[44px] bg-white border border-gray-100 rounded-xl pl-11 sm:pl-12 pr-4 text-sm focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-[#E6D3C1]/20 focus:border-[#E6D3C1]"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                    <ClearableSearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Filtra anteprima..."
+                        className="w-full md:w-80 relative group min-h-[44px]"
+                        iconClassName="absolute left-4 sm:left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                        inputClassName="w-full h-11 min-h-[44px] bg-white border border-gray-100 rounded-xl pl-11 sm:pl-12 text-sm focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-[#E6D3C1]/20 focus:border-[#E6D3C1]"
+                        paddingRightEmpty="pr-4"
+                        paddingRightFilled="pr-10"
+                    />
                 </div>
                 <div className="overflow-x-auto -mx-px">
                     <table className="w-full text-left min-w-[320px]">

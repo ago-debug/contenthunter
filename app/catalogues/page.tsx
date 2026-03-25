@@ -6,6 +6,7 @@ import { Database, FileText, LayoutGrid, List, Search, ArrowRight, HardDrive, Cp
 import axios from "axios";
 import { toast } from "react-toastify";
 import Link from "next/link";
+import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 
 interface Catalogue {
     id: number;
@@ -215,16 +216,16 @@ export default function CataloguesPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="w-[300px] relative group">
-                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#E6D3C1] transition-colors" />
-                        <input
-                            type="text"
-                            placeholder="Cerca repository..."
-                            className="w-full h-12 bg-white border border-gray-100 rounded-2xl pl-14 pr-6 text-sm focus:outline-none focus:ring-4 focus:ring-[#E6D3C1]/20 focus:border-[#E6D3C1] shadow-sm transition-all font-bold"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                    <ClearableSearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Cerca repository..."
+                        className="w-[300px] relative group"
+                        iconClassName="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#E6D3C1] transition-colors pointer-events-none"
+                        inputClassName="w-full h-12 bg-white border border-gray-100 rounded-2xl pl-14 text-sm focus:outline-none focus:ring-4 focus:ring-[#E6D3C1]/20 focus:border-[#E6D3C1] shadow-sm transition-all font-bold"
+                        paddingRightEmpty="pr-6"
+                        paddingRightFilled="pr-10"
+                    />
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
                         className="h-12 px-8 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200 flex items-center gap-3"

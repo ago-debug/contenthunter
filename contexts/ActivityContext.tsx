@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Download, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -46,6 +46,20 @@ type ActivityEntry = {
   done: number;
   errors: number;
 };
+export type OngoingBulkSeoJob = {
+  id: number;
+  type: "ai_bulk_seo";
+  status: "running" | "paused";
+  overwriteExisting: boolean;
+  startedAt: string;
+  total: number;
+  done: number;
+  errors: number;
+  brand?: string;
+  catalogue?: string;
+  progressPct: number;
+  currentProductId?: number;
+};
 type ActivityNotification = {
   id: string;
   at: string;
@@ -67,6 +81,7 @@ type ActivityContextValue = {
   showAiBulkReport: boolean;
   setShowAiBulkReport: (v: boolean) => void;
   activities: ActivityEntry[];
+  ongoingBulkSeoJobs: OngoingBulkSeoJob[];
   notifications: ActivityNotification[];
   unreadNotifications: number;
   startAiBulkSeoJob: (input: StartAiBulkSeoInput) => Promise<void>;
@@ -94,6 +109,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const [aiBulkReport, setAiBulkReport] = useState<AiBulkReport | null>(null);
   const [showAiBulkReport, setShowAiBulkReport] = useState(false);
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
+  const [ongoingBulkSeoJobs, setOngoingBulkSeoJobs] = useState<OngoingBulkSeoJob[]>([]);
   const [notifications, setNotifications] = useState<ActivityNotification[]>(() =>
     typeof window === "undefined" ? [] : readLocal<ActivityNotification[]>(NOTIF_KEY, [])
   );
@@ -122,14 +138,15 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     toast.success(`${title}: ${message}`);
   };
 
-  const refreshActivities = async () => {
+  const refreshActivities = useCallback(async () => {
     try {
       const { data } = await axios.get("/api/activities");
       setActivities(Array.isArray(data?.activities) ? data.activities : []);
+      setOngoingBulkSeoJobs(Array.isArray(data?.ongoingBulkSeoJobs) ? data.ongoingBulkSeoJobs : []);
     } catch {
       /* ignore */
     }
-  };
+  }, []);
 
   const refreshCurrentJob = async () => {
     try {
@@ -234,6 +251,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       showAiBulkReport,
       setShowAiBulkReport,
       activities,
+      ongoingBulkSeoJobs,
       notifications,
       unreadNotifications,
       startAiBulkSeoJob,
@@ -242,7 +260,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       markAllNotificationsRead,
       refreshActivities,
     }),
-    [aiBulkJob, aiBulkReport, showAiBulkReport, activities, notifications, unreadNotifications]
+    [aiBulkJob, aiBulkReport, showAiBulkReport, activities, ongoingBulkSeoJobs, notifications, unreadNotifications, refreshActivities]
   );
 
   const downloadReportCsv = () => {

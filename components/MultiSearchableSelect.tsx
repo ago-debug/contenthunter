@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Search, Plus, Check } from 'lucide-react';
+import { ClearableSearchInput } from '@/components/ClearableSearchInput';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Option {
@@ -89,14 +90,16 @@ export function MultiSearchableSelect({
                         exit={{ opacity: 0, y: 10 }}
                         className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-2xl z-[150] overflow-hidden flex flex-col max-h-72"
                     >
-                        <div className="p-3 border-b border-gray-50 flex items-center gap-2 bg-slate-50/50">
-                            <Search className="w-4 h-4 text-slate-400" />
-                            <input
-                                type="text"
-                                className="w-full bg-transparent border-none focus:outline-none text-sm font-bold"
-                                placeholder="Cerca o aggiungi nuovo..."
+                        <div className="p-3 border-b border-gray-50 bg-slate-50/50">
+                            <ClearableSearchInput
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={setSearchTerm}
+                                placeholder="Cerca o aggiungi nuovo..."
+                                className="w-full"
+                                iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                                inputClassName="w-full bg-transparent border-none focus:outline-none text-sm font-bold pl-9"
+                                paddingRightEmpty="pr-2"
+                                paddingRightFilled="pr-9"
                                 autoFocus
                             />
                         </div>

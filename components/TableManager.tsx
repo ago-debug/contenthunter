@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Edit2, Search, RefreshCw, X } from "lucide-react";
+import { Plus, Trash2, Edit2, RefreshCw, X } from "lucide-react";
+import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useSession } from "next-auth/react";
@@ -171,16 +172,16 @@ export default function TableManager({ title, endpoint, fields }: TableManagerPr
                 </div>
 
                 <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-80">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Cerca..."
-                            className="w-full h-11 bg-white border border-slate-200 rounded-xl pl-12 pr-4 text-sm focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+                    <ClearableSearchInput
+                        value={searchTerm}
+                        onChange={setSearchTerm}
+                        placeholder="Cerca..."
+                        className="flex-1 md:w-80"
+                        iconClassName="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                        inputClassName="w-full h-11 bg-white border border-slate-200 rounded-xl pl-12 text-sm focus:outline-none focus:ring-4 focus:ring-slate-900/5 transition-all"
+                        paddingRightEmpty="pr-4"
+                        paddingRightFilled="pr-10"
+                    />
                     <button
                         onClick={() => {
                             setEditingItem(null);

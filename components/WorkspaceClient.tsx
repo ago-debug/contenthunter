@@ -11,6 +11,7 @@ import * as XLSX from "xlsx";
 import EdgeScroll from "./EdgeScroll";
 import { useCatalog } from "./CatalogContext";
 import { SearchableSelect } from "./SearchableSelect";
+import { ClearableSearchInput } from "./ClearableSearchInput";
 import { useSession } from "next-auth/react";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 
@@ -2510,17 +2511,18 @@ export default function WorkspaceClient() {
                                                                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
                                                                                 {pickerSourceMode === 'pdf' ? 'Testi estratti' : pickerSourceMode === 'file' ? 'Dati Listino' : 'Suggerimenti Web'}
                                                                             </p>
-                                                                            <div className="relative">
-                                                                                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="text"
-                                                                                    placeholder="Cerca..."
-                                                                                    value={pickerSearch}
-                                                                                    onChange={(e) => setPickerSearch(e.target.value)}
-                                                                                    className="bg-gray-50 border-none rounded-md pl-6 pr-2 py-1 text-[10px] w-32 focus:ring-1 focus:ring-orange-200"
-                                                                                />
-                                                                            </div>
+                                                                            <ClearableSearchInput
+                                                                                autoFocus
+                                                                                value={pickerSearch}
+                                                                                onChange={setPickerSearch}
+                                                                                placeholder="Cerca..."
+                                                                                className="w-32"
+                                                                                iconClassName="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                                                                                inputClassName="bg-gray-50 border-none rounded-md pl-6 py-1 text-[10px] w-32 focus:ring-1 focus:ring-orange-200"
+                                                                                paddingRightEmpty="pr-2"
+                                                                                paddingRightFilled="pr-7"
+                                                                                clearButtonClassName="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-slate-800 hover:bg-gray-200/80 focus:outline-none"
+                                                                            />
                                                                         </div>
                                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
                                                                             {pickerSourceMode === 'pdf' && pdfPages.flatMap((page: PageData, pIdx: number) => page.textBlocks
@@ -2630,17 +2632,18 @@ export default function WorkspaceClient() {
                                                                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
                                                                                 {pickerSourceMode === 'pdf' ? 'Testi estratti' : pickerSourceMode === 'file' ? 'Dati Listino' : 'Suggerimenti Web'}
                                                                             </p>
-                                                                            <div className="relative">
-                                                                                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="text"
-                                                                                    placeholder="Cerca..."
-                                                                                    value={pickerSearch}
-                                                                                    onChange={(e) => setPickerSearch(e.target.value)}
-                                                                                    className="bg-gray-50 border-none rounded-md pl-6 pr-2 py-1 text-[10px] w-32 focus:ring-1 focus:ring-orange-200"
-                                                                                />
-                                                                            </div>
+                                                                            <ClearableSearchInput
+                                                                                autoFocus
+                                                                                value={pickerSearch}
+                                                                                onChange={setPickerSearch}
+                                                                                placeholder="Cerca..."
+                                                                                className="w-32"
+                                                                                iconClassName="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                                                                                inputClassName="bg-gray-50 border-none rounded-md pl-6 py-1 text-[10px] w-32 focus:ring-1 focus:ring-orange-200"
+                                                                                paddingRightEmpty="pr-2"
+                                                                                paddingRightFilled="pr-7"
+                                                                                clearButtonClassName="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-slate-800 hover:bg-gray-200/80 focus:outline-none"
+                                                                            />
                                                                         </div>
                                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
                                                                             {pickerSourceMode === 'pdf' && pdfPages.flatMap((page: PageData, pIdx: number) => page.textBlocks
@@ -2793,17 +2796,18 @@ export default function WorkspaceClient() {
                                                                             <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
                                                                                 {pickerSourceMode === 'pdf' ? 'Testi estratti' : pickerSourceMode === 'file' ? 'Dati Listino' : 'Suggerimenti Web'}
                                                                             </p>
-                                                                            <div className="relative">
-                                                                                <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                                                <input
-                                                                                    autoFocus
-                                                                                    type="text"
-                                                                                    placeholder="Cerca..."
-                                                                                    value={pickerSearch}
-                                                                                    onChange={(e) => setPickerSearch(e.target.value)}
-                                                                                    className="bg-gray-50 border-none rounded-md pl-6 pr-2 py-1 text-[10px] w-32 focus:ring-1 focus:ring-orange-200"
-                                                                                />
-                                                                            </div>
+                                                                            <ClearableSearchInput
+                                                                                autoFocus
+                                                                                value={pickerSearch}
+                                                                                onChange={setPickerSearch}
+                                                                                placeholder="Cerca..."
+                                                                                className="w-32"
+                                                                                iconClassName="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                                                                                inputClassName="bg-gray-50 border-none rounded-md pl-6 py-1 text-[10px] w-32 focus:ring-1 focus:ring-orange-200"
+                                                                                paddingRightEmpty="pr-2"
+                                                                                paddingRightFilled="pr-7"
+                                                                                clearButtonClassName="absolute right-0 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-slate-800 hover:bg-gray-200/80 focus:outline-none"
+                                                                            />
                                                                         </div>
                                                                         <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
                                                                             {pickerSourceMode === 'pdf' && pdfPages.flatMap((page: PageData, pIdx: number) => page.textBlocks
@@ -3103,19 +3107,21 @@ export default function WorkspaceClient() {
                                                                                             </div>
                                                                                         </label>
                                                                                     </div>
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <Search className="w-3 h-3 text-gray-400" />
-                                                                                        <input
-                                                                                            type="text"
+                                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                                        <ClearableSearchInput
                                                                                             value={pickerSearchQuery}
-                                                                                            onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                            onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
+                                                                                            onChange={setPickerSearchQuery}
                                                                                             placeholder="Cerca immagini..."
-                                                                                            className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-400"
+                                                                                            className="flex-1 min-w-0"
+                                                                                            iconClassName="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                                                                                            inputClassName="w-full bg-white border border-gray-200 rounded-lg pl-7 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-400"
+                                                                                            paddingRightEmpty="pr-2"
+                                                                                            paddingRightFilled="pr-8"
+                                                                                            onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
                                                                                         />
                                                                                         <button
                                                                                             onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                            className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-900"
+                                                                                            className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-900 shrink-0"
                                                                                         >
                                                                                             <Search className="w-3 h-3" />
                                                                                         </button>
@@ -3360,16 +3366,16 @@ export default function WorkspaceClient() {
                                         <FileDown className="w-4 h-4" />
                                         Esporta Risultati
                                     </button>
-                                    <div className="relative ml-4">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                        <input
-                                            type="text"
-                                            value={wsSearchTerm}
-                                            onChange={(e) => setWsSearchTerm(e.target.value)}
-                                            placeholder="Cerca record..."
-                                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:border-slate-400 focus:outline-none transition-all w-64 shadow-sm"
-                                        />
-                                    </div>
+                                    <ClearableSearchInput
+                                        value={wsSearchTerm}
+                                        onChange={setWsSearchTerm}
+                                        placeholder="Cerca record..."
+                                        className="ml-4 w-64"
+                                        iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                                        inputClassName="pl-10 py-2 bg-gray-50 border border-gray-100 rounded-xl text-sm font-bold focus:bg-white focus:border-slate-400 focus:outline-none transition-all w-64 shadow-sm"
+                                        paddingRightEmpty="pr-4"
+                                        paddingRightFilled="pr-10"
+                                    />
                                 </div>
                             </div>
                             <EdgeScroll className="border border-gray-100 rounded-3xl bg-white shadow-xl overflow-hidden mt-6">
@@ -3662,18 +3668,21 @@ export default function WorkspaceClient() {
                                                                                                         <span className="text-[10px] font-black text-slate-900 uppercase tracking-wider">Cerca in Google Shopping</span>
                                                                                                     </label>
                                                                                                 </div>
-                                                                                                <div className="flex items-center gap-2">
-                                                                                                    <Search className="w-3 h-3 text-gray-400" />
-                                                                                                    <input
+                                                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                                                    <ClearableSearchInput
                                                                                                         value={pickerSearchQuery}
-                                                                                                        onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                                        onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
+                                                                                                        onChange={setPickerSearchQuery}
                                                                                                         placeholder="Cerca immagini o SKU su Web..."
-                                                                                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-400"
+                                                                                                        className="flex-1 min-w-0"
+                                                                                                        iconClassName="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                                                                                                        inputClassName="w-full bg-white border border-gray-200 rounded-lg pl-7 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-400"
+                                                                                                        paddingRightEmpty="pr-2"
+                                                                                                        paddingRightFilled="pr-8"
+                                                                                                        onKeyDown={(e) => e.key === 'Enter' && handleWebSearch(p, pickerSearchQuery)}
                                                                                                     />
                                                                                                     <button
                                                                                                         onClick={() => handleWebSearch(p, pickerSearchQuery)}
-                                                                                                        className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-900 transition-colors"
+                                                                                                        className="p-1.5 bg-slate-900 text-white rounded-lg hover:bg-slate-900 transition-colors shrink-0"
                                                                                                     >
                                                                                                         <Search className="w-3 h-3" />
                                                                                                     </button>
@@ -3729,24 +3738,15 @@ export default function WorkspaceClient() {
                                                                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Sorgente Cartella / Drive</p>
 
                                                                                             <div className="flex flex-col gap-3">
-                                                                                                <div className="relative">
-                                                                                                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
-                                                                                                    <input
-                                                                                                        type="text"
-                                                                                                        placeholder={`Cerca file o SKU (es. ${p.sku})...`}
-                                                                                                        value={pickerSearchQuery}
-                                                                                                        onChange={(e) => setPickerSearchQuery(e.target.value)}
-                                                                                                        className="w-full bg-white border border-gray-200 rounded-lg pl-7 pr-7 py-1.5 text-[10px] font-bold focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all"
-                                                                                                    />
-                                                                                                    {pickerSearchQuery && (
-                                                                                                        <button
-                                                                                                            onClick={(e) => { e.stopPropagation(); setPickerSearchQuery(""); }}
-                                                                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
-                                                                                                        >
-                                                                                                            <X className="w-3 h-3" />
-                                                                                                        </button>
-                                                                                                    )}
-                                                                                                </div>
+                                                                                                <ClearableSearchInput
+                                                                                                    value={pickerSearchQuery}
+                                                                                                    onChange={setPickerSearchQuery}
+                                                                                                    placeholder={`Cerca file o SKU (es. ${p.sku})...`}
+                                                                                                    iconClassName="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none"
+                                                                                                    inputClassName="w-full bg-white border border-gray-200 rounded-lg pl-7 py-1.5 text-[10px] font-bold focus:outline-none focus:border-green-400 focus:ring-1 focus:ring-green-400 transition-all"
+                                                                                                    paddingRightEmpty="pr-2"
+                                                                                                    paddingRightFilled="pr-8"
+                                                                                                />
 
                                                                                                 <div
                                                                                                     onClick={() => {
@@ -3833,14 +3833,16 @@ export default function WorkspaceClient() {
                                                                                     </div>
 
                                                                                     <div className="relative mb-4">
-                                                                                        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
-                                                                                        <input
+                                                                                        <ClearableSearchInput
                                                                                             autoFocus
-                                                                                            type="text"
+                                                                                            value={String(pickerSearch || val || "")}
+                                                                                            onChange={setPickerSearch}
                                                                                             placeholder="Cerca o digita valore..."
-                                                                                            value={pickerSearch || val}
-                                                                                            onChange={(e) => setPickerSearch(e.target.value)}
-                                                                                            className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-slate-300 rounded-2xl text-sm font-bold transition-all outline-none"
+                                                                                            clearVisible={pickerSearch.trim().length > 0}
+                                                                                            iconClassName="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none"
+                                                                                            inputClassName="w-full pl-12 py-3 bg-gray-50 border border-transparent focus:bg-white focus:border-slate-300 rounded-2xl text-sm font-bold transition-all outline-none"
+                                                                                            paddingRightEmpty="pr-4"
+                                                                                            paddingRightFilled="pr-10"
                                                                                         />
                                                                                     </div>
 
@@ -3994,15 +3996,16 @@ export default function WorkspaceClient() {
                                         <Database className="w-5 h-5 text-gray-400" />
                                         Registry Warehouse
                                     </h3>
-                                    <div className="relative flex-1 max-w-md">
-                                        <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                                        <input
-                                            placeholder="Cerca per SKU, Nome o Categoria..."
-                                            value={erpSearchQuery}
-                                            onChange={(e) => setErpSearchQuery(e.target.value)}
-                                            className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-xl pl-12 pr-4 py-3 text-sm font-bold transition-all outline-none"
-                                        />
-                                    </div>
+                                    <ClearableSearchInput
+                                        value={erpSearchQuery}
+                                        onChange={setErpSearchQuery}
+                                        placeholder="Cerca per SKU, Nome o Categoria..."
+                                        className="flex-1 max-w-md"
+                                        iconClassName="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none"
+                                        inputClassName="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-orange-200 rounded-xl pl-12 py-3 text-sm font-bold transition-all outline-none"
+                                        paddingRightEmpty="pr-4"
+                                        paddingRightFilled="pr-10"
+                                    />
                                     <button className="p-3 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-100 transition-colors border border-transparent hover:border-gray-200">
                                         <Filter className="w-5 h-5" />
                                     </button>
@@ -4713,15 +4716,16 @@ export default function WorkspaceClient() {
                         </div>
 
                         <div className="p-3 bg-slate-50 border-b border-gray-100 flex items-center gap-3">
-                            <div className="relative flex-1">
-                                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                <input
-                                    placeholder="Libera ricerca nel documento..."
-                                    value={pdfSearchFocus || ""}
-                                    onChange={(e) => setPdfSearchFocus(e.target.value)}
-                                    className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-[10px] font-bold outline-none focus:border-orange-400"
-                                />
-                            </div>
+                            <ClearableSearchInput
+                                value={pdfSearchFocus || ""}
+                                onChange={(v) => setPdfSearchFocus(v || null)}
+                                placeholder="Libera ricerca nel documento..."
+                                className="flex-1"
+                                iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+                                inputClassName="w-full bg-white border border-gray-200 rounded-lg pl-9 py-1.5 text-[10px] font-bold outline-none focus:border-orange-400"
+                                paddingRightEmpty="pr-3"
+                                paddingRightFilled="pr-9"
+                            />
                             <span className="text-[9px] font-black text-gray-400 uppercase">{pdfPages.length} Pagine</span>
                         </div>
 
@@ -4870,16 +4874,17 @@ export default function WorkspaceClient() {
 
                         <div className="p-3 bg-indigo-50/30 border-b border-gray-100 flex flex-col gap-2">
                             <div className="flex items-center gap-3">
-                                <div className="relative flex-1">
-                                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        placeholder="Cerca SKU nel database globale..."
-                                        value={pdfSearchFocus || ""}
-                                        onChange={(e) => setPdfSearchFocus(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleGlobalDeepSearch(pdfSearchFocus || "")}
-                                        className="w-full bg-white border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-[10px] font-bold outline-none focus:border-indigo-400 shadow-sm"
-                                    />
-                                </div>
+                                <ClearableSearchInput
+                                    value={pdfSearchFocus || ""}
+                                    onChange={(v) => setPdfSearchFocus(v || null)}
+                                    placeholder="Cerca SKU nel database globale..."
+                                    className="flex-1"
+                                    iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
+                                    inputClassName="w-full bg-white border border-gray-200 rounded-lg pl-9 py-1.5 text-[10px] font-bold outline-none focus:border-indigo-400 shadow-sm"
+                                    paddingRightEmpty="pr-3"
+                                    paddingRightFilled="pr-9"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGlobalDeepSearch(pdfSearchFocus || "")}
+                                />
                                 <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">{deepSearchResults.length} Matches</span>
                             </div>
                             <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest px-1">Risultati estratti dai cataloghi sincronizzati in precedenza</p>
