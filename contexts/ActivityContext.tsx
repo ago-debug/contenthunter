@@ -72,6 +72,7 @@ type ActivityNotification = {
 type StartAiBulkSeoInput = {
   products: any[];
   overwriteExisting: boolean;
+  fastMode?: boolean;
   companyId: number;
   brand?: string;
   catalogue?: string;
@@ -221,6 +222,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       {
         productIds: ids,
         overwriteExisting: input.overwriteExisting,
+        fastMode: !!input.fastMode,
         brand: input.brand,
         catalogue: input.catalogue,
       },

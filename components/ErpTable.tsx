@@ -271,6 +271,7 @@ export default function ErpTable() {
     const [isSavingBrand, setIsSavingBrand] = useState(false);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [showBulkSeoModal, setShowBulkSeoModal] = useState(false);
+    const [bulkSeoFastMode, setBulkSeoFastMode] = useState(true);
     const [showBulkTitleFieldsModal, setShowBulkTitleFieldsModal] = useState(false);
     /** Ordine = ordine nel titolo (primo selezionato per primo, poi si può riordinare) */
     const [bulkTitleFieldsSelected, setBulkTitleFieldsSelected] = useState<string[]>([]);
@@ -1421,6 +1422,7 @@ export default function ErpTable() {
         await startAiBulkSeoJob({
             products: productList,
             overwriteExisting,
+            fastMode: bulkSeoFastMode,
             companyId: effectiveCompanyId,
             brand: brandFilter,
             catalogue:
@@ -3956,6 +3958,17 @@ export default function ErpTable() {
                             <p className="text-sm text-gray-600 mb-6">
                                 Alcuni prodotti potrebbero già avere descrizione, breve SEO o punti elenco. Come vuoi procedere?
                             </p>
+                            <div className="mb-5">
+                                <label className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-slate-500 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={bulkSeoFastMode}
+                                        onChange={(e) => setBulkSeoFastMode(e.target.checked)}
+                                        className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600"
+                                    />
+                                    Modalita Fast (piu veloce)
+                                </label>
+                            </div>
                             <div className="flex flex-col gap-3">
                                 <button
                                     onClick={() => handleBulkGenerateSeoAi(true)}

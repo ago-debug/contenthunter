@@ -11,6 +11,7 @@ type BulkSeoBody = {
     productIds: number[];
     overwriteExisting?: boolean;
     language?: string;
+    fastMode?: boolean;
 };
 
 export async function POST(req: NextRequest) {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Body JSON non valido" }, { status: 400 });
     }
 
-    const { productIds, overwriteExisting = false } = body;
+    const { productIds, overwriteExisting = false, fastMode = true } = body;
     const language = body.language || "it";
 
     if (!Array.isArray(productIds) || productIds.length === 0) {
@@ -94,6 +95,7 @@ Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${lang
 ${brandGuidelines}
 NON usare formule di marketing generiche o frasi come "Scopri", "Perfetto per", "Ideale per", "Non lasciarti sfuggire", "Scegli", "Approfitta" o simili.
 La descrizione deve attenersi rigorosamente alle informazioni fornite: non inventare mai caratteristiche, applicazioni o valori che non compaiono chiaramente nei dati di input.
+${fastMode ? "MODALITA FAST: privilegia sintesi e velocita." : ""}
 
 IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
 - SKU: ${product.sku || ""}
@@ -122,10 +124,10 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 [Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]
 
 ---DESCRIPTION---
-[Scrivi qui 1-3 paragrafi brevi che descrivano il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
+[Scrivi qui ${fastMode ? "1 paragrafo breve" : "1-3 paragrafi brevi"} che descriva il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
 
 ---BULLET_POINTS---
-[Estrai 5-8 punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
+[Estrai ${fastMode ? "4-6" : "5-8"} punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
 `;
 
             let content: string;
@@ -138,7 +140,7 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
                 console.warn("[SEO BULK] parallel fallback", parallelErr);
                 content = await generateProductCopySingle(openai, {
                     fullPrompt: fullPromptFallback.trim(),
-                    maxTokens: 800,
+                    maxTokens: fastMode ? 520 : 800,
                 });
             }
             if (!content) {

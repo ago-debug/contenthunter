@@ -2,18 +2,28 @@ import { prisma } from "@/lib/prisma";
 import { generateSeoBlocksForProduct } from "@/lib/seo-ai";
 
 const activeJobs = new Set<number>();
+const jobFastMode = new Map<number, boolean>();
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-export async function triggerAiBulkSeoJob(jobId: number): Promise<void> {
+export async function triggerAiBulkSeoJob(
+  jobId: number,
+  opts?: { fastMode?: boolean }
+): Promise<void> {
+  if (typeof opts?.fastMode === "boolean") {
+    jobFastMode.set(jobId, opts.fastMode);
+  }
   if (activeJobs.has(jobId)) return;
   activeJobs.add(jobId);
   try {
     await runAiBulkSeoJob(jobId);
   } finally {
     activeJobs.delete(jobId);
+    if (!activeJobs.has(jobId)) {
+      jobFastMode.delete(jobId);
+    }
   }
 }
 
@@ -105,6 +115,7 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
       const blocks = await generateSeoBlocksForProduct({
         companyId: job.companyId,
         product: productForAi,
+        fastMode: jobFastMode.get(jobId) ?? true,
       });
 
       const existing = transIt || {

@@ -6,6 +6,7 @@ import { triggerAiBulkSeoJob } from "@/lib/ai-bulk-seo-runner";
 type CreateBody = {
   productIds: number[];
   overwriteExisting?: boolean;
+  fastMode?: boolean;
   brand?: string;
   catalogue?: string;
 };
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, total: true },
   });
 
-  void triggerAiBulkSeoJob(job.id);
+  void triggerAiBulkSeoJob(job.id, { fastMode: !!body.fastMode });
   return NextResponse.json({ jobId: job.id, total: job.total });
 }
 

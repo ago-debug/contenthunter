@@ -6,8 +6,9 @@ import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-p
 export async function generateSeoBlocksForProduct(args: {
   companyId: number;
   product: any;
+  fastMode?: boolean;
 }): Promise<{ short: string; desc: string; bullets: string }> {
-  const { companyId, product } = args;
+  const { companyId, product, fastMode = true } = args;
   const keys = await resolveIntegrationKeys(companyId);
   if (!keys.openai) {
     throw new Error("Chiave OpenAI mancante per l'azienda.");
@@ -39,6 +40,7 @@ export async function generateSeoBlocksForProduct(args: {
 Sei un redattore tecnico B2B. Genera contenuti SEO in italiano per scheda prodotto.
 ${brandGuidelines}
 Non inventare dati, niente tono commerciale aggressivo.
+${fastMode ? "MODALITA FAST: massimizza sintesi e velocita, mantenendo accuratezza." : ""}
 
 DATI:
 - SKU: ${product?.sku || ""}
@@ -56,9 +58,9 @@ RISPONDI SOLO in questo formato:
 ---SHORT_DESCRIPTION---
 [2-3 frasi]
 ---DESCRIPTION---
-[1-3 paragrafi]
+[${fastMode ? "1 paragrafo breve" : "1-3 paragrafi"}]
 ---BULLET_POINTS---
-[5-8 punti, una riga per punto]
+[${fastMode ? "4-6" : "5-8"} punti, una riga per punto]
 `;
 
   const openai = new OpenAI({ apiKey: keys.openai });
@@ -72,7 +74,7 @@ RISPONDI SOLO in questo formato:
     console.warn("seo-ai parallel fallback:", e);
     txt = await generateProductCopySingle(openai, {
       fullPrompt: fullPromptFallback.trim(),
-      maxTokens: 900,
+      maxTokens: fastMode ? 520 : 900,
     });
   }
   const shortMatch = txt.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
