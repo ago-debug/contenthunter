@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "08877d0caea19fef4d0c289e01d2291302c1bd1d",
+      "at": "2026-03-26T08:49:01+01:00",
+      "description": "feat(import-lab): ripristina Import Lab con API cataloghi/repository"
+    },
+    {
       "hash": "fba34dcc7d7c432d2b2d5f293f2bcc56d54c876a",
       "at": "2026-03-26T00:09:14+01:00",
       "description": "fix(activities): header x-company-id per API attività e job AI bulk"
