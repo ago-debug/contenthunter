@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "1f66e5a85399de734bf67924e905a1bc14c34bd4",
+      "at": "2026-03-26T16:48:55+01:00",
+      "description": "feat(erp+import): semplifica bulk UI e sblocca mount Import Lab"
+    },
+    {
       "hash": "1cd5ba13558a4483f207635cbb19098dd7cae5af",
       "at": "2026-03-26T13:01:58+01:00",
       "description": "perf(export): elimina freeze con anteprima server-side leggera"
