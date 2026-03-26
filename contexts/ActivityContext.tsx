@@ -216,9 +216,12 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     if (!activityAxiosConfig) return;
     void refreshActivities();
     void refreshCurrentJob();
-    const id = setInterval(() => {
+    const poll = () => {
+      // Riduce il carico DB quando la tab non è visibile.
+      if (typeof document !== "undefined" && document.hidden) return;
       void refreshCurrentJob();
-    }, 2000);
+    };
+    const id = setInterval(poll, 8000);
     return () => clearInterval(id);
   }, [activityAxiosConfig, refreshActivities, refreshCurrentJob]);
 

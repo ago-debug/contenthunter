@@ -40,12 +40,23 @@ Impostale nel pannello Plesk (o nel file `.env` nella root dell’app):
 
 | Variabile         | Uso                                      |
 |-------------------|------------------------------------------|
-| `DATABASE_URL`    | Connessione MySQL (es. `mysql://user:pass@host:3306/dbname`) |
+| `DATABASE_URL`    | Connessione MySQL (es. `mysql://user:pass@host:3306/dbname?connection_limit=5&pool_timeout=20`) |
 | `NEXTAUTH_SECRET` | Chiave segreta per NextAuth (stringa lunga casuale) |
 | `NEXTAUTH_URL`    | URL pubblico dell’app (es. `https://contenthunter.abreve.it`) |
 | `NODE_ENV`        | `production` in produzione               |
 
 Senza `DATABASE_URL` e `NEXTAUTH_SECRET` l’app può andare in errore all’avvio o alla prima richiesta.
+
+### Suggerimento memoria DB (Prisma pool)
+
+Su VPS piccole conviene limitare le connessioni Prisma per ridurre RAM su MariaDB:
+
+```env
+DATABASE_URL="mysql://user:pass@host:3306/dbname?connection_limit=5&pool_timeout=20"
+```
+
+- `connection_limit=5`: massimo numero connessioni nel pool Prisma
+- `pool_timeout=20`: attesa massima (secondi) quando il pool è saturo
 
 ## 4. Configurazione Passenger (Plesk)
 

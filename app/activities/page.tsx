@@ -12,10 +12,8 @@ export default function ActivitiesPage() {
 
     useEffect(() => {
         void refreshActivities();
-        const id = setInterval(() => {
-            void refreshActivities();
-        }, 3000);
-        return () => clearInterval(id);
+        // Il polling periodico è già gestito da ActivityContext.
+        return;
     }, [refreshActivities]);
 
     const filteredHistory = useMemo(() => {

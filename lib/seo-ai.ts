@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
 
+const keysCache = new Map<number, { openai?: string | null }>();
+const brandGuidelinesCache = new Map<string, string>();
+
 export async function generateSeoBlocksForProduct(args: {
   companyId: number;
   product: any;
@@ -14,7 +17,11 @@ export async function generateSeoBlocksForProduct(args: {
   const needShort = requested.includes("short");
   const needDesc = requested.includes("description");
   const needBullets = requested.includes("bullets");
-  const keys = await resolveIntegrationKeys(companyId);
+  let keys = keysCache.get(companyId);
+  if (!keys) {
+    keys = await resolveIntegrationKeys(companyId);
+    keysCache.set(companyId, { openai: keys.openai });
+  }
   if (!keys.openai) {
     throw new Error("Chiave OpenAI mancante per l'azienda.");
   }
@@ -23,12 +30,20 @@ export async function generateSeoBlocksForProduct(args: {
   const brandId = product?.brandId != null ? Number(product.brandId) : null;
   let brandGuidelines = "";
   if (brandName || brandId) {
-    const b = await prisma.brand.findFirst({
-      where: brandId ? { id: brandId, companyId } : { name: brandName, companyId },
-      select: { name: true, aiContentGuidelines: true },
-    });
-    if (b?.aiContentGuidelines) {
-      brandGuidelines = `\nLINEA GUIDA BRAND "${b.name}":\n${b.aiContentGuidelines}\n`;
+    const brandCacheKey = `${companyId}:${brandId ?? brandName.toLowerCase()}`;
+    const cached = brandGuidelinesCache.get(brandCacheKey);
+    if (cached !== undefined) {
+      brandGuidelines = cached;
+    } else {
+      const b = await prisma.brand.findFirst({
+        where: brandId ? { id: brandId, companyId } : { name: brandName, companyId },
+        select: { name: true, aiContentGuidelines: true },
+      });
+      const computed = b?.aiContentGuidelines
+        ? `\nLINEA GUIDA BRAND "${b.name}":\n${b.aiContentGuidelines}\n`
+        : "";
+      brandGuidelinesCache.set(brandCacheKey, computed);
+      brandGuidelines = computed;
     }
   }
 
