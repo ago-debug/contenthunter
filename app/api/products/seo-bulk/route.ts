@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
             const extraPreview = product.extraFields
                 .map((ef) => `${ef.key}: ${ef.value}`)
                 .join(", ")
-                .substring(0, 1000);
+                .substring(0, fastMode ? 350 : 900);
 
             // Brand guidelines (stesso schema di /api/ai/describe)
             let brandGuidelines = "";
@@ -85,10 +85,11 @@ export async function POST(req: NextRequest) {
                     brandGuidelines = `
 
 LINEA GUIDA BRAND "${brand.name}" (rispetta rigorosamente tono e stile):
-${brand.aiContentGuidelines}
+${String(brand.aiContentGuidelines).slice(0, fastMode ? 400 : 1200)}
 `;
                 }
             }
+            const docDescription = String(baseText?.docDescription || "").slice(0, fastMode ? 800 : 2200);
 
             const basePrompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
@@ -105,7 +106,7 @@ IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
 DATI TECNICI DI RIFERIMENTO:
 - Brand/Categoria: ${product.brand || ""} / ${product.category || ""}
 - Descrizione Tecnica/PDF originale (se presente, trattala come fonte principale, senza aggiungere fronzoli): 
-${baseText?.docDescription || ""}
+${docDescription}
 
 - Altri campi tecnici disponibili (possono essere usati per arricchire in modo aderente alla realtà, non per inventare):
 ${extraPreview || ""}
@@ -131,17 +132,24 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 `;
 
             let content: string;
-            try {
-                content = await generateProductCopyMerged(openai, {
-                    basePrompt,
-                    includeTechnicalFields: false,
-                });
-            } catch (parallelErr) {
-                console.warn("[SEO BULK] parallel fallback", parallelErr);
+            if (fastMode) {
                 content = await generateProductCopySingle(openai, {
                     fullPrompt: fullPromptFallback.trim(),
-                    maxTokens: fastMode ? 520 : 800,
+                    maxTokens: 320,
                 });
+            } else {
+                try {
+                    content = await generateProductCopyMerged(openai, {
+                        basePrompt,
+                        includeTechnicalFields: false,
+                    });
+                } catch (parallelErr) {
+                    console.warn("[SEO BULK] parallel fallback", parallelErr);
+                    content = await generateProductCopySingle(openai, {
+                        fullPrompt: fullPromptFallback.trim(),
+                        maxTokens: 700,
+                    });
+                }
             }
             if (!content) {
                 throw new Error("Risposta AI vuota");

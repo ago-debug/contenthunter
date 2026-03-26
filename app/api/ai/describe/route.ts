@@ -56,10 +56,12 @@ export async function POST(req: Request) {
                 brandGuidelines = `
 
 LINEA GUIDA BRAND "${brand.name}" (rispetta rigorosamente tono e stile):
-${brand.aiContentGuidelines}
+${String(brand.aiContentGuidelines).slice(0, fastMode ? 400 : 1200)}
 `;
             }
         }
+        const docDescription = String(productData.docDescription || "").slice(0, fastMode ? 800 : 2200);
+        const extraFieldsPreview = String(productData.extraFieldsPreview || "").slice(0, fastMode ? 350 : 900);
 
         const basePrompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
@@ -76,10 +78,10 @@ IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
 DATI TECNICI DI RIFERIMENTO:
 - Brand/Categoria: ${productData.brand || ''} / ${productData.category || ''}
 - Descrizione Tecnica/PDF originale (se presente, trattala come fonte principale, senza aggiungere fronzoli): 
-${productData.docDescription || ''}
+${docDescription}
 
 - Altri campi tecnici disponibili (possono essere usati per arricchire in modo aderente alla realtà, non per inventare):
-${productData.extraFieldsPreview || ''}
+${extraFieldsPreview}
 
 REGOLE TASSATIVE:
 1. Usa ESCLUSIVAMENTE i dati forniti o fatti di cui hai certezza assoluta (100%). Non inventare informazioni tecniche, specifiche o varianti inesistenti.
@@ -112,19 +114,33 @@ Peso: [Valore]`
 
         const openai = new OpenAI({ apiKey: keys.openai });
         let text: string;
-        try {
-            // Fast path: 2 richieste in parallelo (short + long/bullets/technical).
-            text = await generateProductCopyMerged(openai, {
-                basePrompt: basePrompt.trim(),
-                includeTechnicalFields: !fastMode,
-            });
-        } catch (mergedErr) {
-            console.warn("AI describe merged failed, single fallback:", mergedErr);
-            const full = fullPromptFallback.trim();
+        if (fastMode) {
             text = await generateProductCopySingle(openai, {
-                fullPrompt: full,
-                maxTokens: fastMode ? 520 : 800,
+                fullPrompt: fullPromptFallback.trim(),
+                maxTokens: 360,
             });
+        } else {
+            try {
+                text = await generateProductCopyMerged(openai, {
+                    basePrompt: basePrompt.trim(),
+                    includeTechnicalFields: true,
+                });
+            } catch (mergedErr) {
+                console.warn("AI describe merged failed, single fallback:", mergedErr);
+                text = await generateProductCopySingle(openai, {
+                    fullPrompt: fullPromptFallback.trim(),
+                    maxTokens: 700,
+                });
+            }
+        }
+        if (!text) {
+            return NextResponse.json(
+                {
+                    error: "Generazione AI vuota",
+                    details: "Nessun contenuto restituito dal modello.",
+                },
+                { status: 502 }
+            );
         }
         return new Response(text, {
             headers: {
