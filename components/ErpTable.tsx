@@ -2661,8 +2661,22 @@ export default function ErpTable() {
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Quantità Stock</label>
                                                         <input
                                                             type="number"
-                                                            value={selectedProduct.stock || 0}
-                                                            onChange={e => setSelectedProduct({ ...selectedProduct, stock: parseInt(e.target.value) })}
+                                                            value={getExtraValue(selectedProduct, "stockLocal") || selectedProduct.stock || 0}
+                                                            onChange={e => {
+                                                                const v = e.target.value;
+                                                                const n = parseInt(v || "0", 10);
+                                                                const withStock = { ...selectedProduct, stock: Number.isNaN(n) ? 0 : n };
+                                                                setSelectedProduct(setExtraValue(withStock, "stockLocal", v));
+                                                            }}
+                                                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-black text-gray-900 text-sm"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block">Quantità Stock Fornitore</label>
+                                                        <input
+                                                            type="number"
+                                                            value={getExtraValue(selectedProduct, "stockSupplier")}
+                                                            onChange={e => setSelectedProduct(setExtraValue(selectedProduct, "stockSupplier", e.target.value))}
                                                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-black text-gray-900 text-sm"
                                                         />
                                                     </div>

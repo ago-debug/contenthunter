@@ -615,13 +615,23 @@ export async function GET(req: NextRequest) {
             let dimensions = "";
             let weight = "";
             let material = "";
+            let stockLocal = "";
+            let stockSupplier = "";
 
             p.extraFields.forEach((ex: any) => {
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
+                else if (ex.key === "stockLocal") stockLocal = ex.value;
+                else if (ex.key === "stockSupplier") stockSupplier = ex.value;
                 else extraObj[ex.key] = ex.value;
             });
+
+            const parsedStockLocal = parseFloat(String(stockLocal || "").replace(",", "."));
+            const normalizedStock =
+                Number.isFinite(parsedStockLocal) && !Number.isNaN(parsedStockLocal)
+                    ? parsedStockLocal
+                    : (typeof p.stock === "number" ? p.stock : 0);
 
             const vat = p.vatCode ?? null;
             const vatRate = vat ? Number(vat.ratePercent.toString()) : null;
@@ -657,7 +667,13 @@ export async function GET(req: NextRequest) {
                 weight,
                 material,
                 // Dynamic Extra
-                extraFields: extraObj,
+                extraFields: {
+                    ...extraObj,
+                    ...(stockLocal ? { stockLocal } : {}),
+                    ...(stockSupplier ? { stockSupplier } : {}),
+                },
+                stock: normalizedStock,
+                stockSupplier: stockSupplier || "",
                 // Categories
                 categoryId: p.categoryId,
                 subCategoryId: p.subCategoryId,
