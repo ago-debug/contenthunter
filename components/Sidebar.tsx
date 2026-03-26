@@ -21,6 +21,7 @@ import {
     History,
     Bell,
     ChevronDown,
+    Sparkles,
 } from "lucide-react";
 import appMeta from "@/data/app-meta.json";
 
@@ -89,7 +90,11 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     }[] = [
         {
             label: "Core PIM",
-            items: [{ href: "/", label: "Master ERP", icon: Database }],
+            items: [
+                { href: "/", label: "Master ERP", icon: Database },
+                { href: "/catalogues", label: "Cataloghi", icon: Layers },
+                { href: "/import", label: "Import Lab", icon: Sparkles },
+            ],
         },
         {
             label: "Distribution",

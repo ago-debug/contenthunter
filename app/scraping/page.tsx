@@ -153,6 +153,18 @@ export default function ScrapingPage() {
 
     useEffect(() => {
         loadProjects();
+        axios
+            .get("/api/catalogues")
+            .then((res) => {
+                const list = Array.isArray(res.data) ? res.data : [];
+                setCatalogues(list);
+                if (!selectedImportCatalogId && list.length > 0) {
+                    setSelectedImportCatalogId(list[0].id);
+                }
+            })
+            .catch((err) => {
+                console.error("loadCatalogues error", err);
+            });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [companyContext?.selectedCompanyId]);
 
@@ -307,6 +319,40 @@ export default function ScrapingPage() {
         } catch (err: any) {
             console.error("deleteJob error", err);
             toast.error(err.response?.data?.error || "Errore eliminazione job.");
+        }
+    };
+
+    const handleImportJobToLab = async () => {
+        if (!selectedJobId) {
+            toast.warning("Seleziona prima un job.");
+            return;
+        }
+        if (!selectedImportCatalogId) {
+            toast.warning("Seleziona un catalogo Import Lab.");
+            return;
+        }
+        setIsImporting(true);
+        const toastId = toast.loading("Import in Import Lab in corso...");
+        try {
+            const res = await axios.post(`/api/scraping/jobs/${selectedJobId}/import`, {
+                catalogId: selectedImportCatalogId,
+            });
+            toast.update(toastId, {
+                render: `Import completato: ${res.data.imported}/${res.data.totalFound} prodotti.`,
+                type: "success",
+                isLoading: false,
+                autoClose: 4000,
+            });
+        } catch (err: any) {
+            console.error("importJob error", err);
+            toast.update(toastId, {
+                render: err.response?.data?.error || "Errore durante l'import nel Lab.",
+                type: "error",
+                isLoading: false,
+                autoClose: 5000,
+            });
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -634,9 +680,39 @@ export default function ScrapingPage() {
                             )}
                         </div>
 
-                        {/* Dettaglio risultati job */}
+                        {/* Import in Import Lab + dettaglio risultati job */}
                         {selectedJobId && (
                             <div className="border-t border-slate-100 bg-slate-50/60">
+                                <div className="px-4 py-2 flex items-center justify-between gap-3 border-b border-slate-100">
+                                    <div className="flex items-center gap-2 text-[10px]">
+                                        <span className="font-black uppercase tracking-[0.18em] text-slate-500">
+                                            Import in Import Lab
+                                        </span>
+                                        <select
+                                            value={selectedImportCatalogId ?? ""}
+                                            onChange={(e) =>
+                                                setSelectedImportCatalogId(
+                                                    e.target.value ? Number(e.target.value) : null
+                                                )
+                                            }
+                                            className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-700"
+                                        >
+                                            {catalogues.map((c: any) => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleImportJobToLab}
+                                        disabled={isImporting || !selectedImportCatalogId}
+                                        className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black disabled:opacity-40"
+                                    >
+                                        {isImporting ? "Import..." : "Importa in Lab"}
+                                    </button>
+                                </div>
                                 {jobResults.length > 0 && (
                                     <>
                                         <div className="px-4 py-2 flex items-center justify-between">
