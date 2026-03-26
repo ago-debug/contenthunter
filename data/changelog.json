@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "d89e8331bf51fd2d61dc160bd9d6edd076768680",
+      "at": "2026-03-27T00:13:36+01:00",
+      "description": "fix(gemini): normalizza chiave API e documenta endpoint v1beta"
+    },
+    {
       "hash": "800479a2d0fc9eabc8e5b629cc5ea1d89dc04ae5",
       "at": "2026-03-27T00:07:22+01:00",
       "description": "fix(ai): foto ambientata da edit immagine prodotto reale"
