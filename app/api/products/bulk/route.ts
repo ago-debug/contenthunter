@@ -17,6 +17,13 @@ function imageFileNameFromUrl(rawUrl: string): string {
     }
 }
 
+function normalizeExtraKeyForStock(rawKey: string): string {
+    const k = rawKey.toLowerCase().replace(/[\s_-]/g, "");
+    if (["stocklocal", "giacenzalocale", "qtalocale"].includes(k)) return "stockLocal";
+    if (["stocksupplier", "giacenzafornitore", "qtafornitore"].includes(k)) return "stockSupplier";
+    return rawKey;
+}
+
 // Helper to normalize Italian product titles:
 // - trim + collapse multiple spaces
 // - lowercase everything
@@ -492,9 +499,12 @@ export async function POST(req: NextRequest) {
 
                 for (const p of products) {
                     if (isExtra) {
-                        const ek = fieldPath.slice(fieldPath.indexOf(":") + 1).trim();
+                        const ekRaw = fieldPath.slice(fieldPath.indexOf(":") + 1).trim();
+                        const ek = normalizeExtraKeyForStock(ekRaw);
                         if (!ek) continue;
-                        const existing = p.extraFields.find((e) => e.key.toLowerCase() === ek.toLowerCase());
+                        const existing = p.extraFields.find(
+                            (e) => normalizeExtraKeyForStock(e.key).toLowerCase() === ek.toLowerCase()
+                        );
                         const dbKey = existing?.key ?? ek;
                         if (!strVal.trim()) {
                             if (existing) {

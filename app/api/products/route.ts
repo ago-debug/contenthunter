@@ -4,6 +4,13 @@ import { requireCompanyId } from "@/lib/auth-api";
 import { isVatSchemaUnavailableError } from "@/lib/vat-schema-fallback";
 import { Prisma } from "@prisma/client";
 
+function normalizeStockExtraKey(rawKey: string): "stockLocal" | "stockSupplier" | "" {
+    const k = String(rawKey || "").toLowerCase().replace(/[\s_-]/g, "");
+    if (["stocklocal", "giacenzalocale", "qtalocale"].includes(k)) return "stockLocal";
+    if (["stocksupplier", "giacenzafornitore", "qtafornitore"].includes(k)) return "stockSupplier";
+    return "";
+}
+
 export async function POST(req: NextRequest) {
     const ctx = await requireCompanyId(req);
     if (!ctx) {
@@ -678,11 +685,12 @@ export async function GET(req: NextRequest) {
             let stockSupplier = "";
 
             p.extraFields.forEach((ex: any) => {
+                const stockAlias = normalizeStockExtraKey(ex.key);
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
-                else if (ex.key === "stockLocal") stockLocal = ex.value;
-                else if (ex.key === "stockSupplier") stockSupplier = ex.value;
+                else if (stockAlias === "stockLocal") stockLocal = ex.value;
+                else if (stockAlias === "stockSupplier") stockSupplier = ex.value;
                 else extraObj[ex.key] = ex.value;
             });
 

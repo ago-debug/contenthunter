@@ -64,10 +64,15 @@ const BULK_SET_FIELD_OPTIONS: { value: string; label: string }[] = [
     { value: "weight", label: "Peso (extra)" },
     { value: "material", label: "Materiale (extra)" },
     { value: "extra:colore", label: "Colore (extra)" },
-    { value: "extra:stockLocal", label: "Giacenza locale (extra)" },
-    { value: "extra:stockSupplier", label: "Giacenza fornitore (extra)" },
+    { value: "extra:stockLocal", label: "Quantità Stock Locale (extra)" },
+    { value: "extra:stockSupplier", label: "Quantità Stock Fornitore (extra)" },
     { value: "__extra_custom__", label: "Altro campo extra (chiave manuale)" }
 ];
+
+const STOCK_EXTRA_ALIASES: Record<string, string[]> = {
+    stockLocal: ["stocklocal", "giacenzalocale", "giacenza_locale", "qta_locale", "qtalocale"],
+    stockSupplier: ["stocksupplier", "giacenzafornitore", "giacenza_fornitore", "qta_fornitore", "qtafornitore"],
+};
 
 /** Campi per cui è consentito inviare valore vuoto (azzera / rimuovi extra / default valuta) */
 function bulkSetFieldAllowsEmptyValue(fieldPath: string): boolean {
@@ -1508,8 +1513,13 @@ export default function ErpTable() {
         const direct = p.extraFields[key];
         if (direct !== undefined && direct !== null) return String(direct);
         const alias = Object.keys(p.extraFields).find((k) => k.toLowerCase() === key.toLowerCase());
-        if (!alias) return "";
-        return String(p.extraFields[alias] ?? "");
+        if (alias) return String(p.extraFields[alias] ?? "");
+        const candidates = STOCK_EXTRA_ALIASES[key] || [];
+        const aliasByFamily = Object.keys(p.extraFields).find((k) =>
+            candidates.includes(k.toLowerCase().replace(/\s+/g, ""))
+        );
+        if (!aliasByFamily) return "";
+        return String(p.extraFields[aliasByFamily] ?? "");
     };
 
     const setExtraValue = (p: any, key: string, value: string) => {
@@ -1517,6 +1527,13 @@ export default function ErpTable() {
         const alias = Object.keys(extras).find((k) => k.toLowerCase() === key.toLowerCase());
         if (alias && alias !== key) {
             delete extras[alias];
+        }
+        const candidates = STOCK_EXTRA_ALIASES[key] || [];
+        for (const k of Object.keys(extras)) {
+            const norm = k.toLowerCase().replace(/\s+/g, "");
+            if (candidates.includes(norm) && k !== key) {
+                delete extras[k];
+            }
         }
         extras[key] = value;
         return { ...p, extraFields: extras };

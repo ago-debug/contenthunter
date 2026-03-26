@@ -3,6 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import * as XLSX from "xlsx";
 
+function normalizeStockExtraKey(rawKey: string): "stockLocal" | "stockSupplier" | "" {
+    const k = String(rawKey || "").toLowerCase().replace(/[\s_-]/g, "");
+    if (["stocklocal", "giacenzalocale", "qtalocale"].includes(k)) return "stockLocal";
+    if (["stocksupplier", "giacenzafornitore", "qtafornitore"].includes(k)) return "stockSupplier";
+    return "";
+}
+
 // Tutti i campi presenti nella scheda prodotto (Master ERP)
 // Ogni informazione va in una colonna distinta (niente valori aggregati)
 const EXPORT_FIELDS: { key: string; label: string }[] = [
@@ -95,12 +102,13 @@ export async function GET(req: NextRequest) {
                 stockSupplier = "";
 
             (p.extraFields || []).forEach((ex: any) => {
+                const stockAlias = normalizeStockExtraKey(ex.key);
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
                 else if (ex.key === "status") status = ex.value;
-                else if (ex.key === "stockLocal") stockLocal = ex.value;
-                else if (ex.key === "stockSupplier") stockSupplier = ex.value;
+                else if (stockAlias === "stockLocal") stockLocal = ex.value;
+                else if (stockAlias === "stockSupplier") stockSupplier = ex.value;
                 else extra[ex.key] = ex.value;
             });
 
@@ -229,12 +237,13 @@ export async function POST(req: NextRequest) {
                 stockSupplier = "";
 
             (p.extraFields || []).forEach((ex: any) => {
+                const stockAlias = normalizeStockExtraKey(ex.key);
                 if (ex.key === "dimensions") dimensions = ex.value;
                 else if (ex.key === "weight") weight = ex.value;
                 else if (ex.key === "material") material = ex.value;
                 else if (ex.key === "status") status = ex.value;
-                else if (ex.key === "stockLocal") stockLocal = ex.value;
-                else if (ex.key === "stockSupplier") stockSupplier = ex.value;
+                else if (stockAlias === "stockLocal") stockLocal = ex.value;
+                else if (stockAlias === "stockSupplier") stockSupplier = ex.value;
                 else extra[ex.key] = ex.value;
             });
             const imageLinks = (p.images || []).map((img: any) => img.imageUrl).filter(Boolean);
