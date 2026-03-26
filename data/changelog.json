@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "3d6883651cba04f7c86b324e0027d12fbc41273f",
+      "at": "2026-03-26T09:41:45+01:00",
+      "description": "perf(ai): aggiunge modalita fast e riduce latenza generazione contenuti"
+    },
+    {
       "hash": "7beffc96c89322fbd67ec2fbab176255fe6da8da",
       "at": "2026-03-26T09:26:03+01:00",
       "description": "feat(import-lab): scegli posizione inserimento nel bulk titolo"
