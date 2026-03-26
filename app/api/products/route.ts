@@ -541,9 +541,17 @@ export async function GET(req: NextRequest) {
     const { companyId } = ctx;
     try {
         const { searchParams } = new URL(req.url);
+        const preview = searchParams.get("preview") === "1";
+        const limitRaw = Number(searchParams.get("limit") || "50");
+        const previewLimit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 100) : 50;
+        const q = (searchParams.get("q") || "").trim();
         const catalogId = searchParams.get("catalogId");
         const sku = searchParams.get("sku");
         const ean = searchParams.get("ean");
+        const brandId = searchParams.get("brandId");
+        const categoryId = searchParams.get("categoryId");
+        const subCategoryId = searchParams.get("subCategoryId");
+        const subSubCategoryId = searchParams.get("subSubCategoryId");
 
         const where: any = { companyId };
         if (catalogId) {
@@ -554,6 +562,57 @@ export async function GET(req: NextRequest) {
         }
         if (ean) {
             where.ean = ean;
+        }
+        if (brandId) {
+            const v = Number(brandId);
+            if (Number.isFinite(v)) where.brandId = v;
+        }
+        if (categoryId) {
+            const v = Number(categoryId);
+            if (Number.isFinite(v)) where.categoryId = v;
+        }
+        if (subCategoryId) {
+            const v = Number(subCategoryId);
+            if (Number.isFinite(v)) where.subCategoryId = v;
+        }
+        if (subSubCategoryId) {
+            const v = Number(subSubCategoryId);
+            if (Number.isFinite(v)) where.subSubCategoryId = v;
+        }
+        if (q) {
+            where.OR = [
+                { sku: { contains: q, mode: "insensitive" } },
+                { brand: { contains: q, mode: "insensitive" } },
+                { texts: { some: { language: "it", title: { contains: q, mode: "insensitive" } } } },
+            ];
+        }
+
+        if (preview) {
+            const previewProducts = await prisma.product.findMany({
+                where,
+                select: {
+                    id: true,
+                    sku: true,
+                    brand: true,
+                    texts: { where: { language: "it" }, select: { title: true } },
+                    prices: { where: { listName: "default" }, select: { price: true } },
+                    images: { select: { id: true, imageUrl: true }, take: 5 },
+                    createdAt: true,
+                },
+                orderBy: { createdAt: "desc" },
+                take: previewLimit,
+            });
+
+            return NextResponse.json(
+                previewProducts.map((p: any) => ({
+                    id: p.id,
+                    sku: p.sku,
+                    title: p.texts?.[0]?.title || "",
+                    brand: p.brand || "",
+                    price: p.prices?.[0]?.price ?? "",
+                    images: (p.images || []).map((img: any) => ({ id: String(img.id), url: img.imageUrl })),
+                }))
+            );
         }
 
         const productIncludeBase = {

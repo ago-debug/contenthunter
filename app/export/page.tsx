@@ -38,7 +38,8 @@ const EXPORT_FIELD_OPTIONS: { key: string; label: string }[] = [
 ];
 
 export default function ExportPage() {
-    const [products, setProducts] = useState<any[]>([]);
+    const [previewProducts, setPreviewProducts] = useState<any[]>([]);
+    const [previewLoading, setPreviewLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [allBrands, setAllBrands] = useState<any[]>([]);
@@ -66,12 +67,10 @@ export default function ExportPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [productsRes, brandsRes, categoriesRes] = await Promise.all([
-                    axios.get("/api/products"),
+                const [brandsRes, categoriesRes] = await Promise.all([
                     axios.get("/api/brands"),
                     axios.get("/api/categories?all=true"),
                 ]);
-                setProducts(productsRes.data);
                 setAllBrands(brandsRes.data || []);
                 setAllCategories(categoriesRes.data || []);
             } catch (err) {
@@ -82,6 +81,50 @@ export default function ExportPage() {
         };
         fetchData();
     }, [companyContext?.selectedCompanyId]);
+
+    useEffect(() => {
+        const companyId = companyContext?.selectedCompanyId;
+        if (companyId == null) return;
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(async () => {
+            try {
+                setPreviewLoading(true);
+                const params = new URLSearchParams();
+                params.set("preview", "1");
+                params.set("limit", "50");
+                if (searchTerm.trim()) params.set("q", searchTerm.trim());
+                if (filterBrandId !== "all") params.set("brandId", String(filterBrandId));
+                if (filterCategoryId !== "all") params.set("categoryId", String(filterCategoryId));
+                if (filterSubCategoryId !== "all") params.set("subCategoryId", String(filterSubCategoryId));
+                if (filterSubSubCategoryId !== "all") params.set("subSubCategoryId", String(filterSubSubCategoryId));
+
+                const res = await fetch(`/api/products?${params.toString()}`, { signal: controller.signal });
+                if (!res.ok) throw new Error("Errore caricamento anteprima");
+                const data = await res.json();
+                setPreviewProducts(Array.isArray(data) ? data : []);
+            } catch (err: any) {
+                if (err?.name !== "AbortError") {
+                    console.error(err);
+                    setPreviewProducts([]);
+                }
+            } finally {
+                setPreviewLoading(false);
+            }
+        }, 250);
+
+        return () => {
+            controller.abort();
+            clearTimeout(timeoutId);
+        };
+    }, [
+        companyContext?.selectedCompanyId,
+        searchTerm,
+        filterBrandId,
+        filterCategoryId,
+        filterSubCategoryId,
+        filterSubSubCategoryId,
+    ]);
 
     const toggleField = (key: string) => {
         setSelectedFields((prev) =>
@@ -128,13 +171,6 @@ export default function ExportPage() {
             setExporting(false);
         }
     };
-
-    const filteredProducts = products.filter(
-        (p) =>
-            p.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.title && p.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (p.name && p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
 
     const rootCategories = allCategories.filter((c: any) => !c.parentId);
     const subCategories = allCategories.filter(
@@ -340,7 +376,7 @@ export default function ExportPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
-                            {filteredProducts.slice(0, 50).map((p, idx) => (
+                            {previewProducts.map((p, idx) => (
                                 <tr key={p.id || idx} className="hover:bg-gray-50/50">
                                     <td className="px-3 sm:px-6 lg:px-8 py-3 sm:py-6">
                                         <span className="font-mono font-bold text-[#E6D3C1] bg-black px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs sm:text-sm">
@@ -359,11 +395,18 @@ export default function ExportPage() {
                                     </td>
                                 </tr>
                             ))}
-                            {filteredProducts.length === 0 && !loading && (
+                            {previewProducts.length === 0 && !loading && !previewLoading && (
                                 <tr>
                                     <td colSpan={4} className="px-4 sm:px-8 py-12 sm:py-20 text-center opacity-20">
                                         <Package className="w-14 h-14 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4" />
                                         <p className="text-xs sm:text-sm font-bold uppercase tracking-widest">Nessun record</p>
+                                    </td>
+                                </tr>
+                            )}
+                            {previewLoading && (
+                                <tr>
+                                    <td colSpan={4} className="px-4 sm:px-8 py-12 text-center text-xs sm:text-sm text-gray-400 font-semibold">
+                                        Caricamento anteprima...
                                     </td>
                                 </tr>
                             )}
