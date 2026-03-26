@@ -6,7 +6,6 @@ import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import {
     generateProductCopyMerged,
     generateProductCopySingle,
-    streamProductCopySingle,
 } from "@/lib/ai-product-copy";
 
 /** Generazione AI può superare il default serverless (60s) su Vercel. */
@@ -32,7 +31,12 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { productData, language = "it" } = body;
+        const { productData, language = "it", options = {} } = body as {
+            productData: any;
+            language?: string;
+            options?: { fastMode?: boolean };
+        };
+        const fastMode = options?.fastMode === true;
 
         if (!productData) {
             return NextResponse.json({ error: "No product data provided" }, { status: 400 });
@@ -62,6 +66,7 @@ Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${lang
 ${brandGuidelines}
 NON usare formule di marketing generiche o frasi come "Scopri", "Perfetto per", "Ideale per", "Non lasciarti sfuggire", "Scegli", "Approfitta" o simili.
 La descrizione deve attenersi rigorosamente alle informazioni fornite: non inventare mai caratteristiche, applicazioni o valori che non compaiono chiaramente nei dati di input.
+${fastMode ? "MODALITA FAST: privilegia sintesi e velocita. Descrizione breve e concreta." : ""}
 
 IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
 - SKU: ${productData.sku || ''}
@@ -90,48 +95,35 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 [Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]
 
 ---DESCRIPTION---
-[Scrivi qui 1-3 paragrafi brevi che descrivano il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
+[Scrivi qui ${fastMode ? "1 paragrafo breve" : "1-3 paragrafi brevi"} che descriva il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
 
 ---BULLET_POINTS---
-[Estrai 5-8 punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
+[Estrai ${fastMode ? "4-6" : "5-8"} punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
 
----TECHNICAL_FIELDS---
+${fastMode
+                ? ""
+                : `---TECHNICAL_FIELDS---
 Colore: [Valore]
 Materiale: [Valore]
 Dimensioni: [Valore]
-Peso: [Valore]
+Peso: [Valore]`
+            }
 `;
 
         const openai = new OpenAI({ apiKey: keys.openai });
-        const full = fullPromptFallback.trim();
-
-        try {
-            const stream = await streamProductCopySingle(openai, {
-                fullPrompt: full,
-                maxTokens: 800,
-            });
-            return new Response(stream, {
-                headers: {
-                    "Content-Type": "text/plain; charset=utf-8",
-                    "Cache-Control": "no-cache",
-                    "X-Content-Type-Options": "nosniff",
-                },
-            });
-        } catch (streamErr) {
-            console.warn("AI describe stream failed, buffered fallback:", streamErr);
-        }
-
         let text: string;
         try {
+            // Fast path: 2 richieste in parallelo (short + long/bullets/technical).
             text = await generateProductCopyMerged(openai, {
                 basePrompt: basePrompt.trim(),
-                includeTechnicalFields: true,
+                includeTechnicalFields: !fastMode,
             });
-        } catch (parallelErr) {
-            console.warn("AI describe parallel fallback:", parallelErr);
+        } catch (mergedErr) {
+            console.warn("AI describe merged failed, single fallback:", mergedErr);
+            const full = fullPromptFallback.trim();
             text = await generateProductCopySingle(openai, {
                 fullPrompt: full,
-                maxTokens: 800,
+                maxTokens: fastMode ? 520 : 800,
             });
         }
         return new Response(text, {

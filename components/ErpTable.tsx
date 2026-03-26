@@ -184,6 +184,7 @@ export default function ErpTable() {
     const [attrLoading, setAttrLoading] = useState(false);
     const [aiRespectExisting, setAiRespectExisting] = useState(true);
     const [aiUseExistingAsModel, setAiUseExistingAsModel] = useState(true);
+    const [aiFastMode, setAiFastMode] = useState(true);
     const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
     const [ambientPrompt, setAmbientPrompt] = useState<string>("");
     const [newExtraKey, setNewExtraKey] = useState("");
@@ -869,7 +870,22 @@ export default function ErpTable() {
         toast.loading("L'AI sta scrivendo la descrizione...", { toastId });
 
         try {
-            const { images, extraFields, docDescription, ...cleanProductData } = selectedProduct;
+            const { extraFields, docDescription } = selectedProduct;
+            const aiPayload = {
+                sku: selectedProduct.sku || "",
+                ean: selectedProduct.ean || "",
+                title:
+                    selectedProduct.translations?.[editLang]?.title ||
+                    selectedProduct.title ||
+                    "",
+                brand: selectedProduct.brand || "",
+                category: selectedProduct.category || "",
+                brandId: selectedProduct.brandId ?? null,
+                docDescription: aiUseExistingAsModel ? (docDescription?.substring(0, 2000) || "") : "",
+                extraFieldsPreview: extraFields
+                    ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000)
+                    : "",
+            };
 
             const response = await fetch("/api/ai/describe", {
                 method: "POST",
@@ -879,17 +895,12 @@ export default function ErpTable() {
                 },
                 credentials: "include",
                 body: JSON.stringify({
-                    productData: {
-                        ...cleanProductData,
-                        docDescription: aiUseExistingAsModel
-                            ? (docDescription?.substring(0, 2000) || "")
-                            : "",
-                        extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
-                    },
+                    productData: aiPayload,
                     language: "it",
                     options: {
                         respectExisting: aiRespectExisting,
-                        useExistingAsModel: aiUseExistingAsModel
+                        useExistingAsModel: aiUseExistingAsModel,
+                        fastMode: aiFastMode,
                     }
                 })
             });
@@ -973,28 +984,8 @@ export default function ErpTable() {
                 });
             };
 
-            const reader = response.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulated = "";
-            const UI_THROTTLE_MS = 90;
-            let lastUiFlush = 0;
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    accumulated += decoder.decode(value, { stream: true });
-                    const now = Date.now();
-                    if (now - lastUiFlush >= UI_THROTTLE_MS) {
-                        lastUiFlush = now;
-                        applyAiStreamChunk(accumulated);
-                    }
-                }
-                applyAiStreamChunk(accumulated);
-            } else {
-                const text = await response.text();
-                applyAiStreamChunk(text);
-            }
+            const text = await response.text();
+            applyAiStreamChunk(text);
 
             toast.dismiss(toastId);
             toast.success("Scheda Prodotto generata!");
@@ -2927,6 +2918,17 @@ export default function ErpTable() {
                                                             {isGeneratingAI ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
                                                             Genera con AI
                                                         </button>
+                                                    </div>
+                                                    <div className="mb-3 flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                                        <label className="inline-flex items-center gap-2 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={aiFastMode}
+                                                                onChange={(e) => setAiFastMode(e.target.checked)}
+                                                                className="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600"
+                                                            />
+                                                            Modalita Fast (piu veloce)
+                                                        </label>
                                                     </div>
                                                     <textarea
                                                         value={selectedProduct.translations?.[editLang]?.seoAiText || ""}
