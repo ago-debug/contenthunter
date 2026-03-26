@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "f02b4089d30f66d78ae709b9748fa06712dfc321",
+      "at": "2026-03-26T23:28:53+01:00",
+      "description": "perf(api): parallelizza bulk_set_field per batch prodotti"
+    },
+    {
       "hash": "7fd3ae4d1246da467e8ce20e3a15f9019eba647f",
       "at": "2026-03-26T18:29:43+01:00",
       "description": "perf(app): riduce bundle ImportLab e centralizza normalizzazione stock"
