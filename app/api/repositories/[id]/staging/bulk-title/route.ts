@@ -16,13 +16,16 @@ export async function POST(
         const {
             search = "",
             replace = "",
+            insertPosition = "end",
         } = body as {
             search?: string;
             replace?: string;
+            insertPosition?: "start" | "end";
         };
 
         const cleanSearch = (search || "").toString();
         const cleanReplace = (replace || "").toString().trim();
+        const cleanInsertPosition: "start" | "end" = insertPosition === "start" ? "start" : "end";
 
         if (!cleanReplace) {
             return NextResponse.json({ error: "Valore da inserire nel titolo non valido." }, { status: 400 });
@@ -51,9 +54,13 @@ export async function POST(
                 newTitle = newTitle.split(cleanSearch).join(cleanReplace);
             }
 
-            // se dopo la sostituzione il titolo non contiene ancora la parte nuova, la aggiungiamo in coda
+            // Se dopo la sostituzione il titolo non contiene ancora la parte nuova,
+            // la aggiungiamo nella posizione richiesta (inizio/fine).
             if (!newTitle.toLowerCase().includes(cleanReplace.toLowerCase())) {
-                newTitle = (newTitle ? newTitle + " " : "") + cleanReplace;
+                newTitle =
+                    cleanInsertPosition === "start"
+                        ? cleanReplace + (newTitle ? " " + newTitle : "")
+                        : (newTitle ? newTitle + " " : "") + cleanReplace;
             }
 
             if (newTitle === currentTitle) continue;

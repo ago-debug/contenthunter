@@ -291,6 +291,7 @@ export default function ImportLab() {
     const [isBulkUpdating, setIsBulkUpdating] = useState(false);
     const [bulkTitleSearch, setBulkTitleSearch] = useState<string>("");
     const [bulkTitleReplace, setBulkTitleReplace] = useState<string>("");
+    const [bulkTitleInsertPosition, setBulkTitleInsertPosition] = useState<"start" | "end">("end");
     const [isBulkTitleUpdating, setIsBulkTitleUpdating] = useState(false);
     const [isImagePickerOpen, setIsImagePickerOpen] = useState(false);
     const [imagePickerItems, setImagePickerItems] = useState<{ fileName: string; relativePath: string; url: string }[]>([]);
@@ -674,8 +675,8 @@ export default function ImportLab() {
         }
 
         const msgBase = bulkTitleSearch
-            ? `Sostituire "${bulkTitleSearch}" con "${bulkTitleReplace}" nei titoli e aggiungerlo se non presente`
-            : `Aggiungere "${bulkTitleReplace}" ai titoli dove non presente`;
+            ? `Sostituire "${bulkTitleSearch}" con "${bulkTitleReplace}" nei titoli e aggiungerlo ${bulkTitleInsertPosition === "start" ? "all'inizio" : "alla fine"} se non presente`
+            : `Aggiungere "${bulkTitleReplace}" ${bulkTitleInsertPosition === "start" ? "all'inizio" : "alla fine"} dei titoli dove non presente`;
 
         if (!confirm(msgBase + " per " + products.length + " prodotti?")) {
             return;
@@ -687,6 +688,7 @@ export default function ImportLab() {
             const res = await axios.post("/api/repositories/" + catalogIdParam + "/staging/bulk-title", {
                 search: bulkTitleSearch,
                 replace: bulkTitleReplace,
+                insertPosition: bulkTitleInsertPosition,
             });
 
             toast.update(toastId, {
@@ -1824,6 +1826,15 @@ export default function ImportLab() {
                             onChange={(e) => setBulkTitleReplace(e.target.value)}
                             className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white min-w-[220px]"
                         />
+                        <select
+                            value={bulkTitleInsertPosition}
+                            onChange={(e) => setBulkTitleInsertPosition(e.target.value as "start" | "end")}
+                            className="px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-700 bg-white"
+                            title="Dove inserire il testo se non presente"
+                        >
+                            <option value="start">Aggiungi all'inizio</option>
+                            <option value="end">Aggiungi alla fine</option>
+                        </select>
                         <button
                             onClick={handleBulkTitleUpdate}
                             disabled={isBulkTitleUpdating}
