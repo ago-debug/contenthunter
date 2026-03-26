@@ -379,6 +379,45 @@ export async function POST(
                         });
                     }
                 }
+
+                // Immagini importate da listino (es. link immagine_1..5): aggiunge solo URL nuovi.
+                const incomingImageUrls: string[] = Array.isArray(p.images)
+                    ? Array.from(
+                        new Set<string>(
+                            p.images
+                                .map((img: any) => {
+                                    if (!img) return "";
+                                    if (typeof img === "string") return img.trim();
+                                    if (typeof img === "object" && img.url) return String(img.url).trim();
+                                    return "";
+                                })
+                                .filter((url: string) => url.length > 0)
+                        )
+                    )
+                    : [];
+
+                if (incomingImageUrls.length > 0) {
+                    const existingImages = await prisma.stagingProductImage.findMany({
+                        where: { stagingProductId: staging.id },
+                        select: { imageUrl: true },
+                    });
+                    const existingUrlSet = new Set(
+                        existingImages
+                            .map((i) => (i.imageUrl || "").trim())
+                            .filter((u) => u.length > 0)
+                    );
+
+                    for (const imageUrl of incomingImageUrls) {
+                        if (existingUrlSet.has(imageUrl)) continue;
+                        await prisma.stagingProductImage.create({
+                            data: {
+                                stagingProductId: staging.id,
+                                imageUrl,
+                            },
+                        });
+                        existingUrlSet.add(imageUrl);
+                    }
+                }
             } catch (perRowErr: any) {
                 rowErrors++;
                 console.error("Staging POST row error (SKU:", p.sku, "):", perRowErr);

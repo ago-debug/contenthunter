@@ -241,6 +241,11 @@ export default function ImportLab() {
         sku: "",
         ean: "",
         parentSku: "",
+        image1: "",
+        image2: "",
+        image3: "",
+        image4: "",
+        image5: "",
         title: "",
         description: "",
         shortDescription: "",
@@ -1264,6 +1269,20 @@ export default function ImportLab() {
                     stockLocal: getVal("stockLocal"),
                     stockSupplier: getVal("stockSupplier"),
                 };
+                const imageUrls = [
+                    getVal("image1"),
+                    getVal("image2"),
+                    getVal("image3"),
+                    getVal("image4"),
+                    getVal("image5"),
+                ]
+                    .filter((v): v is string => !!v)
+                    .map((v) => v.trim())
+                    .filter((v) => v.length > 0);
+                const dedupedImageUrls = Array.from(new Set(imageUrls));
+                if (dedupedImageUrls.length > 0) {
+                    base.images = dedupedImageUrls.map((url) => ({ url }));
+                }
 
                 // Costruisci oggetto con campi extra dinamici
                 const extrasObj: Record<string, string> = {};
@@ -2748,6 +2767,11 @@ export default function ImportLab() {
                                         if (field === 'sku') label = 'SKU (chiave preferita)';
                                         if (field === 'ean') label = 'EAN / Codice a barre';
                                         if (field === 'parentSku') label = 'SKU di Base (Varianti)';
+                                        if (field === 'image1') label = 'Link immagine 1';
+                                        if (field === 'image2') label = 'Link immagine 2';
+                                        if (field === 'image3') label = 'Link immagine 3';
+                                        if (field === 'image4') label = 'Link immagine 4';
+                                        if (field === 'image5') label = 'Link immagine 5';
                                         if (field === 'price') label = 'Prezzo di Listino';
                                         if (field === 'title') label = 'Titolo Prodotto';
                                         if (field === 'bulletPoints') label = 'Caratteristiche (Bullet)';
