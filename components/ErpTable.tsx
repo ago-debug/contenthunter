@@ -5,7 +5,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import {
     Search, Plus, Trash2, Upload, FileText, ImageIcon, Check, MousePointer2, Settings, List, RefreshCw,
-    Filter, Download, ExternalLink, Wand2, Globe, Sparkles,
+    Filter, ExternalLink, Wand2, Globe, Sparkles,
     FolderOpen, ChevronLeft, ChevronRight, Languages, ShoppingCart, Box, ChevronDown,
     LayoutGrid, Package, Edit, X, CheckCircle2, History as HistoryIcon, AlertCircle, Save, Image as ImageIconLucide, Layers,
     Building2, ImagePlus, Link2, ArrowUp, ArrowDown
@@ -2225,9 +2225,10 @@ export default function ErpTable() {
                         }}
                         disabled={selectedIds.length === 0 || !brandFilter}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-black transition-all border border-slate-900 disabled:opacity-40"
+                        title="Apre il centro modifiche: puoi impostare in massa qualsiasi campo della scheda prodotto"
                     >
                         <Layers className="w-4 h-4 shrink-0" />
-                        Modifiche massive
+                        Modifiche massive (campi)
                     </button>
                     <button
                         type="button"
@@ -3696,109 +3697,6 @@ export default function ErpTable() {
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
-
-            {/* Bulk Action Bar */}
-            <AnimatePresence>
-                {
-                    selectedIds.length > 0 && (
-                        <motion.div
-                            initial={{ y: 100, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: 100, opacity: 0 }}
-                            className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-10 py-5 rounded-[2.5rem] shadow-2xl z-[100] flex items-center gap-10 border border-white/10 backdrop-blur-xl"
-                        >
-                            <div className="flex items-center gap-3 pr-10 border-r border-white/10">
-                                <span className="bg-slate-900 w-8 h-8 rounded-full flex items-center justify-center text-xs font-black">{selectedIds.length}</span>
-                                <span className="text-xs font-black uppercase tracking-widest text-slate-400">Selezionati</span>
-                            </div>
-                            <div className="flex items-center gap-3 flex-wrap justify-center max-w-[95vw]">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowBulkOperationsModal(true)}
-                                    disabled={isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-white bg-white/15 px-3 py-1.5 rounded-xl hover:bg-white/25 transition-all text-[11px] font-black uppercase tracking-widest"
-                                >
-                                    <Layers className="w-4 h-4" />
-                                    Centro modifiche
-                                </button>
-                                <button
-                                    onClick={handleBulkNormalizeTitles}
-                                    disabled={isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-emerald-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Wand2 className={`w-4 h-4 ${isBulkWorking ? 'animate-spin' : ''}`} />
-                                    {isBulkWorking ? 'Elaborazione...' : 'Normalizza Titoli'}
-                                </button>
-                                <button
-                                    onClick={handleBulkAddTitlePrefix}
-                                    disabled={isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-amber-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Plus className="w-4 h-4" />
-                                    Aggiungi Testo al Titolo
-                                </button>
-                                <button
-                                    onClick={handleBulkReplaceTitlePart}
-                                    disabled={isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-cyan-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Wand2 className="w-4 h-4" />
-                                    Trova/Sostituisci + Agg. Titolo
-                                </button>
-                                <button
-                                    onClick={() => setShowBulkTitleFieldsModal(true)}
-                                    disabled={isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-violet-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Link2 className="w-4 h-4" />
-                                    Campi nel titolo
-                                </button>
-                                <button
-                                    onClick={() => setShowBulkSeoModal(true)}
-                                    disabled={isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-indigo-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Sparkles className="w-4 h-4" />
-                                    Genera SEO AI
-                                </button>
-                                <InfoHint text={INFO_HINTS.erp.bulkSeo} />
-                                <button
-                                    type="button"
-                                    onClick={() => void exportSelectedToFile("excel")}
-                                    disabled={isExportingSelectedFile || isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-sky-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    {isExportingSelectedFile ? "Esportazione…" : "Esporta Excel"}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => void exportSelectedToFile("csv")}
-                                    disabled={isExportingSelectedFile || isBulkWorking || !brandFilter}
-                                    className="flex items-center gap-2 text-teal-300 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Download className="w-4 h-4" />
-                                    {isExportingSelectedFile ? "Esportazione…" : "Esporta CSV"}
-                                </button>
-                                <button
-                                    onClick={handleBulkDelete}
-                                    disabled={isBulkDeleting || !brandFilter}
-                                    className="flex items-center gap-2 text-red-400 hover:text-white transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
-                                >
-                                    <Trash2 className={`w-4 h-4 ${isBulkDeleting ? 'animate-spin' : ''}`} />
-                                    {isBulkDeleting ? 'Eliminazione...' : 'Elimina Massa'}
-                                </button>
-                                <InfoHint text={INFO_HINTS.erp.bulkDelete} />
-                                <button
-                                    onClick={() => setSelectedIds([])}
-                                    className="px-6 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase hover:bg-white/20 transition-all"
-                                >
-                                    Annulla
-                                </button>
-                            </div>
-                        </motion.div>
-                    )}
             </AnimatePresence>
 
             {/* Centro modifiche massive: valore campo + azioni già esistenti */}
