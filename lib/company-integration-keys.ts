@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { normalizeGeminiApiKey } from "@/lib/gemini-api-key";
 
 export type ResolvedIntegrationKeys = {
     openai: string;
@@ -14,9 +15,10 @@ export async function resolveIntegrationKeys(companyId: number): Promise<Resolve
         where: { id: companyId },
         select: { openaiApiKey: true, serpapiKey: true, geminiApiKey: true },
     });
+    const geminiRaw = (row?.geminiApiKey || process.env.GEMINI_API_KEY || "").trim();
     return {
         openai: (row?.openaiApiKey || process.env.OPENAI_API_KEY || "").trim(),
         serpapi: (row?.serpapiKey || process.env.SERPAPI_KEY || process.env.SERPAPI || "").trim(),
-        gemini: (row?.geminiApiKey || process.env.GEMINI_API_KEY || "").trim(),
+        gemini: normalizeGeminiApiKey(geminiRaw),
     };
 }

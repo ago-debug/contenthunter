@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
+import { normalizeGeminiApiKey } from "@/lib/gemini-api-key";
 
 export async function GET(req: NextRequest) {
     const ctx = await requireCompanyId(req);
@@ -65,7 +66,7 @@ function applySecretPatch(
     }
     const s = String(v).trim();
     if (s === "") return;
-    data[col] = s;
+    data[col] = col === "geminiApiKey" ? normalizeGeminiApiKey(s) || s : s;
 }
 
 function applyWooPatch(

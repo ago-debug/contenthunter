@@ -305,6 +305,13 @@ export default function SettingsPage() {
                                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-4 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:bg-white transition-all font-mono"
                                 />
                             </div>
+                            <p className="text-[11px] text-slate-500 leading-relaxed mt-2 ml-1">
+                                Incolla <span className="font-bold text-slate-600">solo la chiave</span> (inizia con{" "}
+                                <code className="font-mono text-[10px] bg-slate-100 px-1 rounded">AIza</code>
+                                ), non l&apos;URL dell&apos;API. L&apos;endpoint ufficiale (
+                                <code className="font-mono text-[10px]">generativelanguage.googleapis.com/v1beta</code>
+                                ) è già usato dall&apos;SDK; non va configurato qui.
+                            </p>
                         </div>
                     </div>
                 </section>

@@ -3,14 +3,38 @@
  * Single document as context: analyze, extract products, Q&A.
  */
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, type RequestOptions } from "@google/generative-ai";
+import { normalizeGeminiApiKey, normalizeGeminiBaseUrl } from "@/lib/gemini-api-key";
 
-const MODEL = "gemini-2.5-flash";
+/** Override con es. `gemini-2.0-flash` se il progetto Google non espone ancora 2.5. */
+const MODEL = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+
+function geminiRequestOptions(): RequestOptions | undefined {
+    const baseUrl = normalizeGeminiBaseUrl(process.env.GEMINI_API_BASE_URL);
+    const apiVersion = process.env.GEMINI_API_VERSION?.trim();
+    if (!baseUrl && !apiVersion) return undefined;
+    return {
+        ...(baseUrl ? { baseUrl } : {}),
+        ...(apiVersion ? { apiVersion } : {}),
+    };
+}
 
 function getClient(apiKeyOverride?: string | null) {
-    const key = (apiKeyOverride && String(apiKeyOverride).trim()) || process.env.GEMINI_API_KEY;
+    const raw =
+        (apiKeyOverride && String(apiKeyOverride).trim()) || process.env.GEMINI_API_KEY || "";
+    const key = normalizeGeminiApiKey(raw);
     if (!key) return null;
     return new GoogleGenerativeAI(key);
+}
+
+function getPdfModel(
+    genAI: GoogleGenerativeAI,
+    generationConfig: { temperature: number; responseMimeType: string }
+) {
+    const opts = geminiRequestOptions();
+    return opts
+        ? genAI.getGenerativeModel({ model: MODEL, generationConfig }, opts)
+        : genAI.getGenerativeModel({ model: MODEL, generationConfig });
 }
 
 /** Get text from Gemini response; throws with a clear message if blocked or empty. */
@@ -95,12 +119,9 @@ export async function extractProductsFromPdf(
     const genAI = getClient(opts?.geminiApiKey);
     if (!genAI) throw new Error("GEMINI_API_KEY not configured.");
 
-    const model = genAI.getGenerativeModel({
-        model: MODEL,
-        generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json",
-        },
+    const model = getPdfModel(genAI, {
+        temperature: 0.1,
+        responseMimeType: "application/json",
     });
 
     let result;
@@ -143,12 +164,9 @@ export async function summarizePdf(
     const genAI = getClient(opts?.geminiApiKey);
     if (!genAI) throw new Error("GEMINI_API_KEY not configured.");
 
-    const model = genAI.getGenerativeModel({
-        model: MODEL,
-        generationConfig: {
-            temperature: 0.2,
-            responseMimeType: "application/json",
-        },
+    const model = getPdfModel(genAI, {
+        temperature: 0.2,
+        responseMimeType: "application/json",
     });
 
     let result;
@@ -190,12 +208,9 @@ export async function askAboutPdf(
     const genAI = getClient(opts?.geminiApiKey);
     if (!genAI) throw new Error("GEMINI_API_KEY not configured.");
 
-    const model = genAI.getGenerativeModel({
-        model: MODEL,
-        generationConfig: {
-            temperature: 0.3,
-            responseMimeType: "application/json",
-        },
+    const model = getPdfModel(genAI, {
+        temperature: 0.3,
+        responseMimeType: "application/json",
     });
 
     const prompt = `Rispondi alla domanda sull'allegato PDF basandoti SOLO sul contenuto del documento. Sii conciso. Se non trovi informazioni, dillo.
