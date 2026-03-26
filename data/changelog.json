@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "7fd3ae4d1246da467e8ce20e3a15f9019eba647f",
+      "at": "2026-03-26T18:29:43+01:00",
+      "description": "perf(app): riduce bundle ImportLab e centralizza normalizzazione stock"
+    },
+    {
       "hash": "810d9b47b96004eb9ce1e9a4517277382337b606",
       "at": "2026-03-26T17:10:08+01:00",
       "description": "fix(stock): unifica chiavi stock tra scheda prodotto e bulk"
