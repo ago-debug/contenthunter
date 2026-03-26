@@ -495,11 +495,12 @@ export async function POST(req: NextRequest) {
                     },
                 });
 
-                for (const p of products) {
+                await Promise.all(
+                    products.map(async (p) => {
                     if (isExtra) {
                         const ekRaw = fieldPath.slice(fieldPath.indexOf(":") + 1).trim();
                         const ek = normalizeExtraKeyForStock(ekRaw);
-                        if (!ek) continue;
+                        if (!ek) return;
                         const existing = p.extraFields.find(
                             (e) => normalizeExtraKeyForStock(e.key).toLowerCase() === ek.toLowerCase()
                         );
@@ -513,11 +514,11 @@ export async function POST(req: NextRequest) {
                             } else {
                                 skipped++;
                             }
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && (existing?.value || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.productExtra.upsert({
                             where: { productId_key: { productId: p.id, key: dbKey } },
@@ -525,13 +526,13 @@ export async function POST(req: NextRequest) {
                             update: { value: strVal }
                         });
                         updated++;
-                        continue;
+                        return;
                     }
 
                     if (fpLower === "brand") {
                         if (onlyIfEmpty && (p.brand || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -541,7 +542,7 @@ export async function POST(req: NextRequest) {
                     } else if (fpLower === "category") {
                         if (onlyIfEmpty && (p.category || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -551,7 +552,7 @@ export async function POST(req: NextRequest) {
                     } else if (fpLower === "ean") {
                         if (onlyIfEmpty && (p.ean || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -561,7 +562,7 @@ export async function POST(req: NextRequest) {
                     } else if (fpLower === "parentsku") {
                         if (onlyIfEmpty && (p.parentSku || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -572,15 +573,15 @@ export async function POST(req: NextRequest) {
                         const newSku = strVal.trim();
                         if (!newSku) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && (p.sku || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         if (newSku === p.sku) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         try {
                             await prisma.product.update({
@@ -596,23 +597,23 @@ export async function POST(req: NextRequest) {
                         if (!t) {
                             if (onlyIfEmpty && p.brandId != null) {
                                 skipped++;
-                                continue;
+                                return;
                             }
                             await prisma.product.update({
                                 where: { id: p.id },
                                 data: { brandId: null }
                             });
                             updated++;
-                            continue;
+                            return;
                         }
                         const n = parseInt(t, 10);
                         if (Number.isNaN(n)) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && p.brandId != null) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -624,23 +625,23 @@ export async function POST(req: NextRequest) {
                         if (!t) {
                             if (onlyIfEmpty && p.categoryId != null) {
                                 skipped++;
-                                continue;
+                                return;
                             }
                             await prisma.product.update({
                                 where: { id: p.id },
                                 data: { categoryId: null }
                             });
                             updated++;
-                            continue;
+                            return;
                         }
                         const n = parseInt(t, 10);
                         if (Number.isNaN(n)) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && p.categoryId != null) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -652,23 +653,23 @@ export async function POST(req: NextRequest) {
                         if (!t) {
                             if (onlyIfEmpty && p.subCategoryId != null) {
                                 skipped++;
-                                continue;
+                                return;
                             }
                             await prisma.product.update({
                                 where: { id: p.id },
                                 data: { subCategoryId: null }
                             });
                             updated++;
-                            continue;
+                            return;
                         }
                         const n = parseInt(t, 10);
                         if (Number.isNaN(n)) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && p.subCategoryId != null) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -680,23 +681,23 @@ export async function POST(req: NextRequest) {
                         if (!t) {
                             if (onlyIfEmpty && p.subSubCategoryId != null) {
                                 skipped++;
-                                continue;
+                                return;
                             }
                             await prisma.product.update({
                                 where: { id: p.id },
                                 data: { subSubCategoryId: null }
                             });
                             updated++;
-                            continue;
+                            return;
                         }
                         const n = parseInt(t, 10);
                         if (Number.isNaN(n)) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && p.subSubCategoryId != null) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.product.update({
                             where: { id: p.id },
@@ -715,11 +716,11 @@ export async function POST(req: NextRequest) {
                             } else {
                                 skipped++;
                             }
-                            continue;
+                            return;
                         }
                         if (onlyIfEmpty && (existing?.value || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.productExtra.upsert({
                             where: { productId_key: { productId: p.id, key } },
@@ -743,7 +744,7 @@ export async function POST(req: NextRequest) {
                         const cur = (textRow as Record<string, unknown> | undefined)?.[col] ?? "";
                         if (onlyIfEmpty && String(cur).trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         await prisma.productText.upsert({
                             where: {
@@ -762,7 +763,7 @@ export async function POST(req: NextRequest) {
                         const pr = p.prices[0];
                         if (onlyIfEmpty && (pr?.currency || "").trim()) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         const priceNum =
                             pr != null && typeof pr.price === "number" && !Number.isNaN(pr.price) ? pr.price : 0;
@@ -785,12 +786,12 @@ export async function POST(req: NextRequest) {
                         );
                         if (isNaN(num)) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         const pr = p.prices[0];
                         if (onlyIfEmpty && pr != null && !isNaN(pr.price) && pr.price !== 0) {
                             skipped++;
-                            continue;
+                            return;
                         }
                         const cur =
                             pr != null && (pr.currency || "").trim()
@@ -805,12 +806,11 @@ export async function POST(req: NextRequest) {
                         });
                         updated++;
                     } else {
-                        return NextResponse.json(
-                            { error: `Campo non supportato: ${fieldPath}` },
-                            { status: 400 }
-                        );
+                        // Non dovrebbe accadere: campo già validato in allowedNonExtra.
+                        skipped++;
                     }
-                }
+                })
+                );
             }
 
             return NextResponse.json({ success: true, updated, skipped });
