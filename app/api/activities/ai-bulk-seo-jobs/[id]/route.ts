@@ -8,7 +8,17 @@ async function getOwnedJob(companyId: number, idStr: string) {
   if (Number.isNaN(id)) return null;
   return prisma.aiBulkSeoJob.findFirst({
     where: { id, companyId },
-    select: { id: true, status: true, total: true, done: true, errors: true, startedAt: true, finishedAt: true },
+    select: {
+      id: true,
+      status: true,
+      total: true,
+      done: true,
+      errors: true,
+      startedAt: true,
+      finishedAt: true,
+      brand: true,
+      catalogue: true,
+    },
   });
 }
 
@@ -57,8 +67,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (action === "pause" && job.status === "running") {
     await prisma.aiBulkSeoJob.update({ where: { id: job.id }, data: { status: "paused" } });
-  } else if (action === "resume" && job.status === "paused") {
-    await prisma.aiBulkSeoJob.update({ where: { id: job.id }, data: { status: "running" } });
+  } else if (action === "resume" && (job.status === "paused" || job.status === "stopped")) {
+    if (job.status === "stopped") {
+      // Ripristina eventuali item rimasti "processing" al momento dello stop.
+      await prisma.aiBulkSeoJobItem.updateMany({
+        where: { jobId: job.id, status: "processing" },
+        data: { status: "pending", message: null },
+      });
+    }
+    await prisma.aiBulkSeoJob.update({
+      where: { id: job.id },
+      data: { status: "running", finishedAt: null },
+    });
     void triggerAiBulkSeoJob(job.id);
   } else if (action === "stop" && (job.status === "running" || job.status === "paused")) {
     await prisma.aiBulkSeoJob.update({
@@ -67,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     const fresh = await prisma.aiBulkSeoJob.findUnique({
       where: { id: job.id },
-      select: { companyId: true, total: true, done: true, errors: true },
+      select: { companyId: true, total: true, done: true, errors: true, brand: true, catalogue: true },
     });
     if (fresh) {
       await prisma.activityLog.create({
@@ -76,6 +96,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           type: "ai_bulk_seo",
           status: "stopped",
           description: "Generazione SEO AI massiva interrotta",
+          brand: fresh.brand || null,
+          catalogue: fresh.catalogue || null,
           total: fresh.total,
           done: fresh.done,
           errors: fresh.errors,

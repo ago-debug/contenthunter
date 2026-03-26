@@ -62,6 +62,18 @@ export type OngoingBulkSeoJob = {
   progressPct: number;
   currentProductId?: number;
 };
+export type ResumableStoppedBulkSeoJob = {
+  id: number;
+  status: "stopped";
+  overwriteExisting: boolean;
+  total: number;
+  done: number;
+  errors: number;
+  brand?: string;
+  catalogue?: string;
+  startedAt: string;
+  finishedAt: string | null;
+};
 type ActivityNotification = {
   id: string;
   at: string;
@@ -85,11 +97,13 @@ type ActivityContextValue = {
   setShowAiBulkReport: (v: boolean) => void;
   activities: ActivityEntry[];
   ongoingBulkSeoJobs: OngoingBulkSeoJob[];
+  resumableStoppedJobs: ResumableStoppedBulkSeoJob[];
   notifications: ActivityNotification[];
   unreadNotifications: number;
   startAiBulkSeoJob: (input: StartAiBulkSeoInput) => Promise<void>;
   toggleAiBulkPause: () => void;
   stopAiBulkJob: () => void;
+  resumeStoppedJob: (jobId: number) => Promise<void>;
   markAllNotificationsRead: () => void;
   refreshActivities: () => Promise<void>;
 };
@@ -131,6 +145,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const [showAiBulkReport, setShowAiBulkReport] = useState(false);
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [ongoingBulkSeoJobs, setOngoingBulkSeoJobs] = useState<OngoingBulkSeoJob[]>([]);
+  const [resumableStoppedJobs, setResumableStoppedJobs] = useState<ResumableStoppedBulkSeoJob[]>([]);
   const [notifications, setNotifications] = useState<ActivityNotification[]>(() =>
     typeof window === "undefined" ? [] : readLocal<ActivityNotification[]>(NOTIF_KEY, [])
   );
@@ -172,6 +187,7 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       const { data } = await axios.get("/api/activities", activityAxiosConfig);
       setActivities(Array.isArray(data?.activities) ? data.activities : []);
       setOngoingBulkSeoJobs(Array.isArray(data?.ongoingBulkSeoJobs) ? data.ongoingBulkSeoJobs : []);
+      setResumableStoppedJobs(Array.isArray(data?.resumableStoppedJobs) ? data.resumableStoppedJobs : []);
     } catch {
       /* ignore */
     }
@@ -259,6 +275,14 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
     appendNotification("Attività interrotta", "Generazione SEO AI massiva fermata.");
   };
 
+  const resumeStoppedJob = async (jobId: number) => {
+    if (!activityAxiosConfig) return;
+    await axios.patch(`/api/activities/ai-bulk-seo-jobs/${jobId}`, { action: "resume" }, activityAxiosConfig);
+    await refreshCurrentJob();
+    await refreshActivities();
+    appendNotification("Attività ripresa", `Job #${jobId} ripreso dal punto di interruzione.`);
+  };
+
   const markAllNotificationsRead = () => {
     const next = notifications.map((n) => ({ ...n, read: true }));
     persistNotifications(next);
@@ -286,15 +310,27 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
       setShowAiBulkReport,
       activities,
       ongoingBulkSeoJobs,
+      resumableStoppedJobs,
       notifications,
       unreadNotifications,
       startAiBulkSeoJob,
       toggleAiBulkPause,
       stopAiBulkJob,
+      resumeStoppedJob,
       markAllNotificationsRead,
       refreshActivities,
     }),
-    [aiBulkJob, aiBulkReport, showAiBulkReport, activities, ongoingBulkSeoJobs, notifications, unreadNotifications, refreshActivities]
+    [
+      aiBulkJob,
+      aiBulkReport,
+      showAiBulkReport,
+      activities,
+      ongoingBulkSeoJobs,
+      resumableStoppedJobs,
+      notifications,
+      unreadNotifications,
+      refreshActivities,
+    ]
   );
 
   const downloadReportCsv = () => {

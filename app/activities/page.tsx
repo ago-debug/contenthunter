@@ -6,7 +6,7 @@ import { Filter, Bell, Loader2 } from "lucide-react";
 import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 
 export default function ActivitiesPage() {
-    const { activities, ongoingBulkSeoJobs, refreshActivities } = useActivityContext();
+    const { activities, ongoingBulkSeoJobs, resumableStoppedJobs, resumeStoppedJob, refreshActivities } = useActivityContext();
     const [q, setQ] = useState("");
     const [status, setStatus] = useState<"all" | "completed" | "stopped" | "ongoing">("all");
 
@@ -159,6 +159,47 @@ export default function ActivitiesPage() {
                     </div>
                 )}
             </div>
+
+            {resumableStoppedJobs.length > 0 && (
+                <div className="mb-6">
+                    <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3">
+                        Interrotte riprendibili
+                    </h2>
+                    <div className="space-y-3">
+                        {resumableStoppedJobs.map((j) => (
+                            <div
+                                key={`stopped-${j.id}`}
+                                className="rounded-2xl border border-amber-200 bg-amber-50/60 shadow-sm p-4 sm:p-5"
+                            >
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        Job #{j.id}
+                                    </span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                        Interrotta
+                                    </span>
+                                </div>
+                                <p className="text-[11px] text-slate-600 mt-2">
+                                    Brand: <span className="font-bold text-slate-800">{j.brand || "—"}</span> ·
+                                    Catalogo: <span className="font-bold text-slate-800">{j.catalogue || "—"}</span> ·
+                                    Totale: <span className="font-bold text-slate-800">{j.total}</span> ·
+                                    Done: <span className="font-bold text-slate-800">{j.done}</span> ·
+                                    Errori: <span className="font-bold text-slate-800">{j.errors}</span>
+                                </p>
+                                <div className="mt-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => void resumeStoppedJob(j.id)}
+                                        className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-black"
+                                    >
+                                        Riprendi da dove era stata interrotta
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {showHistoryBlock && (
                 <>

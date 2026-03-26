@@ -296,6 +296,7 @@ export default function ErpTable() {
 
     // Filtri avanzati Master ERP
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+    const [aiContentFilter, setAiContentFilter] = useState<"all" | "yes" | "no" | "partial">("all");
     const [filterMissingShortDesc, setFilterMissingShortDesc] = useState(false);
     const [filterMissingLongDesc, setFilterMissingLongDesc] = useState(false);
     const [filterMissingImages, setFilterMissingImages] = useState(false);
@@ -1666,6 +1667,29 @@ export default function ErpTable() {
         return String(value ?? "").toLowerCase().includes(n);
     };
 
+    const getAiContentStatus = (p: any): "SI" | "NO" | "NON COMPLETO" => {
+        const shortText = String(
+            p?.seoAiText ??
+            p?.shortDescription ??
+            p?.translations?.it?.seoAiText ??
+            ""
+        ).trim();
+        const longText = String(
+            p?.description ??
+            p?.translations?.it?.description ??
+            ""
+        ).trim();
+        const bulletsText = String(
+            p?.bulletPoints ??
+            p?.translations?.it?.bulletPoints ??
+            ""
+        ).trim();
+        const count = [shortText, longText, bulletsText].filter((v) => v.length > 0).length;
+        if (count === 0) return "NO";
+        if (count === 3) return "SI";
+        return "NON COMPLETO";
+    };
+
     const filteredProducts = products.filter((p: any) => {
         const term = searchTerm.toLowerCase();
 
@@ -1675,6 +1699,13 @@ export default function ErpTable() {
         const matchesSubSubCategory = subSubCategoryFilter === "all" || p.subSubCategoryId === Number(subSubCategoryFilter);
 
         if (!matchesBrand || !matchesCategory || !matchesSubCategory || !matchesSubSubCategory) return false;
+
+        if (aiContentFilter !== "all") {
+            const aiStatus = getAiContentStatus(p);
+            if (aiContentFilter === "yes" && aiStatus !== "SI") return false;
+            if (aiContentFilter === "no" && aiStatus !== "NO") return false;
+            if (aiContentFilter === "partial" && aiStatus !== "NON COMPLETO") return false;
+        }
 
         // Filtri avanzati
         if (filterMissingShortDesc) {
@@ -1906,6 +1937,19 @@ export default function ErpTable() {
                                 showSearch={true}
                                 disabled={subCategoryFilter === 'all'}
                             />
+                        </div>
+                        <div className="w-[170px] sm:w-[220px] shrink-0">
+                            <select
+                                value={aiContentFilter}
+                                onChange={(e) => setAiContentFilter(e.target.value as "all" | "yes" | "no" | "partial")}
+                                className="w-full h-10 rounded-xl border border-slate-200 bg-white px-3 text-[10px] font-black uppercase tracking-widest text-slate-600"
+                                title="Filtro intelligente contenuti AI"
+                            >
+                                <option value="all">Elaborato contenuti AI: Tutti</option>
+                                <option value="yes">Elaborato contenuti AI: SI</option>
+                                <option value="no">Elaborato contenuti AI: NO</option>
+                                <option value="partial">Elaborato contenuti AI: NON COMPLETO</option>
+                            </select>
                         </div>
 
                         {/* Toggle Filtri Avanzati */}
@@ -2258,6 +2302,22 @@ export default function ErpTable() {
                                             >
                                                 {p.title || "Prodotto Senza Titolo"}
                                             </button>
+                                            <div className="mb-1">
+                                                {(() => {
+                                                    const aiStatus = getAiContentStatus(p);
+                                                    const cls =
+                                                        aiStatus === "SI"
+                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                            : aiStatus === "NO"
+                                                            ? "bg-slate-100 text-slate-600 border-slate-200"
+                                                            : "bg-amber-50 text-amber-700 border-amber-200";
+                                                    return (
+                                                        <span className={`inline-flex px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest ${cls}`}>
+                                                            AI {aiStatus}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
                                             <div className="text-[8px] sm:text-[9px] font-medium text-gray-400 line-clamp-1 max-w-[180px] sm:max-w-md italic">
                                                 {p.seoAiText
                                                     ? (p.seoAiText.length > 100 ? `${p.seoAiText.substring(0, 100)}…` : p.seoAiText)
@@ -2309,6 +2369,22 @@ export default function ErpTable() {
                                             <span className="font-mono text-lg font-black text-slate-900 tracking-tight">{selectedProduct.sku}</span>
                                         </div>
                                         <h3 className="text-sm font-bold text-slate-500 mt-0.5">{selectedProduct.title || "Record Editor"}</h3>
+                                        <div className="mt-1">
+                                            {(() => {
+                                                const aiStatus = getAiContentStatus(selectedProduct);
+                                                const cls =
+                                                    aiStatus === "SI"
+                                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                                        : aiStatus === "NO"
+                                                        ? "bg-slate-100 text-slate-600 border-slate-200"
+                                                        : "bg-amber-50 text-amber-700 border-amber-200";
+                                                return (
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-widest ${cls}`}>
+                                                        Elaborato contenuti AI: {aiStatus}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
                                     </div>
                                     <div className="h-10 w-px bg-gray-100 hidden md:block"></div>
                                     <div className="hidden lg:flex items-center gap-4">

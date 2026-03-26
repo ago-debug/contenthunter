@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   }
   const { companyId } = ctx;
 
-  const [rows, ongoingJobs] = await Promise.all([
+  const [rows, ongoingJobs, stoppedJobs] = await Promise.all([
     prisma.activityLog.findMany({
       where: { companyId },
       orderBy: { createdAt: "desc" },
@@ -35,6 +35,23 @@ export async function GET(req: NextRequest) {
           take: 1,
           select: { productId: true },
         },
+      },
+    }),
+    prisma.aiBulkSeoJob.findMany({
+      where: { companyId, status: "stopped" },
+      orderBy: { updatedAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        status: true,
+        overwriteExisting: true,
+        total: true,
+        done: true,
+        errors: true,
+        brand: true,
+        catalogue: true,
+        startedAt: true,
+        finishedAt: true,
       },
     }),
   ]);
@@ -74,6 +91,18 @@ export async function GET(req: NextRequest) {
       errors: r.errors,
     })),
     ongoingBulkSeoJobs,
+    resumableStoppedJobs: stoppedJobs.map((j) => ({
+      id: j.id,
+      status: j.status,
+      overwriteExisting: j.overwriteExisting,
+      total: j.total,
+      done: j.done,
+      errors: j.errors,
+      brand: j.brand || undefined,
+      catalogue: j.catalogue || undefined,
+      startedAt: j.startedAt.toISOString(),
+      finishedAt: j.finishedAt ? j.finishedAt.toISOString() : null,
+    })),
   });
 }
 
