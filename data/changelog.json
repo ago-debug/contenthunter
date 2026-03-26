@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "55691b8d3efcb3df956726d7322be1c4ec33d2cb",
+      "at": "2026-03-26T10:10:39+01:00",
+      "description": "perf(ai-bulk): riduce costo/token e aumenta throughput fast mode"
+    },
+    {
       "hash": "04022ff19ba039be6191a8acd024e26af0ca03cd",
       "at": "2026-03-26T10:01:29+01:00",
       "description": "perf(ai-bulk): aggiunge modalita fast alla generazione massiva SEO"
