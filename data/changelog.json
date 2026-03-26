@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "9c96b60737cba31d9169b9e2d6c5ef02624140b2",
+      "at": "2026-03-26T10:37:51+01:00",
+      "description": "fix(stock): allinea stock locale/fornitore tra Import Lab e Master ERP"
+    },
+    {
       "hash": "55691b8d3efcb3df956726d7322be1c4ec33d2cb",
       "at": "2026-03-26T10:10:39+01:00",
       "description": "perf(ai-bulk): riduce costo/token e aumenta throughput fast mode"
