@@ -17,9 +17,31 @@ interface SearchableSelectProps {
     onChange: (value: string | number | null) => void;
     onAddNew?: (name: string) => void;
     placeholder?: string;
+    /** Placeholder del campo ricerca nel menu a tendina */
+    searchPlaceholder?: string;
     className?: string;
     disabled?: boolean;
     showSearch?: boolean;
+    /** Larghezza minima del pannello aperto (px), utile per liste lunghe */
+    dropdownMinWidth?: number;
+}
+
+function normalizeForSearch(s: string): string {
+    return s
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Ricerca a testo libero: tutte le parole devono comparire in label o subLabel (ordine libero). */
+function optionMatchesQuery(label: string, subLabel: string | undefined, rawQuery: string): boolean {
+    const q = rawQuery.trim();
+    if (!q) return true;
+    const haystack = normalizeForSearch(`${label} ${subLabel ?? ""}`);
+    const words = normalizeForSearch(q)
+        .split(/\s+/)
+        .filter(Boolean);
+    return words.every((w) => haystack.includes(w));
 }
 
 export function SearchableSelect({
@@ -28,9 +50,11 @@ export function SearchableSelect({
     onChange,
     onAddNew,
     placeholder = "Seleziona...",
+    searchPlaceholder = "Cerca...",
     className = "",
     disabled = false,
-    showSearch = true
+    showSearch = true,
+    dropdownMinWidth = 200
 }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -57,7 +81,7 @@ export function SearchableSelect({
             setDropdownRect({
                 top: rect.bottom + 8,
                 left: rect.left,
-                width: Math.max(rect.width, 200)
+                width: Math.max(rect.width, dropdownMinWidth)
             });
             setSearchTerm("");
         }
@@ -67,10 +91,7 @@ export function SearchableSelect({
     const selectedOption = options.find(o => o.value === value);
 
     const filteredOptions = showSearch
-        ? options.filter(o =>
-            o.label.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            o.subLabel?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+        ? options.filter((o) => optionMatchesQuery(o.label, o.subLabel, searchTerm))
         : options;
 
     const dropdownContent = isOpen && !disabled && dropdownRect && typeof document !== 'undefined' && (
@@ -89,7 +110,7 @@ export function SearchableSelect({
                     <ClearableSearchInput
                         value={searchTerm}
                         onChange={setSearchTerm}
-                        placeholder="Cerca..."
+                        placeholder={searchPlaceholder}
                         className="w-full"
                         iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
                         inputClassName="w-full bg-transparent border-none focus:outline-none text-sm font-bold pl-9"

@@ -1947,10 +1947,17 @@ export default function ErpTable() {
                     </div>
 
                     {/* Filtri: scroll orizzontale su mobile */}
-                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 scrollbar-hide min-h-[40px] items-center">
-                        <div className="w-[120px] sm:w-[140px] shrink-0">
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 scrollbar-hide min-h-[40px] items-end">
+                        <div className="w-[min(100%,220px)] sm:w-[260px] shrink-0 flex flex-col gap-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1 whitespace-nowrap">
+                                Brand
+                            </label>
                             <SearchableSelect
-                                options={allBrands.map((brand: any) => ({ value: brand.name, label: brand.name }))}
+                                options={allBrands.map((brand: any) => ({
+                                    value: brand.name,
+                                    label: brand.name,
+                                    subLabel: brand.id != null ? `id ${brand.id}` : undefined,
+                                }))}
                                 value={brandFilter}
                                 onChange={(val) => {
                                     const next = (val as string) || "";
@@ -1958,8 +1965,10 @@ export default function ErpTable() {
                                     setSelectedIds([]);
                                     if (!next) setSelectedProduct(null);
                                 }}
-                                placeholder="Seleziona brand"
+                                placeholder="Apri e scegli un brand"
+                                searchPlaceholder="Cerca per nome o numero id…"
                                 showSearch={true}
+                                dropdownMinWidth={280}
                             />
                         </div>
                         <div className="w-[130px] sm:w-[160px] shrink-0">
