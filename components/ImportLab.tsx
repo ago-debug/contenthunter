@@ -794,6 +794,31 @@ export default function ImportLab() {
         }
     };
 
+    const getImportLabImageSlot = (slot: number): string => {
+        if (!selectedProduct) return "";
+        const img = selectedProduct.images?.[slot];
+        return (img?.imageUrl || img?.url || "").trim();
+    };
+
+    const setImportLabImageSlot = (slot: number, value: string) => {
+        if (!selectedProduct) return;
+        const trimmed = value.trim();
+        const nextImages = [...(selectedProduct.images || [])].map((img: any) => ({ ...img }));
+
+        while (nextImages.length <= slot) {
+            nextImages.push({ imageUrl: "" });
+        }
+
+        if (trimmed) {
+            nextImages[slot] = { ...(nextImages[slot] || {}), imageUrl: trimmed };
+        } else {
+            nextImages[slot] = { ...(nextImages[slot] || {}), imageUrl: "" };
+        }
+
+        const compact = nextImages.filter((img: any) => (img?.imageUrl || img?.url || "").trim() !== "");
+        setSelectedProduct({ ...selectedProduct, images: compact });
+    };
+
     const handlePushToMasterErp = () => {
         if (!catalogIdParam) {
             toast.warning("Apri prima un repository specifico per poter fare il push verso il Master ERP.");
@@ -2674,6 +2699,22 @@ export default function ImportLab() {
                                         </div>
 
                                         <div className="space-y-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {Array.from({ length: 5 }).map((_, idx) => (
+                                                    <div key={"img-slot-" + idx} className="space-y-1">
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                                            Link immagine {idx + 1}
+                                                        </label>
+                                                        <input
+                                                            type="url"
+                                                            value={getImportLabImageSlot(idx)}
+                                                            onChange={(e) => setImportLabImageSlot(idx, e.target.value)}
+                                                            placeholder={"https://.../immagine-" + (idx + 1) + ".jpg"}
+                                                            className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-xs font-bold text-slate-700"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
                                             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 block">Galleria Immagini ({selectedProduct.images.length})</label>
                                             <div className="grid grid-cols-4 gap-4">
                                                 {selectedProduct.images.map((img, i) => (
