@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "118805ccef9e4027a5fc7113d4e093c1a21a8308",
+      "at": "2026-03-26T09:23:39+01:00",
+      "description": "feat(ui): aggiunge 5 link immagine nelle schede prodotto"
+    },
+    {
       "hash": "23e4dbfb23c8ca0319b2fa97290f3a3ce0434a70",
       "at": "2026-03-26T09:11:02+01:00",
       "description": "feat(import-lab): supporta fino a 5 link immagine in import"
