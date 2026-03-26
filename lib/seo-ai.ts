@@ -33,7 +33,7 @@ export async function generateSeoBlocksForProduct(args: {
       ? Object.entries(extra)
           .map(([k, v]) => `${k}: ${String(v ?? "")}`)
           .join(", ")
-          .slice(0, 1200)
+          .slice(0, fastMode ? 450 : 1200)
       : "";
 
   const basePrompt = `
@@ -65,17 +65,25 @@ RISPONDI SOLO in questo formato:
 
   const openai = new OpenAI({ apiKey: keys.openai });
   let txt: string;
-  try {
-    txt = await generateProductCopyMerged(openai, {
-      basePrompt,
-      includeTechnicalFields: false,
-    });
-  } catch (e) {
-    console.warn("seo-ai parallel fallback:", e);
+  if (fastMode) {
+    // Fast mode: una sola chiamata, meno token => costo inferiore e latenza minore.
     txt = await generateProductCopySingle(openai, {
       fullPrompt: fullPromptFallback.trim(),
-      maxTokens: fastMode ? 520 : 900,
+      maxTokens: 380,
     });
+  } else {
+    try {
+      txt = await generateProductCopyMerged(openai, {
+        basePrompt,
+        includeTechnicalFields: false,
+      });
+    } catch (e) {
+      console.warn("seo-ai parallel fallback:", e);
+      txt = await generateProductCopySingle(openai, {
+        fullPrompt: fullPromptFallback.trim(),
+        maxTokens: 900,
+      });
+    }
   }
   const shortMatch = txt.match(/---SHORT_DESCRIPTION---([\s\S]*?)(---|$)/);
   const descMatch = txt.match(/---DESCRIPTION---([\s\S]*?)(---|$)/);
