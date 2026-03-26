@@ -3,13 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { isVatSchemaUnavailableError } from "@/lib/vat-schema-fallback";
 import { Prisma } from "@prisma/client";
-
-function normalizeStockExtraKey(rawKey: string): "stockLocal" | "stockSupplier" | "" {
-    const k = String(rawKey || "").toLowerCase().replace(/[\s_-]/g, "");
-    if (["stocklocal", "giacenzalocale", "qtalocale"].includes(k)) return "stockLocal";
-    if (["stocksupplier", "giacenzafornitore", "qtafornitore"].includes(k)) return "stockSupplier";
-    return "";
-}
+import { normalizeStockExtraKey } from "@/lib/stock-extra";
 
 export async function POST(req: NextRequest) {
     const ctx = await requireCompanyId(req);

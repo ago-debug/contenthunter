@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useDeferredValue } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -20,6 +20,7 @@ import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useActivityContext } from "@/contexts/ActivityContext";
 import InfoHint from "@/components/InfoHint";
 import { INFO_HINTS } from "@/components/info-hints";
+import { STOCK_EXTRA_ALIAS_MAP } from "@/lib/stock-extra";
 
 const EMPTY_SHEET_FILTERS: Record<string, string> = {
     sku: "",
@@ -68,11 +69,6 @@ const BULK_SET_FIELD_OPTIONS: { value: string; label: string }[] = [
     { value: "extra:stockSupplier", label: "Quantità Stock Fornitore (extra)" },
     { value: "__extra_custom__", label: "Altro campo extra (chiave manuale)" }
 ];
-
-const STOCK_EXTRA_ALIASES: Record<string, string[]> = {
-    stockLocal: ["stocklocal", "giacenzalocale", "giacenza_locale", "qta_locale", "qtalocale"],
-    stockSupplier: ["stocksupplier", "giacenzafornitore", "giacenza_fornitore", "qta_fornitore", "qtafornitore"],
-};
 
 /** Campi per cui è consentito inviare valore vuoto (azzera / rimuovi extra / default valuta) */
 function bulkSetFieldAllowsEmptyValue(fieldPath: string): boolean {
@@ -1483,8 +1479,14 @@ export default function ErpTable() {
         }
     };
 
-    const uniqueBrands = Array.from(new Set(products.map((p: any) => p.brand).filter(Boolean)));
-    const uniqueCategories = Array.from(new Set(products.map((p: any) => p.category).filter(Boolean)));
+    const uniqueBrands = useMemo(
+        () => Array.from(new Set(products.map((p: any) => p.brand).filter(Boolean))),
+        [products]
+    );
+    const uniqueCategories = useMemo(
+        () => Array.from(new Set(products.map((p: any) => p.category).filter(Boolean))),
+        [products]
+    );
 
     const handleSave = async () => {
         if (!selectedProduct) return;
@@ -1514,7 +1516,7 @@ export default function ErpTable() {
         if (direct !== undefined && direct !== null) return String(direct);
         const alias = Object.keys(p.extraFields).find((k) => k.toLowerCase() === key.toLowerCase());
         if (alias) return String(p.extraFields[alias] ?? "");
-        const candidates = STOCK_EXTRA_ALIASES[key] || [];
+        const candidates = STOCK_EXTRA_ALIAS_MAP[key as "stockLocal" | "stockSupplier"] || [];
         const aliasByFamily = Object.keys(p.extraFields).find((k) =>
             candidates.includes(k.toLowerCase().replace(/\s+/g, ""))
         );
@@ -1528,7 +1530,7 @@ export default function ErpTable() {
         if (alias && alias !== key) {
             delete extras[alias];
         }
-        const candidates = STOCK_EXTRA_ALIASES[key] || [];
+        const candidates = STOCK_EXTRA_ALIAS_MAP[key as "stockLocal" | "stockSupplier"] || [];
         for (const k of Object.keys(extras)) {
             const norm = k.toLowerCase().replace(/\s+/g, "");
             if (candidates.includes(norm) && k !== key) {
@@ -1724,8 +1726,9 @@ export default function ErpTable() {
         return "NON COMPLETO";
     };
 
-    const filteredProducts = products.filter((p: any) => {
-        const term = searchTerm.toLowerCase();
+    const deferredSearchTerm = useDeferredValue(searchTerm);
+    const filteredProducts = useMemo(() => products.filter((p: any) => {
+        const term = deferredSearchTerm.toLowerCase();
 
         const matchesBrand = !!brandFilter && p.brand === brandFilter;
         const matchesCategory = categoryFilter === "all" || p.categoryId === Number(categoryFilter);
@@ -1837,7 +1840,24 @@ export default function ErpTable() {
         }
 
         return false;
-    });
+    }), [
+        products,
+        deferredSearchTerm,
+        brandFilter,
+        categoryFilter,
+        subCategoryFilter,
+        subSubCategoryFilter,
+        aiContentFilter,
+        filterMissingShortDesc,
+        filterMissingLongDesc,
+        filterMissingImages,
+        filterMissingCategory,
+        filterPriceMin,
+        filterPriceMax,
+        filterStockMin,
+        filterStockMax,
+        sheetFilters,
+    ]);
 
     const hasSheetFilters = Object.values(sheetFilters).some((v) => (v || "").trim());
     const invertSelectionOnFiltered = () => {

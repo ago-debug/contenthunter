@@ -14,17 +14,35 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { useCompanyContext } from "@/contexts/CompanyContext";
-import * as pdfjsLib from "pdfjs-dist";
-import * as XLSX from "xlsx";
 import { useCatalog } from "./CatalogContext";
 import PdfVisualWorkspace from "./PdfVisualWorkspace";
 import { ClearableSearchInput } from "@/components/ClearableSearchInput";
 import InfoHint from "@/components/InfoHint";
 import { INFO_HINTS } from "@/components/info-hints";
 
-if (typeof window !== "undefined") {
-    // Robust CDN for ESM-based PDF.js workers
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+let pdfjsModulePromise: Promise<any> | null = null;
+let xlsxModulePromise: Promise<any> | null = null;
+
+async function getPdfjs() {
+    if (!pdfjsModulePromise) {
+        pdfjsModulePromise = import("pdfjs-dist").then((mod: any) => {
+            const pdfjsLib = mod?.default ?? mod;
+            if (typeof window !== "undefined") {
+                // Robust CDN for ESM-based PDF.js workers
+                pdfjsLib.GlobalWorkerOptions.workerSrc =
+                    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+            }
+            return pdfjsLib;
+        });
+    }
+    return pdfjsModulePromise;
+}
+
+async function getXlsx() {
+    if (!xlsxModulePromise) {
+        xlsxModulePromise = import("xlsx").then((mod: any) => mod?.default ?? mod);
+    }
+    return xlsxModulePromise;
 }
 
 interface StagingProduct {
@@ -471,6 +489,7 @@ export default function ImportLab() {
 
         const url = "/api/repositories/" + catalogIdParam + "/pdfs/" + pdfId + "/file";
         try {
+            const pdfjsLib = await getPdfjs();
             const res = await fetch(url, { credentials: "include" });
             if (!res.ok) {
                 const text = await res.text();
@@ -1078,8 +1097,12 @@ export default function ImportLab() {
         setIsSearchingPdf(true);
 
         try {
+            const pdfjsLib = await getPdfjs();
             let associationsCount = 0;
             const updatedProducts = [...products];
+            const skuIndex = updatedProducts
+                .filter((p) => !!p.sku)
+                .map((p) => ({ product: p, skuLower: p.sku.toLowerCase() }));
 
             for (const pdf of repository.pdfs) {
                 const cleanPath = pdf.filePath.startsWith('/') ? pdf.filePath : "/" + pdf.filePath;
@@ -1097,7 +1120,9 @@ export default function ImportLab() {
                     const textContent = await page.getTextContent();
                     const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
 
-                    const skusInPage = updatedProducts.filter(p => p.sku && pageText.includes(p.sku.toLowerCase()));
+                    const skusInPage = skuIndex
+                        .filter(({ skuLower }) => pageText.includes(skuLower))
+                        .map(({ product }) => product);
 
                     if (skusInPage.length > 0) {
                         // Render page to canvas
@@ -1170,9 +1195,10 @@ export default function ImportLab() {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (evt) => {
+        reader.onload = async (evt) => {
             const buffer = evt.target?.result;
             if (!buffer) return;
+            const XLSX = await getXlsx();
 
             let wb;
             try {
@@ -1488,7 +1514,11 @@ export default function ImportLab() {
         let matchesCount = 0;
 
         try {
+            const pdfjsLib = await getPdfjs();
             const updatedProducts = [...products];
+            const skuIndex = updatedProducts
+                .filter((p) => !!p.sku)
+                .map((p) => ({ product: p, skuLower: p.sku.toLowerCase() }));
 
             for (const pdf of repository.pdfs) {
                 const res = await fetch("/api/repositories/" + catalogIdParam + "/pdfs/" + pdf.id + "/file", { credentials: "include" });
@@ -1502,11 +1532,8 @@ export default function ImportLab() {
                     const textContent = await page.getTextContent();
                     const pageText = textContent.items.map((item: any) => item.str).join(" ").toLowerCase();
 
-                    for (const product of updatedProducts) {
-                        if (!product.sku) continue;
-                        const sku = product.sku.toLowerCase();
-
-                        if (pageText.includes(sku)) {
+                    for (const { product, skuLower } of skuIndex) {
+                        if (pageText.includes(skuLower)) {
                             if (!product.foundInPdf) product.foundInPdf = [];
                             if (!product.foundInPdf.find(f => f.pdfId === pdf.id && f.pageNumber === i)) {
                                 product.foundInPdf.push({ pageNumber: i, pdfId: pdf.id });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { normalizeStockExtraKey } from "@/lib/stock-extra";
 
 /** Evita timeout su operazioni lunghe (hosting serverless / proxy) */
 export const maxDuration = 300;
@@ -18,10 +19,7 @@ function imageFileNameFromUrl(rawUrl: string): string {
 }
 
 function normalizeExtraKeyForStock(rawKey: string): string {
-    const k = rawKey.toLowerCase().replace(/[\s_-]/g, "");
-    if (["stocklocal", "giacenzalocale", "qtalocale"].includes(k)) return "stockLocal";
-    if (["stocksupplier", "giacenzafornitore", "qtafornitore"].includes(k)) return "stockSupplier";
-    return rawKey;
+    return normalizeStockExtraKey(rawKey) || rawKey;
 }
 
 // Helper to normalize Italian product titles:

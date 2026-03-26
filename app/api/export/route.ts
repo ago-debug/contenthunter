@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import * as XLSX from "xlsx";
-
-function normalizeStockExtraKey(rawKey: string): "stockLocal" | "stockSupplier" | "" {
-    const k = String(rawKey || "").toLowerCase().replace(/[\s_-]/g, "");
-    if (["stocklocal", "giacenzalocale", "qtalocale"].includes(k)) return "stockLocal";
-    if (["stocksupplier", "giacenzafornitore", "qtafornitore"].includes(k)) return "stockSupplier";
-    return "";
-}
+import { normalizeStockExtraKey } from "@/lib/stock-extra";
 
 // Tutti i campi presenti nella scheda prodotto (Master ERP)
 // Ogni informazione va in una colonna distinta (niente valori aggregati)
