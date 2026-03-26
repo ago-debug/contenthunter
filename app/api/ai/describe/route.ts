@@ -34,9 +34,16 @@ export async function POST(req: Request) {
         const { productData, language = "it", options = {} } = body as {
             productData: any;
             language?: string;
-            options?: { fastMode?: boolean };
+            options?: { fastMode?: boolean; targetFields?: string[] };
         };
         const fastMode = options?.fastMode === true;
+        const requestedFieldsRaw = Array.isArray(options?.targetFields) ? options.targetFields : [];
+        const requestedFields = requestedFieldsRaw.length > 0
+            ? requestedFieldsRaw
+            : ["short", "description", "bullets"];
+        const needShort = requestedFields.includes("short");
+        const needDescription = requestedFields.includes("description");
+        const needBullets = requestedFields.includes("bullets");
 
         if (!productData) {
             return NextResponse.json({ error: "No product data provided" }, { status: 400 });
@@ -89,47 +96,60 @@ REGOLE TASSATIVE:
 3. Se un'informazione non è presente nei dati, lascia il campo vuoto o non forzare un contenuto.
 `.trim();
 
-        const fullPromptFallback = `${basePrompt}
-
-FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
-
----SHORT_DESCRIPTION---
-[Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]
-
----DESCRIPTION---
-[Scrivi qui ${fastMode ? "1 paragrafo breve" : "1-3 paragrafi brevi"} che descriva il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
-
----BULLET_POINTS---
-[Estrai ${fastMode ? "4-6" : "5-8"} punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
-
-${fastMode
-                ? ""
-                : `---TECHNICAL_FIELDS---
+        const sections: string[] = [];
+        if (needShort) {
+            sections.push(`---SHORT_DESCRIPTION---
+[Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]`);
+        }
+        if (needDescription) {
+            sections.push(`---DESCRIPTION---
+[Scrivi qui ${fastMode ? "1 paragrafo breve" : "1-3 paragrafi brevi"} che descriva il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]`);
+        }
+        if (needBullets) {
+            sections.push(`---BULLET_POINTS---
+[Estrai ${fastMode ? "4-6" : "5-8"} punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]`);
+        }
+        if (!fastMode && needDescription) {
+            sections.push(`---TECHNICAL_FIELDS---
 Colore: [Valore]
 Materiale: [Valore]
 Dimensioni: [Valore]
-Peso: [Valore]`
-            }
+Peso: [Valore]`);
+        }
+
+        const fullPromptFallback = `${basePrompt}
+
+FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
+${sections.join("\n\n")}
 `;
 
         const openai = new OpenAI({ apiKey: keys.openai });
         let text: string;
+        const requestedCount = [needShort, needDescription, needBullets].filter(Boolean).length || 1;
         if (fastMode) {
             text = await generateProductCopySingle(openai, {
                 fullPrompt: fullPromptFallback.trim(),
-                maxTokens: 360,
+                maxTokens: Math.min(420, Math.max(140, 140 * requestedCount)),
             });
         } else {
             try {
-                text = await generateProductCopyMerged(openai, {
-                    basePrompt: basePrompt.trim(),
-                    includeTechnicalFields: true,
-                });
+                // Solo quando servono tutti i blocchi conviene il merged.
+                if (needShort && needDescription && needBullets) {
+                    text = await generateProductCopyMerged(openai, {
+                        basePrompt: basePrompt.trim(),
+                        includeTechnicalFields: true,
+                    });
+                } else {
+                    text = await generateProductCopySingle(openai, {
+                        fullPrompt: fullPromptFallback.trim(),
+                        maxTokens: Math.min(560, Math.max(180, 180 * requestedCount)),
+                    });
+                }
             } catch (mergedErr) {
                 console.warn("AI describe merged failed, single fallback:", mergedErr);
                 text = await generateProductCopySingle(openai, {
                     fullPrompt: fullPromptFallback.trim(),
-                    maxTokens: 700,
+                    maxTokens: Math.min(560, Math.max(180, 180 * requestedCount)),
                 });
             }
         }

@@ -7,8 +7,13 @@ export async function generateSeoBlocksForProduct(args: {
   companyId: number;
   product: any;
   fastMode?: boolean;
+  targetFields?: Array<"short" | "description" | "bullets">;
 }): Promise<{ short: string; desc: string; bullets: string }> {
-  const { companyId, product, fastMode = true } = args;
+  const { companyId, product, fastMode = true, targetFields } = args;
+  const requested = targetFields && targetFields.length > 0 ? targetFields : ["short", "description", "bullets"];
+  const needShort = requested.includes("short");
+  const needDesc = requested.includes("description");
+  const needBullets = requested.includes("bullets");
   const keys = await resolveIntegrationKeys(companyId);
   if (!keys.openai) {
     throw new Error("Chiave OpenAI mancante per l'azienda.");
@@ -52,36 +57,43 @@ DATI:
 - Campi extra: ${extraFieldsPreview}
 `.trim();
 
+  const sections: string[] = [];
+  if (needShort) sections.push("---SHORT_DESCRIPTION---\n[2-3 frasi]");
+  if (needDesc) sections.push(`---DESCRIPTION---\n[${fastMode ? "1 paragrafo breve" : "1-3 paragrafi"}]`);
+  if (needBullets) sections.push(`---BULLET_POINTS---\n[${fastMode ? "4-6" : "5-8"} punti, una riga per punto]`);
   const fullPromptFallback = `${basePrompt}
 
 RISPONDI SOLO in questo formato:
----SHORT_DESCRIPTION---
-[2-3 frasi]
----DESCRIPTION---
-[${fastMode ? "1 paragrafo breve" : "1-3 paragrafi"}]
----BULLET_POINTS---
-[${fastMode ? "4-6" : "5-8"} punti, una riga per punto]
+${sections.join("\n")}
 `;
 
   const openai = new OpenAI({ apiKey: keys.openai });
   let txt: string;
+  const requestedCount = [needShort, needDesc, needBullets].filter(Boolean).length || 1;
   if (fastMode) {
     // Fast mode: una sola chiamata, meno token => costo inferiore e latenza minore.
     txt = await generateProductCopySingle(openai, {
       fullPrompt: fullPromptFallback.trim(),
-      maxTokens: 380,
+      maxTokens: Math.min(380, Math.max(120, 120 * requestedCount)),
     });
   } else {
     try {
-      txt = await generateProductCopyMerged(openai, {
-        basePrompt,
-        includeTechnicalFields: false,
-      });
+      if (needShort && needDesc && needBullets) {
+        txt = await generateProductCopyMerged(openai, {
+          basePrompt,
+          includeTechnicalFields: false,
+        });
+      } else {
+        txt = await generateProductCopySingle(openai, {
+          fullPrompt: fullPromptFallback.trim(),
+          maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
+        });
+      }
     } catch (e) {
       console.warn("seo-ai parallel fallback:", e);
       txt = await generateProductCopySingle(openai, {
         fullPrompt: fullPromptFallback.trim(),
-        maxTokens: 900,
+        maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
       });
     }
   }

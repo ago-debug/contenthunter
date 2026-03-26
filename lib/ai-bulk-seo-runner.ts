@@ -118,11 +118,17 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
         extraFields: extrasObj,
         translations: { it: transIt },
       };
+      const targetFields: Array<"short" | "description" | "bullets"> = [
+        ...(job.overwriteExisting || !existing.seoAiText ? (["short"] as const) : []),
+        ...(job.overwriteExisting || !existing.description ? (["description"] as const) : []),
+        ...(job.overwriteExisting || !existing.bulletPoints ? (["bullets"] as const) : []),
+      ];
 
       const blocks = await generateSeoBlocksForProduct({
         companyId: job.companyId,
         product: productForAi,
         fastMode,
+        targetFields,
       });
 
       const nextSeo = job.overwriteExisting || !existing.seoAiText ? blocks.short || existing.seoAiText : existing.seoAiText;

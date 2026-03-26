@@ -19,6 +19,8 @@ import * as XLSX from "xlsx";
 import { useCatalog } from "./CatalogContext";
 import PdfVisualWorkspace from "./PdfVisualWorkspace";
 import { ClearableSearchInput } from "@/components/ClearableSearchInput";
+import InfoHint from "@/components/InfoHint";
+import { INFO_HINTS } from "@/components/info-hints";
 
 if (typeof window !== "undefined") {
     // Robust CDN for ESM-based PDF.js workers
@@ -1745,13 +1747,16 @@ export default function ImportLab() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={handlePushToMasterErp}
-                            className="flex-1 sm:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-2xl shadow-slate-300 flex items-center justify-center gap-3 group"
-                        >
-                            <Sparkles className="w-4 h-4 text-orange-400 group-hover:scale-125 transition-transform" />
-                            <span className="whitespace-nowrap">Push to Master ERP</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handlePushToMasterErp}
+                                className="flex-1 sm:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-black transition-all shadow-2xl shadow-slate-300 flex items-center justify-center gap-3 group"
+                            >
+                                <Sparkles className="w-4 h-4 text-orange-400 group-hover:scale-125 transition-transform" />
+                                <span className="whitespace-nowrap">Push to Master ERP</span>
+                            </button>
+                            <InfoHint text={INFO_HINTS.importLab.pushToMaster} />
+                        </div>
                         <div className="flex flex-wrap items-center gap-2 text-[10px]">
                             <select
                                 value={bulkField}
@@ -1795,6 +1800,7 @@ export default function ImportLab() {
                             >
                                 {isBulkUpdating ? "In corso..." : "Applica a tutti"}
                             </button>
+                            <InfoHint text={INFO_HINTS.importLab.bulkApplyAll} />
                             <button
                                 onClick={handleDedupeStagingImages}
                                 disabled={isBulkUpdating}
@@ -1802,6 +1808,7 @@ export default function ImportLab() {
                             >
                                 {isBulkUpdating ? "In corso..." : "Deduplica immagini"}
                             </button>
+                            <InfoHint text={INFO_HINTS.importLab.dedupeImages} />
                         </div>
                     </div>
                 </div>
@@ -1810,6 +1817,7 @@ export default function ImportLab() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
                         <span>Modifica massiva titolo prodotto</span>
+                        <InfoHint text={INFO_HINTS.importLab.bulkTitle} />
                     </div>
                     <div className="flex flex-wrap items-center gap-2 text-[10px]">
                         <input
@@ -1894,23 +1902,29 @@ export default function ImportLab() {
                     {/* Action Tools Grid */}
                     <div className="flex flex-wrap items-center gap-3 md:justify-end">
                         <input type="file" ref={fileInputRef} className="hidden" accept=".csv, .xlsx, .xls" onChange={handleFileUpload} />
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-5 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2.5"
-                        >
-                            <FileSpreadsheet className="w-4 h-4 text-green-600" />
-                            Carica Listino
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="px-5 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2.5"
+                            >
+                                <FileSpreadsheet className="w-4 h-4 text-green-600" />
+                                Carica Listino
+                            </button>
+                            <InfoHint text={INFO_HINTS.importLab.uploadListino} />
+                        </div>
 
                         <input type="file" ref={pdfInputRef} className="hidden" accept=".pdf" onChange={handlePdfUpload} />
-                        <button
-                            onClick={() => pdfInputRef.current?.click()}
-                            disabled={isUploadingPdf}
-                            className="px-5 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2.5 disabled:opacity-50"
-                        >
-                            {isUploadingPdf ? <RefreshCw className="w-4 h-4 animate-spin text-orange-500" /> : <FileText className="w-4 h-4 text-orange-600" />}
-                            Carica PDF
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => pdfInputRef.current?.click()}
+                                disabled={isUploadingPdf}
+                                className="px-5 py-3 bg-white border border-slate-200 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm flex items-center gap-2.5 disabled:opacity-50"
+                            >
+                                {isUploadingPdf ? <RefreshCw className="w-4 h-4 animate-spin text-orange-500" /> : <FileText className="w-4 h-4 text-orange-600" />}
+                                Carica PDF
+                            </button>
+                            <InfoHint text={INFO_HINTS.importLab.uploadPdf} />
+                        </div>
 
                         <button
                             type="button"

@@ -18,6 +18,8 @@ import { MultiSearchableSelect } from "./MultiSearchableSelect";
 import { useSession } from "next-auth/react";
 import { useCompanyContext } from "@/contexts/CompanyContext";
 import { useActivityContext } from "@/contexts/ActivityContext";
+import InfoHint from "@/components/InfoHint";
+import { INFO_HINTS } from "@/components/info-hints";
 
 const EMPTY_SHEET_FILTERS: Record<string, string> = {
     sku: "",
@@ -888,6 +890,20 @@ export default function ErpTable() {
                     ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000)
                     : "",
             };
+            const existingIt = selectedProduct.translations?.[editLang] || {};
+            const targetFields = !aiRespectExisting
+                ? ["short", "description", "bullets"]
+                : [
+                    ...(existingIt?.seoAiText ? [] : ["short"]),
+                    ...(existingIt?.description ? [] : ["description"]),
+                    ...(existingIt?.bulletPoints ? [] : ["bullets"]),
+                ];
+            if (targetFields.length === 0) {
+                toast.dismiss(toastId);
+                toast.info("Tutti i campi AI sono già valorizzati.");
+                setIsGeneratingAI(false);
+                return;
+            }
 
             const response = await fetch("/api/ai/describe", {
                 method: "POST",
@@ -903,6 +919,7 @@ export default function ErpTable() {
                         respectExisting: aiRespectExisting,
                         useExistingAsModel: aiUseExistingAsModel,
                         fastMode: aiFastMode,
+                        targetFields,
                     }
                 })
             });
@@ -1885,7 +1902,10 @@ export default function ErpTable() {
                                 </button>
                             </div>
                             <button onClick={() => setShowBrandsPanel(true)} className="p-2 sm:p-2.5 bg-white border border-slate-200 rounded-xl shrink-0" aria-label="Brand"><Building2 className="w-4 h-4" /></button>
-                            <button onClick={() => setShowWooConfig(true)} className="p-2 sm:p-2.5 bg-[#111827] text-white rounded-xl shrink-0" aria-label="Setup"><Settings className="w-4 h-4" /></button>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setShowWooConfig(true)} className="p-2 sm:p-2.5 bg-[#111827] text-white rounded-xl shrink-0" aria-label="Setup"><Settings className="w-4 h-4" /></button>
+                                <InfoHint text={INFO_HINTS.erp.wooSetup} />
+                            </div>
                         </div>
                     </div>
 
@@ -1938,7 +1958,7 @@ export default function ErpTable() {
                                 disabled={subCategoryFilter === 'all'}
                             />
                         </div>
-                        <div className="w-[170px] sm:w-[220px] shrink-0">
+                        <div className="w-[170px] sm:w-[220px] shrink-0 flex items-center gap-2">
                             <select
                                 value={aiContentFilter}
                                 onChange={(e) => setAiContentFilter(e.target.value as "all" | "yes" | "no" | "partial")}
@@ -1950,6 +1970,7 @@ export default function ErpTable() {
                                 <option value="no">Elaborato contenuti AI: NO</option>
                                 <option value="partial">Elaborato contenuti AI: NON COMPLETO</option>
                             </select>
+                            <InfoHint text={INFO_HINTS.erp.aiContentFilter} />
                         </div>
 
                         {/* Toggle Filtri Avanzati */}
@@ -3741,6 +3762,7 @@ export default function ErpTable() {
                                     <Sparkles className="w-4 h-4" />
                                     Genera SEO AI
                                 </button>
+                                <InfoHint text={INFO_HINTS.erp.bulkSeo} />
                                 <button
                                     type="button"
                                     onClick={() => void exportSelectedToFile("excel")}
@@ -3767,6 +3789,7 @@ export default function ErpTable() {
                                     <Trash2 className={`w-4 h-4 ${isBulkDeleting ? 'animate-spin' : ''}`} />
                                     {isBulkDeleting ? 'Eliminazione...' : 'Elimina Massa'}
                                 </button>
+                                <InfoHint text={INFO_HINTS.erp.bulkDelete} />
                                 <button
                                     onClick={() => setSelectedIds([])}
                                     className="px-6 py-2 bg-white/10 rounded-full text-[10px] font-black uppercase hover:bg-white/20 transition-all"
@@ -4060,6 +4083,10 @@ export default function ErpTable() {
                                 </label>
                             </div>
                             <div className="flex flex-col gap-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Scelta modalità</span>
+                                    <InfoHint text={INFO_HINTS.erp.bulkSeoMode} />
+                                </div>
                                 <button
                                     onClick={() => handleBulkGenerateSeoAi(true)}
                                     className="w-full py-3 px-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all text-sm"

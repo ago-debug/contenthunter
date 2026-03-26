@@ -117,37 +117,60 @@ REGOLE TASSATIVE:
 3. Se un'informazione non è presente nei dati, lascia il campo vuoto o non forzare un contenuto.
 `.trim();
 
+            const existingText = baseText;
+            const needShort = overwriteExisting || !existingText?.seoAiText;
+            const needDesc = overwriteExisting || !existingText?.description;
+            const needBullets = overwriteExisting || !existingText?.bulletPoints;
+            if (!needShort && !needDesc && !needBullets) {
+                successCount++;
+                continue;
+            }
+            const requestedCount = [needShort, needDesc, needBullets].filter(Boolean).length;
+
+            const sections: string[] = [];
+            if (needShort) {
+                sections.push(`---SHORT_DESCRIPTION---
+[Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]`);
+            }
+            if (needDesc) {
+                sections.push(`---DESCRIPTION---
+[Scrivi qui ${fastMode ? "1 paragrafo breve" : "1-3 paragrafi brevi"} che descriva il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]`);
+            }
+            if (needBullets) {
+                sections.push(`---BULLET_POINTS---
+[Estrai ${fastMode ? "4-6" : "5-8"} punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]`);
+            }
+
             const fullPromptFallback = `${basePrompt}
 
 FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
-
----SHORT_DESCRIPTION---
-[Scrivi qui 1 paragrafo breve, max 2-3 frasi, che riassuma le caratteristiche chiave in modo neutro e tecnico, senza frasi tipo "Scopri", "Perfetto per", "Ideale per"]
-
----DESCRIPTION---
-[Scrivi qui ${fastMode ? "1 paragrafo breve" : "1-3 paragrafi brevi"} che descriva il prodotto in modo chiaro e strutturato, partendo dalla descrizione tecnica originale se presente, senza tono pubblicitario e senza call-to-action]
-
----BULLET_POINTS---
-[Estrai ${fastMode ? "4-6" : "5-8"} punti chiave tecnici del prodotto, uno per riga, in forma sintetica e neutra]
+${sections.join("\n\n")}
 `;
 
             let content: string;
             if (fastMode) {
                 content = await generateProductCopySingle(openai, {
                     fullPrompt: fullPromptFallback.trim(),
-                    maxTokens: 320,
+                    maxTokens: Math.min(360, Math.max(120, 120 * requestedCount)),
                 });
             } else {
                 try {
-                    content = await generateProductCopyMerged(openai, {
-                        basePrompt,
-                        includeTechnicalFields: false,
-                    });
+                    if (needShort && needDesc && needBullets) {
+                        content = await generateProductCopyMerged(openai, {
+                            basePrompt,
+                            includeTechnicalFields: false,
+                        });
+                    } else {
+                        content = await generateProductCopySingle(openai, {
+                            fullPrompt: fullPromptFallback.trim(),
+                            maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
+                        });
+                    }
                 } catch (parallelErr) {
                     console.warn("[SEO BULK] parallel fallback", parallelErr);
                     content = await generateProductCopySingle(openai, {
                         fullPrompt: fullPromptFallback.trim(),
-                        maxTokens: 700,
+                        maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
                     });
                 }
             }
@@ -162,8 +185,6 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
             const newShort = shortMatch ? shortMatch[1].trim() : "";
             const newDesc = descMatch ? descMatch[1].trim() : "";
             const newBullets = bulletMatch ? bulletMatch[1].trim() : "";
-
-            const existingText = baseText;
 
             const finalShort =
                 overwriteExisting || !existingText?.seoAiText ? newShort || existingText?.seoAiText || null : existingText.seoAiText;
