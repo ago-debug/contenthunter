@@ -20,21 +20,13 @@ export const authOptions: NextAuthOptions = {
                 const email = credentials.email.trim();
                 let user;
                 try {
-                    const rows = await prisma.$queryRaw<{ id: number }[]>`
-                        SELECT id FROM User WHERE LOWER(email) = LOWER(${email}) LIMIT 1
-                    `;
-                    const id = rows[0]?.id;
-                    if (id == null) {
-                        throw new Error("Invalid login details");
-                    }
+                    // Usa Prisma (tabella reale @@map / case del server): la raw SQL "FROM User"
+                    // può fallire su MariaDB dopo upgrade se il nome/case della tabella differisce.
                     user = await prisma.user.findUnique({
-                        where: { id },
+                        where: { email },
                         include: { company: true },
                     });
-                } catch (e: any) {
-                    if (String(e?.message || "").includes("Invalid login details")) {
-                        throw e;
-                    }
+                } catch (e) {
                     console.error("[auth] Errore database durante il login:", e);
                     throw new Error("AuthServiceUnavailable");
                 }

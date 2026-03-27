@@ -25,11 +25,20 @@ export default function LoginPage() {
             });
 
             if (result?.error) {
-                toast.error(
-                    result.error === "CredentialsSignin"
-                        ? "Credenziali non valide. Riprova."
-                        : "Accesso non riuscito. Se il problema persiste, controlla la connessione al database sul server."
-                );
+                const err = result.error;
+                if (err === "CredentialsSignin") {
+                    toast.error("Credenziali non valide. Riprova.");
+                } else if (err === "Configuration") {
+                    toast.error(
+                        "Configurazione di accesso incompleta sul server (NEXTAUTH_SECRET / NEXTAUTH_URL). Contatta l’amministratore."
+                    );
+                } else if (err === "AccessDenied") {
+                    toast.error("Accesso negato.");
+                } else {
+                    toast.error(
+                        "Accesso non riuscito. Controlla la connessione al database (DATABASE_URL) o apri /api/debug-db sul server."
+                    );
+                }
             } else {
                 toast.success("Login effettuato con successo!");
                 router.push("/");
