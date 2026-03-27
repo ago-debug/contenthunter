@@ -34,6 +34,6 @@ export const config = {
          * - uploads (static files)
          * - api/storage (forced public for pdf worker; proxy-image richiede login)
          */
-        "/((?!api/register|api/auth|api/fix-auth|api/storage|login|register|_next/static|_next/image|favicon.ico|uploads/).*)",
+        "/((?!api/register|api/auth|api/fix-auth|api/storage|api/debug-db|login|register|_next/static|_next/image|favicon.ico|uploads/).*)",
     ],
 };

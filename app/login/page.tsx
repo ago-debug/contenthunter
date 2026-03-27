@@ -36,7 +36,7 @@ export default function LoginPage() {
                     toast.error("Accesso negato.");
                 } else {
                     toast.error(
-                        "Accesso non riuscito. Controlla la connessione al database (DATABASE_URL) o apri /api/debug-db sul server."
+                        "Accesso non riuscito. Verifica credenziali; se il DB è ok, apri /api/debug-db (test senza login)."
                     );
                 }
             } else {

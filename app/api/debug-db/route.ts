@@ -1,21 +1,33 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
 
-export async function GET() {
+/**
+ * Diagnostica DB senza sessione (es. login che non funziona).
+ * In produzione, opzionale: imposta DEBUG_DB_TOKEN e chiama ?token=...
+ */
+export async function GET(req: NextRequest) {
+    const isProd = process.env.NODE_ENV === "production";
+    const expected = process.env.DEBUG_DB_TOKEN?.trim();
+    if (isProd && expected) {
+        const token = req.nextUrl.searchParams.get("token");
+        if (token !== expected) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+    }
+
     try {
-        // 1. Test Environment Variables
         const dbUrl = process.env.DATABASE_URL ? "CONFIGURED (Hidden for safety)" : "MISSING";
 
-        // 2. Test DB Connection
         await prisma.$queryRaw`SELECT 1`;
 
-        // 3. Check Tables
-        const catalogCount = await prisma.catalog.count();
-        const productCount = await prisma.product.count();
+        const [catalogCount, productCount, userCount] = await Promise.all([
+            prisma.catalog.count(),
+            prisma.product.count(),
+            prisma.user.count(),
+        ]);
 
-        // 4. Check Filesystem
         const pubUploadsDir = path.join(process.cwd(), "public/uploads");
         const uploadsDir = path.join(process.cwd(), "uploads");
 
@@ -23,7 +35,7 @@ export async function GET() {
             publicUploadsExists: fs.existsSync(pubUploadsDir),
             uploadsExists: fs.existsSync(uploadsDir),
             cwd: process.cwd(),
-            publicUploadsContent: fs.existsSync(pubUploadsDir) ? fs.readdirSync(pubUploadsDir).slice(0, 10) : []
+            publicUploadsContent: fs.existsSync(pubUploadsDir) ? fs.readdirSync(pubUploadsDir).slice(0, 10) : [],
         };
 
         return NextResponse.json({
@@ -32,16 +44,24 @@ export async function GET() {
             connection: "ACTIVE",
             stats: {
                 catalogs: catalogCount,
-                products: productCount
+                products: productCount,
+                users: userCount,
             },
-            disk
+            disk,
+            hint:
+                userCount === 0
+                    ? "Nessun utente in tabella User: registrane uno o usa scripts/reset-password.js su server."
+                    : undefined,
         });
     } catch (err: any) {
-        return NextResponse.json({
+        const body: Record<string, unknown> = {
             status: "ERROR",
-            message: err.message,
-            stack: err.stack,
-            hint: "Check if DATABASE_URL is correct and if you run 'npx prisma db push' on the server."
-        }, { status: 500 });
+            message: err?.message || "Unknown error",
+            hint: "Verifica DATABASE_URL e che MariaDB accetti connessioni dall’host dell’app.",
+        };
+        if (!isProd && err?.stack) {
+            body.stack = err.stack;
+        }
+        return NextResponse.json(body, { status: 500 });
     }
 }
