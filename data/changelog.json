@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "04c4bc01783beb98416f22c2b86749ac07922fe1",
+      "at": "2026-03-27T18:41:05+01:00",
+      "description": "feat(scripts): bootstrap utente admin globale da env"
+    },
+    {
       "hash": "6b44dc74c8fc5f71e2eec7d335837e6088c6cff5",
       "at": "2026-03-27T18:38:37+01:00",
       "description": "fix(auth): escludi /api/debug-db dal middleware e migliora diagnostica"
