@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "43a607e21ed88b81949f4f8481e09edd7565b9e2",
+      "at": "2026-03-27T18:21:50+01:00",
+      "description": "fix(auth): case-insensitive email login and clearer DB errors"
+    },
+    {
       "hash": "b0c1b48f97a4204707ffb49bc51b99fba02b4494",
       "at": "2026-03-27T08:37:00+01:00",
       "description": "fix(ai): refresh OpenAI key cache for SEO generation"
