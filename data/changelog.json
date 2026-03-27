@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "1ca74eb872bd390844de0139aedf13702523dc90",
+      "at": "2026-03-27T18:27:51+01:00",
+      "description": "fix(auth): login con Prisma senza raw SQL su tabella User"
+    },
+    {
       "hash": "43a607e21ed88b81949f4f8481e09edd7565b9e2",
       "at": "2026-03-27T18:21:50+01:00",
       "description": "fix(auth): case-insensitive email login and clearer DB errors"
