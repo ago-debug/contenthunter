@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "b0c1b48f97a4204707ffb49bc51b99fba02b4494",
+      "at": "2026-03-27T08:37:00+01:00",
+      "description": "fix(ai): refresh OpenAI key cache for SEO generation"
+    },
+    {
       "hash": "4f7af9a31e72b3eff34cff335be822dd957c4dcb",
       "at": "2026-03-27T00:15:25+01:00",
       "description": "feat(erp): filtro Brand come tendina con ricerca testo libero"
