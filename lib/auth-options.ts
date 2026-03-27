@@ -17,10 +17,27 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Missing parameters");
                 }
 
-                const user = await prisma.user.findUnique({
-                    where: { email: credentials.email },
-                    include: { company: true },
-                });
+                const email = credentials.email.trim();
+                let user;
+                try {
+                    const rows = await prisma.$queryRaw<{ id: number }[]>`
+                        SELECT id FROM User WHERE LOWER(email) = LOWER(${email}) LIMIT 1
+                    `;
+                    const id = rows[0]?.id;
+                    if (id == null) {
+                        throw new Error("Invalid login details");
+                    }
+                    user = await prisma.user.findUnique({
+                        where: { id },
+                        include: { company: true },
+                    });
+                } catch (e: any) {
+                    if (String(e?.message || "").includes("Invalid login details")) {
+                        throw e;
+                    }
+                    console.error("[auth] Errore database durante il login:", e);
+                    throw new Error("AuthServiceUnavailable");
+                }
 
                 if (!user || !(await bcrypt.compare(credentials.password, user.password))) {
                     throw new Error("Invalid login details");

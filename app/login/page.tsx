@@ -25,7 +25,11 @@ export default function LoginPage() {
             });
 
             if (result?.error) {
-                toast.error("Credenziali non valide. Riprova.");
+                toast.error(
+                    result.error === "CredentialsSignin"
+                        ? "Credenziali non valide. Riprova."
+                        : "Accesso non riuscito. Se il problema persiste, controlla la connessione al database sul server."
+                );
             } else {
                 toast.success("Login effettuato con successo!");
                 router.push("/");
