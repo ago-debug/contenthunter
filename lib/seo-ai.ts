@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
 
-const keysCache = new Map<number, { openai?: string | null }>();
+const KEYS_CACHE_TTL_MS = 2 * 60 * 1000;
+const keysCache = new Map<number, { openai: string; updatedAt: number }>();
 const brandGuidelinesCache = new Map<string, string>();
 
 export async function generateSeoBlocksForProduct(args: {
@@ -17,12 +18,24 @@ export async function generateSeoBlocksForProduct(args: {
   const needShort = requested.includes("short");
   const needDesc = requested.includes("description");
   const needBullets = requested.includes("bullets");
-  let keys = keysCache.get(companyId);
-  if (!keys) {
-    keys = await resolveIntegrationKeys(companyId);
-    keysCache.set(companyId, { openai: keys.openai });
+  const now = Date.now();
+  const cached = keysCache.get(companyId);
+  let openaiKey = "";
+  const cacheValid = !!cached && now - cached.updatedAt < KEYS_CACHE_TTL_MS && !!cached.openai;
+  if (cacheValid) {
+    openaiKey = cached.openai;
+  } else {
+    const keys = await resolveIntegrationKeys(companyId);
+    openaiKey = (keys.openai || "").trim();
+    // Non tenere in cache valori vuoti: quando l'utente salva la chiave da UI
+    // deve diventare efficace subito senza dover riavviare il server.
+    if (openaiKey) {
+      keysCache.set(companyId, { openai: openaiKey, updatedAt: now });
+    } else {
+      keysCache.delete(companyId);
+    }
   }
-  if (!keys.openai) {
+  if (!openaiKey) {
     throw new Error("Chiave OpenAI mancante per l'azienda.");
   }
 
@@ -82,7 +95,7 @@ RISPONDI SOLO in questo formato:
 ${sections.join("\n")}
 `;
 
-  const openai = new OpenAI({ apiKey: keys.openai });
+  const openai = new OpenAI({ apiKey: openaiKey });
   let txt: string;
   const requestedCount = [needShort, needDesc, needBullets].filter(Boolean).length || 1;
   if (fastMode) {
