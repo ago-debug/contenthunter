@@ -2,6 +2,11 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
+import {
+    AI_PRODUCT_COPY_FAST,
+    AI_PRODUCT_COPY_FULL,
+    maxOutputTokensProductCopy,
+} from "@/lib/ai-content-budget";
 
 const KEYS_CACHE_TTL_MS = 2 * 60 * 1000;
 const keysCache = new Map<number, { openai: string; updatedAt: number }>();
@@ -52,22 +57,33 @@ export async function generateSeoBlocksForProduct(args: {
         where: brandId ? { id: brandId, companyId } : { name: brandName, companyId },
         select: { name: true, aiContentGuidelines: true },
       });
+      const bgMax = fastMode
+        ? AI_PRODUCT_COPY_FAST.brandGuidelinesMaxChars
+        : AI_PRODUCT_COPY_FULL.brandGuidelinesMaxChars;
       const computed = b?.aiContentGuidelines
-        ? `\nLINEA GUIDA BRAND "${b.name}":\n${b.aiContentGuidelines}\n`
+        ? `\nLINEA GUIDA BRAND "${b.name}":\n${String(b.aiContentGuidelines).slice(0, bgMax)}\n`
         : "";
       brandGuidelinesCache.set(brandCacheKey, computed);
       brandGuidelines = computed;
     }
   }
 
+  const docLim = fastMode
+    ? AI_PRODUCT_COPY_FAST.docDescriptionMaxChars
+    : AI_PRODUCT_COPY_FULL.docDescriptionMaxChars;
+  const extraLim = fastMode
+    ? AI_PRODUCT_COPY_FAST.extraFieldsMaxChars
+    : AI_PRODUCT_COPY_FULL.extraFieldsMaxChars;
   const extra = product?.extraFields || {};
   const extraFieldsPreview =
     extra && typeof extra === "object"
       ? Object.entries(extra)
           .map(([k, v]) => `${k}: ${String(v ?? "")}`)
           .join(", ")
-          .slice(0, fastMode ? 450 : 1200)
+          .slice(0, extraLim)
       : "";
+
+  const docDescription = String(product?.docDescription || "").slice(0, docLim);
 
   const basePrompt = `
 Sei un redattore tecnico B2B. Genera contenuti SEO in italiano per scheda prodotto.
@@ -81,7 +97,7 @@ DATI:
 - Titolo: ${product?.title || product?.translations?.it?.title || ""}
 - Brand: ${brandName}
 - Categoria: ${product?.category || ""}
-- Descrizione tecnica: ${product?.docDescription || ""}
+- Descrizione tecnica: ${docDescription}
 - Campi extra: ${extraFieldsPreview}
 `.trim();
 
@@ -102,7 +118,7 @@ ${sections.join("\n")}
     // Fast mode: una sola chiamata, meno token => costo inferiore e latenza minore.
     txt = await generateProductCopySingle(openai, {
       fullPrompt: fullPromptFallback.trim(),
-      maxTokens: Math.min(380, Math.max(120, 120 * requestedCount)),
+      maxTokens: maxOutputTokensProductCopy(requestedCount, true),
     });
   } else {
     try {
@@ -114,14 +130,14 @@ ${sections.join("\n")}
       } else {
         txt = await generateProductCopySingle(openai, {
           fullPrompt: fullPromptFallback.trim(),
-          maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
+          maxTokens: maxOutputTokensProductCopy(requestedCount, false),
         });
       }
     } catch (e) {
       console.warn("seo-ai parallel fallback:", e);
       txt = await generateProductCopySingle(openai, {
         fullPrompt: fullPromptFallback.trim(),
-        maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
+        maxTokens: maxOutputTokensProductCopy(requestedCount, false),
       });
     }
   }

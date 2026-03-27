@@ -64,7 +64,7 @@ Genera ESCLUSIVAMENTE questi blocchi in ordine (prima riga di ogni sezione = mar
                 { role: "user", content: part1User },
             ],
             temperature: 0.45,
-            max_tokens: 150,
+            max_tokens: 120,
         }),
         openai.chat.completions.create({
             model,
@@ -73,7 +73,7 @@ Genera ESCLUSIVAMENTE questi blocchi in ordine (prima riga di ogni sezione = mar
                 { role: "user", content: part2User },
             ],
             temperature: 0.45,
-            max_tokens: includeTechnicalFields ? 420 : 320,
+            max_tokens: includeTechnicalFields ? 340 : 260,
         }),
     ]);
 

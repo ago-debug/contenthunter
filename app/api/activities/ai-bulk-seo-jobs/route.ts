@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
-import { triggerAiBulkSeoJob } from "@/lib/ai-bulk-seo-runner";
+import { productHasCompleteSeoBlocks, triggerAiBulkSeoJob } from "@/lib/ai-bulk-seo-runner";
 
 type CreateBody = {
   productIds: number[];
@@ -48,23 +48,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nessun prodotto valido selezionato." }, { status: 400 });
   }
 
+  const overwrite = !!body.overwriteExisting;
+  const itemCreates = products.map((p) => {
+    const t = p.texts[0];
+    const preSkipped = !overwrite && productHasCompleteSeoBlocks(t);
+    return {
+      productId: p.id,
+      sku: p.sku,
+      title: t?.title || null,
+      status: preSkipped ? "skipped" : "pending",
+      message: preSkipped ? "Saltato: campi già presenti" : null,
+      processedAt: preSkipped ? new Date() : null,
+    };
+  });
+  const skippedUpfront = itemCreates.filter((i) => i.status === "skipped").length;
+
   const job = await prisma.aiBulkSeoJob.create({
     data: {
       companyId,
       status: "running",
-      overwriteExisting: !!body.overwriteExisting,
+      overwriteExisting: overwrite,
       total: products.length,
-      done: 0,
+      done: skippedUpfront,
       errors: 0,
       brand: body.brand?.trim() || null,
       catalogue: body.catalogue?.trim() || null,
       items: {
-        create: products.map((p) => ({
-          productId: p.id,
-          sku: p.sku,
-          title: p.texts[0]?.title || null,
-          status: "pending",
-        })),
+        create: itemCreates,
       },
     },
     select: { id: true, total: true },

@@ -7,6 +7,11 @@ import {
     generateProductCopyMerged,
     generateProductCopySingle,
 } from "@/lib/ai-product-copy";
+import {
+    AI_PRODUCT_COPY_FAST,
+    AI_PRODUCT_COPY_FULL,
+    maxOutputTokensProductCopy,
+} from "@/lib/ai-content-budget";
 
 /** Generazione AI può superare il default serverless (60s) su Vercel. */
 export const maxDuration = 120;
@@ -60,15 +65,24 @@ export async function POST(req: Request) {
                 select: { name: true, aiContentGuidelines: true },
             });
             if (brand?.aiContentGuidelines) {
+                const bgMax = fastMode
+                    ? AI_PRODUCT_COPY_FAST.brandGuidelinesMaxChars
+                    : AI_PRODUCT_COPY_FULL.brandGuidelinesMaxChars;
                 brandGuidelines = `
 
 LINEA GUIDA BRAND "${brand.name}" (rispetta rigorosamente tono e stile):
-${String(brand.aiContentGuidelines).slice(0, fastMode ? 400 : 1200)}
+${String(brand.aiContentGuidelines).slice(0, bgMax)}
 `;
             }
         }
-        const docDescription = String(productData.docDescription || "").slice(0, fastMode ? 800 : 2200);
-        const extraFieldsPreview = String(productData.extraFieldsPreview || "").slice(0, fastMode ? 350 : 900);
+        const docLim = fastMode
+            ? AI_PRODUCT_COPY_FAST.docDescriptionMaxChars
+            : AI_PRODUCT_COPY_FULL.docDescriptionMaxChars;
+        const extraLim = fastMode
+            ? AI_PRODUCT_COPY_FAST.extraFieldsMaxChars
+            : AI_PRODUCT_COPY_FULL.extraFieldsMaxChars;
+        const docDescription = String(productData.docDescription || "").slice(0, docLim);
+        const extraFieldsPreview = String(productData.extraFieldsPreview || "").slice(0, extraLim);
 
         const basePrompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
@@ -129,7 +143,7 @@ ${sections.join("\n\n")}
         if (fastMode) {
             text = await generateProductCopySingle(openai, {
                 fullPrompt: fullPromptFallback.trim(),
-                maxTokens: Math.min(420, Math.max(140, 140 * requestedCount)),
+                maxTokens: maxOutputTokensProductCopy(requestedCount, true),
             });
         } else {
             try {
@@ -142,14 +156,14 @@ ${sections.join("\n\n")}
                 } else {
                     text = await generateProductCopySingle(openai, {
                         fullPrompt: fullPromptFallback.trim(),
-                        maxTokens: Math.min(560, Math.max(180, 180 * requestedCount)),
+                        maxTokens: maxOutputTokensProductCopy(requestedCount, false),
                     });
                 }
             } catch (mergedErr) {
                 console.warn("AI describe merged failed, single fallback:", mergedErr);
                 text = await generateProductCopySingle(openai, {
                     fullPrompt: fullPromptFallback.trim(),
-                    maxTokens: Math.min(560, Math.max(180, 180 * requestedCount)),
+                    maxTokens: maxOutputTokensProductCopy(requestedCount, false),
                 });
             }
         }

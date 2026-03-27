@@ -4,6 +4,11 @@ import { requireCompanyId } from "@/lib/auth-api";
 import { OpenAI } from "openai";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
+import {
+    AI_PRODUCT_COPY_FAST,
+    AI_PRODUCT_COPY_FULL,
+    maxOutputTokensProductCopy,
+} from "@/lib/ai-content-budget";
 
 export const maxDuration = 300;
 
@@ -44,6 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey: keys.openai });
+    const brandGuidelinesCache = new Map<string, string>();
 
     let successCount = 0;
     let errorCount = 0;
@@ -68,28 +74,43 @@ export async function POST(req: NextRequest) {
             }
 
             const baseText: any = (product as any).texts?.[0] || null;
+            const extraLim = fastMode
+                ? AI_PRODUCT_COPY_FAST.extraFieldsMaxChars
+                : AI_PRODUCT_COPY_FULL.extraFieldsMaxChars;
             const extraPreview = product.extraFields
                 .map((ef) => `${ef.key}: ${ef.value}`)
                 .join(", ")
-                .substring(0, fastMode ? 350 : 900);
+                .substring(0, extraLim);
 
-            // Brand guidelines (stesso schema di /api/ai/describe)
-            let brandGuidelines = "";
-            if (product.brandId || product.brand) {
-                const brand = await prisma.brand.findFirst({
-                    where: product.brandId
-                        ? { id: product.brandId }
-                        : { companyId, name: (product.brand || "").toString().trim() },
-                });
-                if (brand?.aiContentGuidelines) {
-                    brandGuidelines = `
+            const brandCacheKey = `${companyId}:${product.brandId ?? ""}:${(product.brand || "").toString().trim().toLowerCase()}`;
+            let brandGuidelines = brandGuidelinesCache.get(brandCacheKey);
+            if (brandGuidelines === undefined) {
+                brandGuidelines = "";
+                if (product.brandId || product.brand) {
+                    const brand = await prisma.brand.findFirst({
+                        where: product.brandId
+                            ? { id: product.brandId, companyId }
+                            : { companyId, name: (product.brand || "").toString().trim() },
+                        select: { name: true, aiContentGuidelines: true },
+                    });
+                    if (brand?.aiContentGuidelines) {
+                        const bgMax = fastMode
+                            ? AI_PRODUCT_COPY_FAST.brandGuidelinesMaxChars
+                            : AI_PRODUCT_COPY_FULL.brandGuidelinesMaxChars;
+                        brandGuidelines = `
 
 LINEA GUIDA BRAND "${brand.name}" (rispetta rigorosamente tono e stile):
-${String(brand.aiContentGuidelines).slice(0, fastMode ? 400 : 1200)}
+${String(brand.aiContentGuidelines).slice(0, bgMax)}
 `;
+                    }
                 }
+                brandGuidelinesCache.set(brandCacheKey, brandGuidelines);
             }
-            const docDescription = String(baseText?.docDescription || "").slice(0, fastMode ? 800 : 2200);
+
+            const docLim = fastMode
+                ? AI_PRODUCT_COPY_FAST.docDescriptionMaxChars
+                : AI_PRODUCT_COPY_FULL.docDescriptionMaxChars;
+            const docDescription = String(baseText?.docDescription || "").slice(0, docLim);
 
             const basePrompt = `
 Sei un redattore tecnico per cataloghi B2B. Genera una scheda prodotto in ${language} con tono neutro, tecnico e professionale.
@@ -151,7 +172,7 @@ ${sections.join("\n\n")}
             if (fastMode) {
                 content = await generateProductCopySingle(openai, {
                     fullPrompt: fullPromptFallback.trim(),
-                    maxTokens: Math.min(360, Math.max(120, 120 * requestedCount)),
+                    maxTokens: maxOutputTokensProductCopy(requestedCount, true),
                 });
             } else {
                 try {
@@ -163,14 +184,14 @@ ${sections.join("\n\n")}
                     } else {
                         content = await generateProductCopySingle(openai, {
                             fullPrompt: fullPromptFallback.trim(),
-                            maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
+                            maxTokens: maxOutputTokensProductCopy(requestedCount, false),
                         });
                     }
                 } catch (parallelErr) {
                     console.warn("[SEO BULK] parallel fallback", parallelErr);
                     content = await generateProductCopySingle(openai, {
                         fullPrompt: fullPromptFallback.trim(),
-                        maxTokens: Math.min(520, Math.max(170, 170 * requestedCount)),
+                        maxTokens: maxOutputTokensProductCopy(requestedCount, false),
                     });
                 }
             }

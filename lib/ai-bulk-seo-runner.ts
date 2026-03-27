@@ -1,6 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { generateSeoBlocksForProduct } from "@/lib/seo-ai";
 
+function fieldHasSeoContent(v: string | null | undefined): boolean {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+/** True se breve SEO, descrizione e bullet sono tutti valorizzati (non solo spazi). */
+export function productHasCompleteSeoBlocks(
+  textRow: { seoAiText?: string | null; description?: string | null; bulletPoints?: string | null } | null | undefined
+): boolean {
+  return (
+    !!textRow &&
+    fieldHasSeoContent(textRow.seoAiText) &&
+    fieldHasSeoContent(textRow.description) &&
+    fieldHasSeoContent(textRow.bulletPoints)
+  );
+}
+
 const activeJobs = new Set<number>();
 const jobFastMode = new Map<number, boolean>();
 
@@ -87,12 +103,7 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
       };
 
       // Risparmio costo: se non sovrascriviamo e tutti i campi sono già pieni, salta senza chiamare AI.
-      if (
-        !job.overwriteExisting &&
-        !!existing.seoAiText &&
-        !!existing.description &&
-        !!existing.bulletPoints
-      ) {
+      if (!job.overwriteExisting && productHasCompleteSeoBlocks(existing)) {
         await prisma.aiBulkSeoJobItem.update({
           where: { id: item.id },
           data: { status: "skipped", message: "Saltato: campi già presenti", processedAt: new Date() },
@@ -217,12 +228,55 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
       continue;
     }
 
+    // "Solo dove mancano": non passare mai da "processing" se i tre campi sono già ok (niente AI / UI "in analisi").
+    const productIds = nextItems.map((i) => i.productId);
+    const productsBatch = await prisma.product.findMany({
+      where: { id: { in: productIds }, companyId: job.companyId },
+      select: {
+        id: true,
+        texts: {
+          where: { language: "it" },
+          take: 1,
+          select: { seoAiText: true, description: true, bulletPoints: true },
+        },
+      },
+    });
+    const byProductId = new Map(productsBatch.map((p) => [p.id, p]));
+
+    const toProcess: typeof nextItems = [];
+    for (const it of nextItems) {
+      if (!job.overwriteExisting) {
+        const row = byProductId.get(it.productId)?.texts[0];
+        if (productHasCompleteSeoBlocks(row)) {
+          await prisma.aiBulkSeoJobItem.update({
+            where: { id: it.id },
+            data: {
+              status: "skipped",
+              message: "Saltato: campi già presenti",
+              processedAt: new Date(),
+            },
+          });
+          await prisma.aiBulkSeoJob.update({
+            where: { id: jobId },
+            data: { done: { increment: 1 } },
+          });
+          continue;
+        }
+      }
+      toProcess.push(it);
+    }
+
+    if (toProcess.length === 0) {
+      await sleep(fastMode ? 120 : 180);
+      continue;
+    }
+
     await prisma.aiBulkSeoJobItem.updateMany({
-      where: { id: { in: nextItems.map((i) => i.id) }, status: "pending" },
+      where: { id: { in: toProcess.map((i) => i.id) }, status: "pending" },
       data: { status: "processing", attempts: { increment: 1 } },
     });
 
-    await Promise.allSettled(nextItems.map((it) => processItem(it, job, fastMode)));
+    await Promise.allSettled(toProcess.map((it) => processItem(it, job, fastMode)));
 
     // Fast mode: mira a ~1 prodotto/secondo medio senza rallentare troppo il loop.
     await sleep(fastMode ? 120 : 180);

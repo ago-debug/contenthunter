@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import { getOpenAiChatModelForProductCopy } from "@/lib/ai-product-copy";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -197,7 +198,7 @@ REGOLE:
 5) Rispondi SOLO con JSON valido: {"title":"..."}`;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: getOpenAiChatModelForProductCopy(),
             messages: [
                 {
                     role: "system",
@@ -207,7 +208,7 @@ REGOLE:
                 { role: "user", content: prompt },
             ],
             temperature: 0.35,
-            max_tokens: 200,
+            max_tokens: 120,
             response_format: { type: "json_object" },
         });
 
