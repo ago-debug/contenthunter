@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "97fe0054142b1cbde8323d816847f5d7f5a5b3f8",
+      "at": "2026-03-30T13:02:26+02:00",
+      "description": "fix(build): route search-images — cheerio dinamico e serverExternalPackages"
+    },
+    {
       "hash": "87d40d8025189baaf2644d69abc5e33380b0c64a",
       "at": "2026-03-30T12:55:31+02:00",
       "description": "fix(build): Tailwind v3 al posto della v4 per build Linux senza oxide"
