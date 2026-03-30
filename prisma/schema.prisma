@@ -1,0 +1,603 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Chiavi API e WooCommerce per questa azienda (fallback: variabili ambiente server)
+  openaiApiKey       String? @db.Text
+  serpapiKey         String? @db.Text
+  geminiApiKey       String? @db.Text
+  wooDomain          String? @db.Text
+  wooConsumerKey     String? @db.Text
+  wooConsumerSecret  String? @db.Text
+
+  users     User[]
+  catalogs  Catalog[]
+  products  Product[]
+  categories Category[]
+  brands    Brand[]
+  tags      Tag[]
+  bulletPoints BulletPoint[]
+  templates Template[]
+  scrapeProjects ScrapeProject[]
+  extraFieldTemplates ExtraFieldTemplate[]
+  vatCodes  VatCode[]
+  aiBulkSeoJobs AiBulkSeoJob[]
+  activities ActivityLog[]
+}
+
+model Catalog {
+  id            Int            @id @default(autoincrement())
+  companyId     Int
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  createdAt     DateTime       @default(now())
+  
+  // Catalogo associato a un brand (per cartella immagini: nomeBrand/images)
+  brandId       Int?
+  brandRef      Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  
+  // Repository Settings
+  imageFolderPath String?      @db.Text
+  status          String       @default("draft") // draft, processing, staging, completed
+  
+  templateId    Int?
+  template      Template?      @relation(fields: [templateId], references: [id])
+  
+  pdfs          CatalogPdf[]
+  entries       CatalogEntry[]
+  searchSources SearchSource[]
+  pages         PdfPage[]
+  stagingProducts StagingProduct[]
+  listinoFiles  CatalogListinoFile[]
+  extraFieldTemplates ExtraFieldTemplate[]
+
+  lastListinoName String?      @db.Text
+
+  @@index([companyId])
+  @@index([brandId])
+  @@index([templateId], map: "Catalog_templateId_fkey")
+}
+
+model CatalogPdf {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  fileName  String
+  filePath  String
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model CatalogEntry {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  productId Int
+
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, productId])
+  @@index([productId], map: "CatalogEntry_productId_fkey")
+  @@index([catalogId], map: "CatalogEntry_catalogId_fkey")
+}
+
+model SearchSource {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  url       String   @db.LongText
+  label     String?
+  createdAt DateTime @default(now())
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId], map: "SearchSource_catalogId_fkey")
+}
+
+model CatalogListinoFile {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  fileName  String
+  uploadedAt DateTime @default(now())
+
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model Template {
+  id        Int       @id @default(autoincrement())
+  companyId Int
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime  @default(now())
+  catalogs  Catalog[]
+  rules     Rule[]
+
+  @@index([companyId])
+}
+
+model Rule {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  fieldName  String
+  regex      String?
+  zoneX      Float?
+  zoneY      Float?
+  zoneWidth  Float?
+  zoneHeight Float?
+  createdAt  DateTime @default(now())
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId], map: "Rule_templateId_fkey")
+}
+
+model Product {
+  id             Int            @id @default(autoincrement())
+  companyId      Int
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sku            String
+  parentSku      String?
+  ean            String?
+  
+  brand            String?
+  brandId          Int?
+  brandRef         Brand?    @relation(fields: [brandId], references: [id])
+  
+  category         String?
+  categoryId       Int?
+  subCategoryId    Int?
+  subSubCategoryId Int?
+  
+  categoryRef       Category? @relation("ProductCategory", fields: [categoryId], references: [id])
+  subCategoryRef    Category? @relation("ProductSubCategory", fields: [subCategoryId], references: [id])
+  subSubCategoryRef Category? @relation("ProductSubSubCategory", fields: [subSubCategoryId], references: [id])
+  
+  texts          ProductText[]
+  prices         ProductPrice[]
+  extraFields    ProductExtra[]
+  images         ProductImage[]
+  bulletPointRefs BulletPoint[]
+  catalogs       CatalogEntry[]
+  history        ProductHistory[]
+  tags           ProductTag[]
+
+  vatCodeId      Int?
+  vatCode        VatCode?       @relation(fields: [vatCodeId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([companyId, sku])
+  @@index([companyId])
+  @@index([brandId])
+  @@index([vatCodeId])
+}
+
+/// Codici IVA per azienda (aliquota % configurabile)
+model VatCode {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String
+  label       String?
+  ratePercent Decimal  @db.Decimal(6, 3)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model ProductHistory {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  data      Json
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductText {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  language       String   @default("it")
+  
+  title          String?
+  description    String?  @db.Text
+  docDescription String?  @db.Text
+  bulletPoints   String?  @db.Text
+  seoAiText      String?  @db.Text
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, language])
+  @@index([productId], map: "ProductText_productId_fkey")
+}
+
+model ProductPrice {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  listName       String   @default("default")
+  price          Float
+  currency       String   @default("EUR")
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, listName])
+  @@index([productId], map: "ProductPrice_productId_fkey")
+}
+
+model ProductExtra {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  key            String
+  value          String   @db.Text
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@index([productId], map: "ProductExtra_productId_fkey")
+}
+
+/// Job server-side per generazione SEO AI massiva (continua anche senza client connesso)
+model AiBulkSeoJob {
+  id               Int      @id @default(autoincrement())
+  companyId        Int
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status           String   @default("running") // running | paused | completed | stopped | failed
+  overwriteExisting Boolean @default(false)
+  total            Int      @default(0)
+  done             Int      @default(0)
+  errors           Int      @default(0)
+  brand            String?
+  catalogue        String?
+  startedAt        DateTime @default(now())
+  finishedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items            AiBulkSeoJobItem[]
+
+  @@index([companyId, status])
+  @@index([createdAt])
+}
+
+model AiBulkSeoJobItem {
+  id         Int      @id @default(autoincrement())
+  jobId       Int
+  job         AiBulkSeoJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  productId   Int
+  sku         String
+  title       String?
+  status      String   @default("pending") // pending | processing | success | error | skipped
+  message     String?  @db.Text
+  attempts    Int      @default(0)
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobId, status])
+  @@index([productId])
+}
+
+/// Storico attività globale (sidebar Attività)
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        String   // es: ai_bulk_seo
+  status      String   // completed | stopped | failed
+  description String
+  brand       String?
+  catalogue   String?
+  total       Int      @default(0)
+  done        Int      @default(0)
+  errors      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([type, status])
+}
+
+/// Definizione di campi extra personalizzati per listini / prodotti
+model ExtraFieldTemplate {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  catalogId Int?
+
+  key       String
+  label     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  catalog   Catalog? @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, key])
+  @@index([companyId])
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  imageUrl  String   @db.LongText
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId], map: "ProductImage_productId_fkey")
+}
+
+/// Scraping Hub (tipo Zyte) - progetti / spider / job / risultati
+
+model ScrapeProject {
+  id          Int           @id @default(autoincrement())
+  companyId   Int
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  spiders     ScrapeSpider[]
+
+  @@index([companyId])
+}
+
+model ScrapeSpider {
+  id          Int           @id @default(autoincrement())
+  projectId   Int
+  project     ScrapeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  startUrl    String?       @db.LongText
+  config      Json?         // impostazioni HTTP / proxy / headers / rate limit
+  template    Json?         // schema estrazione (campi, selettori, ecc.)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  jobs        ScrapeJob[]
+
+  @@index([projectId])
+}
+
+model ScrapeJob {
+  id           Int          @id @default(autoincrement())
+  spiderId     Int
+  spider       ScrapeSpider @relation(fields: [spiderId], references: [id], onDelete: Cascade)
+  status       String       @default("pending") // pending, running, done, failed
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  totalPages   Int?
+  successCount Int?
+  errorCount   Int?
+  logSnippet   String?      @db.Text
+  createdAt    DateTime     @default(now())
+
+  results      ScrapeResult[]
+  pages        ScrapePage[]
+
+  @@index([spiderId])
+}
+
+model ScrapeResult {
+  id         Int        @id @default(autoincrement())
+  jobId      Int
+  job        ScrapeJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String     @db.LongText
+  statusCode Int?
+  rawHtml    String?    @db.LongText
+  extracted  Json?      // dati strutturati estratti (es. product schema)
+  createdAt  DateTime   @default(now())
+
+  @@index([jobId])
+}
+
+model ScrapePage {
+  id         Int        @id @default(autoincrement())
+  jobId      Int
+  job        ScrapeJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String     @db.LongText
+  status     String     @default("pending") // pending, running, done, error, skipped
+  statusCode Int?
+  error      String?    @db.Text
+  retryCount Int        @default(0) // numero di tentativi (retry pagine in errore)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([jobId])
+  @@index([status])
+}
+
+model PdfPage {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  pageNumber Int
+  text      String   @db.LongText
+  imageUrl  String   @db.LongText
+  subImages String?  @db.LongText // JSON array of extracted image paths
+  createdAt DateTime @default(now())
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model Profile {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  permissions Json     @default("[]") // array di stringhe es. ["products:read", "users:write"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String?
+  email     String   @unique
+  password  String
+  companyId Int?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  companyId Int
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  parentId  Int?
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+
+  productsMain   Product[] @relation("ProductCategory")
+  productsSub    Product[] @relation("ProductSubCategory")
+  productsSubSub Product[] @relation("ProductSubSubCategory")
+
+  @@unique([companyId, name, parentId])
+  @@index([companyId])
+}
+
+model Tag {
+  id        Int          @id @default(autoincrement())
+  companyId Int
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  
+  products  ProductTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model ProductTag {
+  productId Int
+  tagId     Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model Brand {
+  id                  Int       @id @default(autoincrement())
+  companyId           Int
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String
+  logoUrl             String?
+  aiContentGuidelines String?   @db.Text  // Tono per generazione descrizioni AI
+  producerDomain      String?   // Dominio produttore per cercare immagini e altri dati
+  products            Product[]
+  catalogs            Catalog[] // Cataloghi PDF associati al brand
+  createdAt           DateTime  @default(now())
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model BulletPoint {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@index([companyId])
+  @@index([productId])
+}
+
+model StagingProduct {
+  id             Int            @id @default(autoincrement())
+  catalogId      Int
+  catalog        Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  
+  sku            String         
+  parentSku      String?
+  ean            String?
+  
+  brand          String?
+  category       String?
+  
+  texts          StagingProductText[]
+  prices         StagingProductPrice[]
+  extraFields    StagingProductExtra[]
+  images         StagingProductImage[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([catalogId])
+  @@index([sku])
+}
+
+model StagingProductText {
+  id             Int      @id @default(autoincrement())
+  stagingProductId Int
+  language       String   @default("it")
+  
+  title          String?
+  description    String?  @db.Text
+  docDescription String?  @db.Text
+  bulletPoints   String?  @db.Text
+  seoAiText      String?  @db.Text
+
+  stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@unique([stagingProductId, language])
+}
+
+model StagingProductPrice {
+  id             Int      @id @default(autoincrement())
+  stagingProductId Int
+  listName       String   @default("default")
+  price          Float
+  currency       String   @default("EUR")
+
+  stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@unique([stagingProductId, listName])
+}
+
+model StagingProductExtra {
+  id             Int      @id @default(autoincrement())
+  stagingProductId Int
+  key            String
+  value          String   @db.Text
+
+  stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@unique([stagingProductId, key])
+}
+
+model StagingProductImage {
+  id               Int      @id @default(autoincrement())
+  stagingProductId Int
+  imageUrl         String   @db.LongText
+  createdAt        DateTime @default(now())
+  stagingProduct   StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@index([stagingProductId])
+}
+

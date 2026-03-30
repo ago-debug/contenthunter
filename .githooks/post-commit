@@ -1,0 +1,17 @@
+#!/bin/sh
+# Aggiorna versione/data e storico in data/*.json dopo ogni commit (tranne il commit meta).
+cd "$(dirname "$0")/.." || exit 0
+
+LAST_MSG=$(git log -1 --format=%s)
+if [ "$LAST_MSG" = "chore: update app release metadata" ]; then
+  exit 0
+fi
+
+node scripts/update-app-release.mjs || exit 0
+
+if ! git diff --quiet -- data/app-meta.json data/changelog.json 2>/dev/null; then
+  git add data/app-meta.json data/changelog.json
+  git commit --no-verify -m "chore: update app release metadata"
+fi
+
+exit 0

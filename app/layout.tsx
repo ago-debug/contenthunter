@@ -1,0 +1,55 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { AuthProvider } from "@/components/Providers";
+import { CompanyProvider } from "@/contexts/CompanyContext";
+import LayoutClient from "@/components/LayoutClient";
+import { ActivityProvider } from "@/contexts/ActivityContext";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+    title: "Content Hunter",
+    description: "Enterprise PIM: master product data, channels, and integrations.",
+};
+
+export default function RootLayout({
+    children,
+}: Readonly<{
+    children: React.ReactNode;
+}>) {
+    return (
+        <html lang="en">
+            <body className={`${inter.className} bg-[#F4F5F7]`}>
+                <AuthProvider>
+                    <CompanyProvider>
+                        <ActivityProvider>
+                            <LayoutClient>
+                                {children}
+                            </LayoutClient>
+                        </ActivityProvider>
+                    </CompanyProvider>
+                </AuthProvider>
+
+                <ToastContainer
+                    position="top-right"
+                    theme="light"
+                    limit={3}
+                    style={{ zIndex: 9999 }}
+                    toastStyle={{
+                        background: '#ffffff',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '1rem',
+                        padding: '1rem',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#111827',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                    }}
+                />
+            </body>
+        </html>
+    );
+}
