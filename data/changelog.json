@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "4c5b873af274f175c0159f027e5cc5a3ab07fa11",
+      "at": "2026-03-30T12:41:12+02:00",
+      "description": "fix(deploy): Tailwind oxide in produzione — postcss in dependencies e doc"
+    },
+    {
       "hash": "a704594c664a0401857a533786cb0590bb31b6eb",
       "at": "2026-03-30T12:35:19+02:00",
       "description": "Merge origin/main: conserva fix filtro brand WooCommerce e import anagrafica"
