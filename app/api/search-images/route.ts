@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
-import * as cheerio from "cheerio";
 import { requireCompanyId } from "@/lib/auth-api";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+
+/** Import dinamico: evita errori di build Webpack con il pacchetto cheerio/parse5 su alcuni server. */
+async function cheerioLoad(html: string, opts?: { xmlMode?: boolean }) {
+    const { load } = await import("cheerio");
+    return load(html, opts);
+}
 
 // Some dependencies (and/or Node versions) may expect `globalThis.File`.
 // We polyfill it defensively to avoid build/runtime crashes.
@@ -22,6 +27,7 @@ if (typeof (globalThis as any).File === "undefined") {
 }
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function parseBoolean(v: string | null | undefined) {
     if (!v) return false;
@@ -212,7 +218,7 @@ async function fetchSitemapAndCollectUrls(args: {
         const resp = await axios.get(sitemapUrl, { timeout: 12000, responseType: "text" });
         if (!resp.data) return urls;
         const xml = String(resp.data);
-        const $ = cheerio.load(xml, { xmlMode: true });
+        const $ = await cheerioLoad(xml, { xmlMode: true });
 
         const sitemapLocs: string[] = [];
         $("sitemap loc").each((_, el) => {
@@ -303,8 +309,8 @@ function normalizeSchemaProduct(prod: any, baseUrl: string) {
     };
 }
 
-function extractProductNodesFromJsonLd(html: string) {
-    const $ = cheerio.load(html);
+async function extractProductNodesFromJsonLd(html: string) {
+    const $ = await cheerioLoad(html);
     const products: any[] = [];
 
     $("script[type='application/ld+json']").each((_, el) => {
@@ -419,7 +425,7 @@ async function crawlOfficialSourcesForImages(args: {
             const resp = await axios.get(productUrl, { timeout: 10000, responseType: "text" });
             const html = String(resp.data || "");
             const baseUrl = new URL(productUrl).origin;
-            const jsonLdProducts = extractProductNodesFromJsonLd(html);
+            const jsonLdProducts = await extractProductNodesFromJsonLd(html);
             if (!jsonLdProducts || jsonLdProducts.length === 0) continue;
 
             for (const node of jsonLdProducts.slice(0, 5)) {

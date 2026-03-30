@@ -5,6 +5,8 @@ const nextConfig = {
     unoptimized: true
   },
   output: 'standalone',
+  /** Cheerio/parse5: bundling su alcuni host Linux può far fallire `next build` per /api/search-images */
+  serverExternalPackages: ['cheerio'],
   transpilePackages: ['lucide-react'],
   experimental: {
     serverActions: {
