@@ -16,8 +16,12 @@ Esegui **nella cartella dell’app** (es. `~/httpdocs` o il path della tua app):
 # Node 18+ (Next 15 richiede 18.17+)
 node -v
 
-# Dipendenze
+# Dipendenze — sempre sul server Linux, MAI copiare node_modules da Mac/Windows
+# (altrimenti @tailwindcss/oxide non ha il binding corretto e la build fallisce).
+rm -rf node_modules
 npm ci
+# Se npm ci fallisce o mancano i binding nativi Tailwind, prova:
+# npm install --include=optional
 
 # Prisma client (obbligatorio prima di avviare)
 npx prisma generate
@@ -25,6 +29,14 @@ npx prisma generate
 # Build Next.js
 npm run build
 ```
+
+### Errore: `Cannot find native binding` / `@tailwindcss/oxide`
+
+Tailwind v4 installa binari per piattaforma (Linux x64, musl vs gnu, ecc.). Compare se `node_modules` è stato sincronizzato da un altro OS o se le **optional dependencies** non sono state installate.
+
+1. Sul server: `rm -rf node_modules` poi `npm ci` (o `npm install`) **nella cartella del progetto**.
+2. Non usare zip/rsync di `node_modules` dalla macchina di sviluppo.
+3. Su Alpine (musl) servono pacchetti diversi da Debian/Ubuntu (gnu); in quel caso aggiorna Node/npm e reinstalla da zero.
 
 **Start in produzione:**
 

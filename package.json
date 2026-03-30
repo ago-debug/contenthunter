@@ -47,10 +47,10 @@
     "react-toastify": "^11.0.5",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
+    "@tailwindcss/postcss": "^4.2.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/multer": "^2.0.0",
     "@types/node": "^25.3.2",
