@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
-import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { getOpenAiChatModelForProductCopy } from "@/lib/ai-product-copy";
+import { createOpenAiCompatibleClient } from "@/lib/openai-compatible-client";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -178,7 +178,7 @@ ${b.aiContentGuidelines}
             );
         }
 
-        const openai = new OpenAI({ apiKey: keys.openai });
+        const openai = createOpenAiCompatibleClient(keys.openai);
 
         const prompt = `Sei un catalog manager B2B. Genera UN SOLO titolo prodotto in ${language}, chiaro e professionale, adatto a scheda ERP/PIM.
 ${brandGuidelines}

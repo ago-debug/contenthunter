@@ -1,6 +1,6 @@
-import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import { createOpenAiCompatibleClient } from "@/lib/openai-compatible-client";
 import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
 import {
     AI_PRODUCT_COPY_FAST,
@@ -111,7 +111,7 @@ RISPONDI SOLO in questo formato:
 ${sections.join("\n")}
 `;
 
-  const openai = new OpenAI({ apiKey: openaiKey });
+  const openai = createOpenAiCompatibleClient(openaiKey);
   let txt: string;
   const requestedCount = [needShort, needDesc, needBullets].filter(Boolean).length || 1;
   if (fastMode) {

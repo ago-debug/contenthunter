@@ -3,9 +3,9 @@ import path from "path";
 import { writeFile, mkdir, readFile } from "fs/promises";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
-import { OpenAI } from "openai";
 import { toFile } from "openai/uploads";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import { createOpenAiOfficialClient } from "@/lib/openai-compatible-client";
 
 const AMBIENT_MODEL = "gpt-image-1.5" as const;
 
@@ -146,7 +146,7 @@ export async function POST(
             (productContext ? `${productContext} ` : "") +
             extraBlock;
 
-        const openai = new OpenAI({ apiKey: keys.openai });
+        const openai = createOpenAiOfficialClient(keys.openai);
 
         const { buffer: imageBuffer, filename: imageFilename, mime: imageMime } =
             await loadProductImageBytes(baseImage.imageUrl);

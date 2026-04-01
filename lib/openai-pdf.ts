@@ -1,12 +1,12 @@
-import { OpenAI } from "openai";
 import type { ExtractResult, ExtractedProduct, SummarizeResult } from "@/lib/gemini-pdf";
+import { createOpenAiCompatibleClient } from "@/lib/openai-compatible-client";
 
 function getOpenAI(apiKeyOverride?: string | null) {
     const key = (apiKeyOverride && String(apiKeyOverride).trim()) || process.env.OPENAI_API_KEY;
     if (!key) {
         throw new Error("OPENAI_API_KEY non configurata sul server.");
     }
-    return new OpenAI({ apiKey: key });
+    return createOpenAiCompatibleClient(key);
 }
 
 const EXTRACT_PROMPT = `

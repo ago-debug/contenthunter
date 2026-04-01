@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
-import { OpenAI } from "openai";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { generateProductCopyMerged, generateProductCopySingle } from "@/lib/ai-product-copy";
 import {
@@ -9,6 +8,7 @@ import {
     AI_PRODUCT_COPY_FULL,
     maxOutputTokensProductCopy,
 } from "@/lib/ai-content-budget";
+import { createOpenAiCompatibleClient } from "@/lib/openai-compatible-client";
 
 export const maxDuration = 300;
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "productIds deve essere un array non vuoto" }, { status: 400 });
     }
 
-    const openai = new OpenAI({ apiKey: keys.openai });
+    const openai = createOpenAiCompatibleClient(keys.openai);
     const brandGuidelinesCache = new Map<string, string>();
 
     let successCount = 0;

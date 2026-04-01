@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { OpenAI } from "openai";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
@@ -12,6 +11,7 @@ import {
     AI_PRODUCT_COPY_FULL,
     maxOutputTokensProductCopy,
 } from "@/lib/ai-content-budget";
+import { createOpenAiCompatibleClient } from "@/lib/openai-compatible-client";
 
 /** Generazione AI può superare il default serverless (60s) su Vercel. */
 export const maxDuration = 120;
@@ -137,7 +137,7 @@ FORMATO RICHIESTO (RISPETTA RIGOROSAMENTE I DELIMITATORI):
 ${sections.join("\n\n")}
 `;
 
-        const openai = new OpenAI({ apiKey: keys.openai });
+        const openai = createOpenAiCompatibleClient(keys.openai);
         let text: string;
         const requestedCount = [needShort, needDescription, needBullets].filter(Boolean).length || 1;
         if (fastMode) {

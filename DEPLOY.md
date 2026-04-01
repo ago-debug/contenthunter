@@ -46,6 +46,8 @@ Impostale nel pannello Plesk (o nel file `.env` nella root dell’app):
 | `NEXTAUTH_SECRET` | Chiave segreta per NextAuth (stringa lunga casuale) |
 | `NEXTAUTH_URL`    | URL pubblico dell’app (es. `https://contenthunter.abreve.it`) |
 | `NODE_ENV`        | `production` in produzione               |
+| `OPENAI_BASE_URL` | (opz.) Endpoint compatibile OpenAI per **testo** più economico, es. Groq: `https://api.groq.com/openai/v1`. In Impostazioni va la chiave del fornitore. Le **API immagini** restano su OpenAI ufficiale. |
+| `OPENAI_CHAT_MODEL` | Modello chat (es. `gpt-4o-mini` o con Groq `llama-3.1-8b-instant`). |
 
 Senza `DATABASE_URL` e `NEXTAUTH_SECRET` l’app può andare in errore all’avvio o alla prima richiesta.
 

@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { OpenAI } from "openai";
 import { requireCompanyId } from "@/lib/auth-api";
 import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
 import { getOpenAiChatModelForProductCopy } from "@/lib/ai-product-copy";
+import { createOpenAiCompatibleClient } from "@/lib/openai-compatible-client";
 
 const TRANSLATE_PROMPT_MAX_CHARS = 10000;
 
@@ -50,7 +50,7 @@ RESTITUISCI SOLO IL JSON TRADOTTO, SENZA COMMENTI O INTRODUZIONI. IL FORMATO DEV
             );
         }
 
-        const openai = new OpenAI({ apiKey: keys.openai });
+        const openai = createOpenAiCompatibleClient(keys.openai);
 
         const completion = await openai.chat.completions.create({
             model: getOpenAiChatModelForProductCopy(),

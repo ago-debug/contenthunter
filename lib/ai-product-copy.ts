@@ -1,9 +1,9 @@
 import OpenAI from "openai";
 
 /**
- * Modello OpenAI per descrizioni / SEO prodotto (chat completions).
- * Imposta sul server: `OPENAI_CHAT_MODEL=gpt-4o-mini` (default, veloce ed economico).
- * Esempi: `gpt-4o-mini`, `gpt-4o`, `gpt-3.5-turbo` (più vecchio, spesso più economico).
+ * Modello per descrizioni / SEO prodotto (chat completions, SDK compatibile OpenAI).
+ * Default: `gpt-4o-mini`. Con Groq + `OPENAI_BASE_URL=https://api.groq.com/openai/v1` es.: `llama-3.1-8b-instant`.
+ * Con Gemini per il testo serve integrazione separata (oggi usato per PDF).
  */
 export function getOpenAiChatModelForProductCopy(): string {
     return (process.env.OPENAI_CHAT_MODEL || "gpt-4o-mini").trim() || "gpt-4o-mini";
