@@ -3242,16 +3242,16 @@ export default function ErpTable() {
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block tracking-widest">Materiale Principale</label>
                                                         <input
-                                                            value={getExtraValue(selectedProduct, "material") || ""}
-                                                            onChange={e => setSelectedProduct(setExtraValue(selectedProduct, "material", e.target.value))}
+                                                            value={selectedProduct.material || ""}
+                                                            onChange={e => setSelectedProduct({ ...selectedProduct, material: e.target.value })}
                                                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-5 py-3.5 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-emerald-50 transition-all text-sm"
                                                         />
                                                     </div>
                                                     <div>
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1 mb-2 block tracking-widest">Dimensioni / Calibro</label>
                                                         <input
-                                                            value={getExtraValue(selectedProduct, "dimensions") || ""}
-                                                            onChange={e => setSelectedProduct(setExtraValue(selectedProduct, "dimensions", e.target.value))}
+                                                            value={selectedProduct.dimensions || ""}
+                                                            onChange={e => setSelectedProduct({ ...selectedProduct, dimensions: e.target.value })}
                                                             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 font-bold text-gray-900 focus:outline-none focus:ring-4 focus:ring-emerald-50 transition-all text-sm"
                                                         />
                                                     </div>
