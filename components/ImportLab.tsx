@@ -907,6 +907,19 @@ export default function ImportLab() {
                         }
                     });
 
+                    // Alias comuni per Dimensioni/Materiale dal mapping Import Lab:
+                    // es. colonne chiamate "Dimensioni", "dimensioni", "Materiale", "materiale".
+                    const dimValue =
+                        extraObj.dimensions ??
+                        extraObj.Dimensioni ??
+                        extraObj.dimensioni ??
+                        extraObj["DIMENSIONI"];
+                    const materialValue =
+                        extraObj.material ??
+                        extraObj.Materiale ??
+                        extraObj.materiale ??
+                        extraObj["MATERIALE"];
+
                     const extraFieldsToSend: Record<string, string> = {};
                     if (pushOverwriteExtras) {
                         Object.assign(extraFieldsToSend, extraObj);
@@ -939,9 +952,9 @@ export default function ImportLab() {
                         // Anche i campi legacy top-level: l’API li mappa in ProductExtra insieme a extraFields
                         ...(pushOverwriteExtras
                             ? {
-                                  dimensions: extraObj.dimensions,
+                                  dimensions: dimValue,
                                   weight: extraObj.weight,
-                                  material: extraObj.material
+                                  material: materialValue
                               }
                             : {}),
                         extraFields: extraFieldsToSend,
