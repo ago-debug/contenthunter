@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "91afa4d3de3309e2604465e4ab0ffc121a55bb6e",
+      "at": "2026-04-01T18:15:17+02:00",
+      "description": "fix(erp): Materiale/Dimensioni leggono i campi dedicati prodotto"
+    },
+    {
       "hash": "dc5b7c6d78742d3bb3f4632a442c34441bbfd5f6",
       "at": "2026-04-01T18:01:06+02:00",
       "description": "fix(erp): Materiale/Dimensioni legati ai campi extra Import Lab"
