@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "ced7ff4dce24ebf6698355783ec2dd0fc290d811",
+      "at": "2026-04-01T17:36:40+02:00",
+      "description": "feat(ai): supporto provider compatibili OpenAI (Groq, ecc.) per ridurre costi"
+    },
+    {
       "hash": "97fe0054142b1cbde8323d816847f5d7f5a5b3f8",
       "at": "2026-03-30T13:02:26+02:00",
       "description": "fix(build): route search-images — cheerio dinamico e serverExternalPackages"
