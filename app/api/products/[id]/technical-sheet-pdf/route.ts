@@ -77,7 +77,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         });
 
         const safeSku = p.sku.replace(/[^\w.-]+/g, "_").slice(0, 80);
-        const body = new Blob([pdfBytes], { type: "application/pdf" });
+        // pdf-lib restituisce Uint8Array<ArrayBufferLike>: BlobPart in TS richiede ArrayBuffer stretto; Buffer copia e tipizza bene su Node.
+        const body = Buffer.from(pdfBytes);
         return new NextResponse(body, {
             status: 200,
             headers: {
