@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "f1330e907ad0302d542e8912f9d859f269454f5f",
+      "at": "2026-05-14T21:27:22+02:00",
+      "description": "fix(deploy): use fetch + checkout -f -B main FETCH_HEAD instead of pull"
+    },
+    {
       "hash": "5c945a24b631e100a63efbd1dc9cfd1c5e9a0037",
       "at": "2026-05-14T21:24:31+02:00",
       "description": "feat(technical-sheet): picklists for all scheda fields; Codice/HTML editors"
