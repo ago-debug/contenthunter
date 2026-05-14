@@ -359,6 +359,14 @@ function ErpTableSortHeader({
     );
 }
 
+function formatProductLastSaveBanner(displayName: string, savedAtIso: string): string {
+    const d = new Date(savedAtIso);
+    if (Number.isNaN(d.getTime())) return `Ultima modifica (${displayName})`;
+    const dateStr = d.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+    const timeStr = d.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+    return `Ultima modifica (${displayName}) del ${dateStr} alle ${timeStr}`;
+}
+
 export default function ErpTable() {
     const { confirm: appConfirm, prompt: appPrompt } = useAppDialogs();
     const [products, setProducts] = useState<any[]>([]);
@@ -369,6 +377,7 @@ export default function ErpTable() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [lastProductSaveSignature, setLastProductSaveSignature] = useState<{ displayName: string; savedAt: string } | null>(null);
     const [activeTab, setActiveTab] = useState<ProductEditorTab>("info");
     const [productHistory, setProductHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -3138,6 +3147,7 @@ export default function ErpTable() {
     };
 
     const openProductEditor = (p: any) => {
+        setLastProductSaveSignature(null);
         setActiveTab("info");
         setSelectedProduct({
             ...p,
@@ -3170,10 +3180,18 @@ export default function ErpTable() {
                 // flag `overwrite.*` è true (prezzo, testi IT, brand, extra, immagini, …).
                 overwrite: productApiSaveOverwrite,
             };
-            await axios.post("/api/products", payload, companyReq);
+            const { data } = await axios.post("/api/products", payload, companyReq);
             toast.success("Prodotto aggiornato con successo");
-            setSelectedProduct(null);
-            fetchProducts(); // refresh table
+            if (data?.lastSave?.displayName && data?.lastSave?.savedAt) {
+                setLastProductSaveSignature({
+                    displayName: String(data.lastSave.displayName),
+                    savedAt: String(data.lastSave.savedAt),
+                });
+            }
+            if (selectedProduct?.id) {
+                void fetchProductHistory(selectedProduct.id);
+            }
+            fetchProducts();
         } catch (err) {
             toast.error("Errore salvataggio prodotto");
         } finally {
@@ -4567,6 +4585,23 @@ export default function ErpTable() {
                                 </div>
                             </div>
 
+                            {lastProductSaveSignature ? (
+                                <div
+                                    data-product-editor-banner
+                                    className="px-4 sm:px-8 py-3.5 bg-gradient-to-r from-emerald-50 via-white to-sky-50 border-b border-emerald-100/90"
+                                >
+                                    <p className="text-[11px] sm:text-sm font-bold text-slate-800 leading-relaxed flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 border border-emerald-200 text-[9px] font-black uppercase tracking-widest text-emerald-900 shadow-sm shrink-0">
+                                            Firma salvataggio
+                                        </span>
+                                        <span>{formatProductLastSaveBanner(lastProductSaveSignature.displayName, lastProductSaveSignature.savedAt)}</span>
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 mt-1.5 font-semibold">
+                                        Lo storico completo è nella tab <span className="font-black text-slate-700">Storico</span> (ultime 20 revisioni con snapshot).
+                                    </p>
+                                </div>
+                            ) : null}
+
                             {/* Schede a linguetta (cartella) + lingua / AI */}
                             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 px-2 sm:px-4 pt-2 pb-0 bg-gradient-to-b from-slate-200 via-slate-200/95 to-slate-200 border-b border-slate-300/80">
                                 <div className="flex flex-wrap items-end gap-0 min-w-0 -mb-px pl-0.5">
@@ -5762,7 +5797,11 @@ export default function ErpTable() {
                                                                             <Check className="w-4 h-4 text-emerald-500" />
                                                                             <p className="text-xs font-black text-slate-900">{new Date(entry.createdAt).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                                                                         </div>
-                                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Snapshot salvato dopo modifica</p>
+                                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                                                            {entry.data?.savedByDisplayName
+                                                                                ? `Salvato da ${entry.data.savedByDisplayName} · revisione registrata`
+                                                                                : "Snapshot salvato dopo modifica"}
+                                                                        </p>
                                                                     </div>
                                                                 </div>
                                                                 <button

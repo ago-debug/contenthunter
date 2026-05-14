@@ -7,13 +7,30 @@ import { normalizeStockExtraKey } from "@/lib/stock-extra";
 import { PRODUCTS_LIST_MAX_TAKE, PRODUCTS_LIST_PAGE_SIZE } from "@/lib/fetch-all-products";
 import { clientUrlForProductImage } from "@/lib/product-image-serving";
 import { assertCanCreateProduct } from "@/lib/plan-limits";
+import type { Session } from "next-auth";
+
+async function resolveSaverIdentity(sessionUser: Session["user"]): Promise<{ userId: number | null; displayName: string }> {
+    const uid = sessionUser?.userId;
+    const emailFallback = (sessionUser?.email && String(sessionUser.email).trim()) || "Utente";
+    if (!uid) {
+        return { userId: null, displayName: emailFallback };
+    }
+    const u = await prisma.user.findUnique({
+        where: { id: uid },
+        select: { name: true, lastName: true, email: true },
+    });
+    if (!u) return { userId: uid, displayName: emailFallback };
+    const parts = [u.name?.trim(), u.lastName?.trim()].filter(Boolean) as string[];
+    if (parts.length) return { userId: uid, displayName: parts.join(" ") };
+    return { userId: uid, displayName: (u.email && u.email.trim()) || emailFallback };
+}
 
 export async function POST(req: NextRequest) {
     const ctx = await requireCompanyId(req);
     if (!ctx) {
         return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
     }
-    const { companyId } = ctx;
+    const { companyId, session } = ctx;
 
     let stage = "init";
     try {
@@ -573,8 +590,10 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // 8. Log modification to History
+        // 8. Log modification to History (snapshot + firma elettronica salvataggio)
         stage = "write_history";
+        const saver = await resolveSaverIdentity(session.user);
+        const savedAtIso = new Date().toISOString();
         await prisma.productHistory.create({
             data: {
                 productId: product.id,
@@ -591,13 +610,19 @@ export async function POST(req: NextRequest) {
                     seoAiText: clampText(seoAiText),
                     price: price, // stored as provided
                     extraFields: extraFields || {},
-                    timestamp: new Date().toISOString()
+                    timestamp: savedAtIso,
+                    savedByUserId: saver.userId,
+                    savedByDisplayName: saver.displayName,
                 } as any
             }
         });
 
         stage = "done";
-        return NextResponse.json({ success: true, productId: product.id });
+        return NextResponse.json({
+            success: true,
+            productId: product.id,
+            lastSave: { displayName: saver.displayName, savedAt: savedAtIso },
+        });
     } catch (err: any) {
         console.error("Product save error details:", { stage, err });
         if (err instanceof Prisma.PrismaClientKnownRequestError) {

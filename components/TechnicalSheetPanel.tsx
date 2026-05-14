@@ -15,6 +15,17 @@ import {
 
 type PickRow = { id: number; name: string; description: string | null };
 
+/** Titolo sezione breve per etichette contestuali (es. note legate a «Ingredienti»). */
+function technicalFieldShortTitle(label: string): string {
+    const t = label.trim();
+    if (t.includes("—")) return t.split("—")[0].trim();
+    if (t.length > 48) return `${t.slice(0, 46)}…`;
+    return t;
+}
+
+const CREA_PICKLIST_BTN =
+    "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-amber-900 bg-gradient-to-b from-amber-50 to-amber-100/90 border border-amber-200/80 shadow-sm hover:from-amber-100 hover:to-amber-50 transition-all shrink-0";
+
 type Props = {
     selectedProduct: any;
     setSelectedProduct: (p: any) => void;
@@ -302,19 +313,16 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
 
                         return (
                             <div key={f.key} className={f.wide ? "md:col-span-2" : undefined}>
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-1.5 block">
-                                    {f.label}
-                                </label>
-                                {f.hint ? <p className="text-[9px] text-slate-400 mb-2 ml-1 leading-snug">{f.hint}</p> : null}
-
-                                <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-                                    <span className="text-[9px] font-black uppercase text-slate-500">Voce da tabella dedicata</span>
+                                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                                    <span className="inline-block max-w-[min(100%,42rem)] px-4 py-2.5 rounded-2xl bg-gradient-to-br from-white via-slate-50/95 to-sky-50/40 border border-slate-200/90 shadow-[0_8px_28px_rgba(15,23,42,0.07)] text-[11px] sm:text-xs font-black uppercase tracking-wide text-slate-800 leading-snug">
+                                        {f.label}
+                                    </span>
                                     <button
                                         type="button"
                                         onClick={() => openCreateModal(f.key, `Nuovo: ${f.label}`)}
-                                        className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 inline-flex items-center gap-1"
+                                        className={CREA_PICKLIST_BTN}
                                     >
-                                        <Plus className="w-3 h-3" /> Crea voce
+                                        <Plus className="w-4 h-4" /> CREA
                                     </button>
                                 </div>
                                 <SearchableSelect
@@ -361,8 +369,8 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                                     className="w-full bg-slate-50/90 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200/80 resize-y leading-relaxed"
                                 />
 
-                                <label className="text-[9px] font-black uppercase text-slate-400 mt-2 mb-1 block">
-                                    Note aggiuntive solo su questo prodotto
+                                <label className="text-[9px] font-black uppercase text-slate-400 mt-2 mb-1 block leading-snug">
+                                    Note aggiuntive su questo prodotto ({technicalFieldShortTitle(f.label)})
                                 </label>
                                 <textarea
                                     rows={2}
@@ -401,9 +409,9 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                             <button
                                 type="button"
                                 onClick={() => openCreateModal(PICKLIST_CATEGORY.packaging, "Nuovo packaging")}
-                                className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 inline-flex items-center gap-1"
+                                className={CREA_PICKLIST_BTN}
                             >
-                                <Plus className="w-3 h-3" /> Crea voce
+                                <Plus className="w-4 h-4" /> CREA
                             </button>
                         </div>
                         <SearchableSelect
@@ -444,9 +452,9 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                             <button
                                 type="button"
                                 onClick={() => openCreateModal(PICKLIST_CATEGORY.palett, "Nuova palettizzazione")}
-                                className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 inline-flex items-center gap-1"
+                                className={CREA_PICKLIST_BTN}
                             >
-                                <Plus className="w-3 h-3" /> Crea voce
+                                <Plus className="w-4 h-4" /> CREA
                             </button>
                         </div>
                         <SearchableSelect
@@ -486,14 +494,17 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
             {modal ? (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/40" onClick={() => setModal(null)}>
                     <div
-                        className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-slate-200"
+                        className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 sm:p-10 space-y-6 border border-slate-200"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h3 className="text-sm font-black text-slate-900">{modal.title}</h3>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">CREA</p>
+                            <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">{modal.title}</h3>
+                        </div>
                         <div>
                             <label className="text-[10px] font-black uppercase text-slate-400">Nome</label>
                             <input
-                                className="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                                className="w-full mt-2 border border-slate-200 rounded-xl px-4 py-3 text-base"
                                 value={modal.name}
                                 onChange={(e) => setModal({ ...modal, name: e.target.value })}
                             />
@@ -501,26 +512,26 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                         <div>
                             <label className="text-[10px] font-black uppercase text-slate-400">Descrizione (default elenco)</label>
                             <textarea
-                                className="w-full mt-1 border border-slate-200 rounded-xl px-3 py-2 text-sm"
-                                rows={3}
+                                className="w-full mt-2 border border-slate-200 rounded-xl px-4 py-3 text-sm leading-relaxed"
+                                rows={5}
                                 value={modal.description}
                                 onChange={(e) => setModal({ ...modal, description: e.target.value })}
                             />
                         </div>
-                        <div className="flex justify-end gap-2">
+                        <div className="flex flex-wrap justify-end gap-3 pt-2">
                             <button
                                 type="button"
-                                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-bold"
+                                className="px-6 py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50"
                                 onClick={() => setModal(null)}
                             >
                                 Annulla
                             </button>
                             <button
                                 type="button"
-                                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-sm font-black"
+                                className="px-8 py-3 rounded-xl bg-slate-900 text-white text-sm font-black uppercase tracking-widest hover:bg-black shadow-lg"
                                 onClick={() => void submitCreatePicklist()}
                             >
-                                Salva
+                                CREA
                             </button>
                         </div>
                     </div>
