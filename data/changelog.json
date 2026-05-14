@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "e6dd07ff769bd378f8f63a9811a51405a4edebb6",
+      "at": "2026-05-14T20:49:10+02:00",
+      "description": "fix: build PDF response Blob; deploy script hardening; lint cleanup"
+    },
+    {
       "hash": "d3666fa2692a4d129875cbee7e9ff7f82b029383",
       "at": "2026-05-14T19:06:32+02:00",
       "description": "feat(ui): product editor folder tabs and technical sheet fields"
