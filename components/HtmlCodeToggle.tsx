@@ -150,7 +150,9 @@ export function HtmlCodeToggle({
     const [mode, setMode] = useState<Mode>("visual");
     const baseId = useId();
     const editorRef = useRef<HTMLDivElement>(null);
-    const lastEmitted = useRef(value);
+    /** Evita di riscrivere innerHTML mentre l’editor ha il focus (altrimenti si perdono i caratteri in digitazione). */
+    const editorHasFocusRef = useRef(false);
+    const lastEmitted = useRef<string | null>(null);
     const srcDoc = useMemo(() => buildPreviewDoc(value), [value]);
 
     const vLabel = visualLabel ?? (readOnly ? "Anteprima" : "Editor");
@@ -159,10 +161,13 @@ export function HtmlCodeToggle({
         if (readOnly || mode !== "visual") return;
         const el = editorRef.current;
         if (!el) return;
-        if (value !== el.innerHTML && value !== lastEmitted.current) {
-            el.innerHTML = value?.trim() ? value : "<p><br></p>";
+        if (editorHasFocusRef.current) return;
+
+        const next = value?.trim() ? value : "<p><br></p>";
+        if (el.innerHTML !== next) {
+            el.innerHTML = next;
         }
-        lastEmitted.current = value;
+        lastEmitted.current = next;
     }, [value, mode, readOnly]);
 
     const commitEditor = useCallback(() => {
@@ -234,14 +239,18 @@ export function HtmlCodeToggle({
                         contentEditable={!readOnly}
                         suppressContentEditableWarning
                         style={{ minHeight }}
+                        onFocus={() => {
+                            editorHasFocusRef.current = true;
+                        }}
+                        onBlur={() => {
+                            editorHasFocusRef.current = false;
+                            if (onChange) commitEditor();
+                        }}
                         onInput={() => {
                             if (onChange && editorRef.current) {
                                 lastEmitted.current = editorRef.current.innerHTML;
                                 onChange(editorRef.current.innerHTML);
                             }
-                        }}
-                        onBlur={() => {
-                            if (onChange) commitEditor();
                         }}
                     />
                 </div>
