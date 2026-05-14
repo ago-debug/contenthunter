@@ -97,6 +97,66 @@ type PushFieldModalState =
     | { channel: "woo"; mode: "single"; product: any }
     | { channel: "woo"; mode: "bulk" };
 
+type ProductEditorTab = "info" | "images" | "seo" | "attributes" | "technical" | "woocommerce" | "history";
+
+/** Campi scheda tecnica in `extraFields` (modello tipo Zaffy BIO: certificazione, confezione, descrizione, ingredienti, sensoriale, qualità). */
+const TECH_SHEET_FIELDS: { key: string; label: string; hint?: string; rows: number; wide?: boolean }[] = [
+    {
+        key: "schedaTec_titoloProdotto",
+        label: "Titolo prodotto (in testa alla scheda)",
+        hint: "Es. Zafferano biologico Zaffy BIO — 2 buste",
+        rows: 2,
+    },
+    {
+        key: "schedaTec_certOrganismo",
+        label: "Certificazione biologica — organismo di controllo",
+        hint: "Es. IT-BIO-007",
+        rows: 2,
+    },
+    {
+        key: "schedaTec_certOperatore",
+        label: "Operatore controllato n°",
+        hint: "Codice operatore / certificazione (es. A70L…)",
+        rows: 2,
+    },
+    {
+        key: "schedaTec_confezione",
+        label: "Confezione / formato vendita",
+        hint: "Es. 2 buste da 0,13 g",
+        rows: 2,
+    },
+    {
+        key: "schedaTec_pesoTotale",
+        label: "Peso totale confezione",
+        hint: "Es. 0,26 g",
+        rows: 2,
+    },
+    { key: "schedaTec_descrizione", label: "Descrizione", rows: 8, wide: true },
+    { key: "schedaTec_ingredienti", label: "Ingredienti", rows: 4, wide: true },
+    { key: "schedaTec_profiloSensoriale", label: "Profilo sensoriale", rows: 6, wide: true },
+    {
+        key: "schedaTec_qualitaControllata",
+        label: "Qualità controllata",
+        hint: "Protocolli di controllo, laboratori, convenzioni (es. Di.S.A.A. — Università degli Studi di Milano)",
+        rows: 8,
+        wide: true,
+    },
+];
+
+const PRODUCT_EDITOR_TABS: {
+    id: ProductEditorTab;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+}[] = [
+    { id: "info", label: "Generale", icon: Package },
+    { id: "images", label: "Media & Asset", icon: LayoutGrid },
+    { id: "seo", label: "SEO & AI Content", icon: Sparkles },
+    { id: "attributes", label: "Specifiche & Bullet", icon: List },
+    { id: "technical", label: "Schede tecniche", icon: FileSpreadsheet },
+    { id: "woocommerce", label: "Omnichannel", icon: Globe },
+    { id: "history", label: "Cronologia", icon: HistoryIcon },
+];
+
 /** Parametri push PrestaShop usabili dal modale (override rispetto al modale Omnichannel per questa esecuzione). */
 type PrestaPublishSession = {
     defaultCategoryId: string;
@@ -351,7 +411,7 @@ export default function ErpTable() {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState<'info' | 'images' | 'seo' | 'attributes' | 'woocommerce' | 'history'>('info');
+    const [activeTab, setActiveTab] = useState<ProductEditorTab>("info");
     const [productHistory, setProductHistory] = useState<any[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [newImageUrl, setNewImageUrl] = useState("");
@@ -3120,6 +3180,7 @@ export default function ErpTable() {
     };
 
     const openProductEditor = (p: any) => {
+        setActiveTab("info");
         setSelectedProduct({
             ...p,
             catalogLinkIds: Array.isArray(p.catalogLinkIds)
@@ -3681,22 +3742,6 @@ export default function ErpTable() {
         }
         setSelectedIds(Array.from(nextSet));
     };
-
-    const TabButton = ({ id, label, icon: Icon }: { id: string, label: string, icon: any }) => (
-        <button
-            onClick={() => setActiveTab(id as 'info' | 'images' | 'seo' | 'attributes' | 'woocommerce' | 'history')}
-            className={`flex items-center gap-2 px-8 py-4 text-[11px] font-bold uppercase tracking-widest transition-all border-b-2 relative ${activeTab === id
-                ? 'border-[#111827] text-[#111827] bg-white'
-                : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-        >
-            {Icon && <Icon className={`w-4 h-4 ${activeTab === id ? 'text-[#111827]' : 'text-gray-300'}`} />}
-            {label}
-            {activeTab === id && (
-                <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#111827]" />
-            )}
-        </button>
-    );
 
     return (
         <div className="flex flex-col flex-1 min-h-0 bg-[#F4F5F7] overflow-hidden">
@@ -4564,34 +4609,64 @@ export default function ErpTable() {
                                 </div>
                             </div>
 
-                            {/* Tabs Navigation */}
-                            <div className="px-4 sm:px-8 bg-white border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-2 overflow-hidden">
-                                <div className="flex overflow-x-auto no-scrollbar w-full md:w-auto">
-                                    <TabButton id="info" label="Generale" icon={Package} />
-                                    <TabButton id="images" label="Media & Asset" icon={LayoutGrid} />
-                                    <TabButton id="seo" label="SEO & AI Content" icon={Sparkles} />
-                                    <TabButton id="attributes" label="Specifiche & Bullet" icon={List} />
-                                    <TabButton id="woocommerce" label="Omnichannel" icon={Globe} />
-                                    <TabButton id="history" label="Cronologia" icon={HistoryIcon} />
+                            {/* Schede a linguetta (cartella) + lingua / AI */}
+                            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 px-2 sm:px-4 pt-2 pb-0 bg-gradient-to-b from-slate-200 via-slate-200/95 to-slate-200 border-b border-slate-300/80">
+                                <div className="flex flex-wrap items-end gap-0 min-w-0 -mb-px pl-0.5">
+                                    {PRODUCT_EDITOR_TABS.map((t) => {
+                                        const Icon = t.icon;
+                                        const active = activeTab === t.id;
+                                        return (
+                                            <button
+                                                key={t.id}
+                                                type="button"
+                                                onClick={() => setActiveTab(t.id)}
+                                                className={[
+                                                    "group relative flex items-center gap-1.5 sm:gap-2 shrink-0",
+                                                    "px-2.5 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all duration-150",
+                                                    "border border-b-0 first:rounded-tl-lg rounded-t-lg sm:rounded-t-xl",
+                                                    "ml-[-1px] first:ml-0",
+                                                    active
+                                                        ? "z-[2] bg-[#F9FAFB] text-slate-900 border-slate-300/90 shadow-[0_-6px_20px_rgba(15,23,42,0.06)] pb-2.5 sm:pb-3 ring-1 ring-slate-200/60"
+                                                        : "z-[1] bg-slate-300/45 text-slate-500 border-slate-400/35 hover:bg-slate-300/70 hover:text-slate-700 hover:z-[1]",
+                                                ].join(" ")}
+                                            >
+                                                <Icon
+                                                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${active ? "text-slate-800" : "text-slate-400 group-hover:text-slate-600"}`}
+                                                    aria-hidden
+                                                />
+                                                <span className="whitespace-nowrap max-w-[9rem] sm:max-w-none truncate">{t.label}</span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                                <div className="flex items-center gap-4 pb-2 md:pb-0 overflow-x-auto shrink-0 w-full md:w-auto">
-                                    <div className="flex shrink-0 bg-gray-50 p-1 rounded-xl border border-gray-200">
-                                        {['it', 'en', 'fr', 'de', 'es'].map((lang: string) => (
+                                <div className="flex items-center gap-3 pb-2 md:pb-2.5 pt-1 md:pt-0 overflow-x-auto shrink-0 w-full md:w-auto justify-end">
+                                    <div className="flex shrink-0 bg-white/90 p-1 rounded-xl border border-slate-300/60 shadow-sm">
+                                        {["it", "en", "fr", "de", "es"].map((lang: string) => (
                                             <button
                                                 key={lang}
+                                                type="button"
                                                 onClick={() => setEditLang(lang)}
-                                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${editLang === lang ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}
+                                                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                                                    editLang === lang
+                                                        ? "bg-slate-900 text-white shadow-md"
+                                                        : "text-slate-500 hover:text-slate-800"
+                                                }`}
                                             >
                                                 {lang}
                                             </button>
                                         ))}
                                     </div>
                                     <button
+                                        type="button"
                                         onClick={handleTranslateProduct}
                                         disabled={isTranslating}
-                                        className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-100 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all flex items-center gap-2 disabled:opacity-50"
+                                        className="px-3 sm:px-4 py-2 bg-blue-600 text-white border border-blue-700/30 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm shrink-0"
                                     >
-                                        {isTranslating ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Languages className="w-3 h-3" />}
+                                        {isTranslating ? (
+                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                        ) : (
+                                            <Languages className="w-3 h-3" />
+                                        )}
                                         Traduci / Correggi AI
                                     </button>
                                 </div>
@@ -5544,6 +5619,48 @@ export default function ErpTable() {
                                                         Aggiungi campo
                                                     </button>
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {activeTab === "technical" && (
+                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                            <div className="border-b border-gray-50 pb-4">
+                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
+                                                    <FileSpreadsheet className="w-4 h-4 text-amber-600 shrink-0" aria-hidden />
+                                                    Schede tecniche
+                                                </h4>
+                                                <p className="text-[11px] text-slate-500 font-semibold mt-2 max-w-3xl leading-relaxed">
+                                                    Struttura ispirata a schede tecniche alimentari (es. certificazione biologica, confezione e peso, descrizione,
+                                                    ingredienti, profilo sensoriale, qualità controllata). I valori sono salvati negli{" "}
+                                                    <span className="font-bold text-slate-700">extraFields</span> con chiavi{" "}
+                                                    <code className="text-[10px] font-mono bg-slate-100 px-1 py-0.5 rounded">schedaTec_*</code> e vanno in
+                                                    salvataggio con il resto della scheda.
+                                                </p>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                {TECH_SHEET_FIELDS.map((f) => (
+                                                    <div key={f.key} className={f.wide ? "md:col-span-2" : undefined}>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-1.5 block">
+                                                            {f.label}
+                                                        </label>
+                                                        {f.hint ? (
+                                                            <p className="text-[9px] text-slate-400 mb-2 ml-1 leading-snug">{f.hint}</p>
+                                                        ) : null}
+                                                        <textarea
+                                                            rows={f.rows}
+                                                            value={getExtraValue(selectedProduct, f.key)}
+                                                            onChange={(e) =>
+                                                                setSelectedProduct(
+                                                                    setExtraValue(selectedProduct, f.key, e.target.value)
+                                                                )
+                                                            }
+                                                            className="w-full bg-slate-50/90 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200/80 resize-y leading-relaxed"
+                                                        />
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
