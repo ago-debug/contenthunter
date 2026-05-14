@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
         stage = "parse_body";
         const body = await req.json();
         const {
-            sku, title, description, docDescription, price, category, brand, brandId,
+            sku, title, description, price, category, brand, brandId,
             dimensions, weight, material, bulletPoints, seoAiText, images, extraFields, catalogId, ean, parentSku,
             overwrite,
         } = body;
@@ -355,7 +355,7 @@ export async function POST(req: NextRequest) {
 
         // 2. Upsert Italian texts con controllo di campo per sovrascrittura
         stage = "upsert_it_text";
-        if (title !== undefined || description !== undefined || docDescription !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
+        if (title !== undefined || description !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
             let existingText: any = null;
             if (existingProduct) {
                 existingText = await prisma.productText.findUnique({
@@ -375,11 +375,6 @@ export async function POST(req: NextRequest) {
                     : overwriteLongDescription && description !== undefined ? clampText(description)
                         : existingText.description ?? null;
 
-            const finalDocDescription =
-                !existingText ? clampText(docDescription)
-                    : docDescription !== undefined ? clampText(docDescription)
-                        : existingText.docDescription ?? null;
-
             const finalBulletPoints =
                 !existingText ? clampText(bulletPoints)
                     : overwriteBulletPoints && bulletPoints !== undefined ? clampText(bulletPoints)
@@ -397,7 +392,6 @@ export async function POST(req: NextRequest) {
                 update: {
                     title: finalTitle,
                     description: finalDescription,
-                    docDescription: finalDocDescription,
                     bulletPoints: finalBulletPoints,
                     seoAiText: finalSeoAi
                 },
@@ -406,7 +400,6 @@ export async function POST(req: NextRequest) {
                     language: "it",
                     title: finalTitle,
                     description: finalDescription,
-                    docDescription: finalDocDescription,
                     bulletPoints: finalBulletPoints,
                     seoAiText: finalSeoAi
                 }
@@ -641,7 +634,6 @@ export async function POST(req: NextRequest) {
                     category: cleanCategory,
                     title: clampVarchar(title, 191),
                     description: clampText(description),
-                    docDescription: clampText(docDescription),
                     bulletPoints: clampText(bulletPoints),
                     seoAiText: clampText(seoAiText),
                     price: price, // stored as provided
@@ -802,7 +794,12 @@ export async function GET(req: NextRequest) {
             prices: { where: { listName: "default" as const } },
             extraFields: true,
             images: { select: { id: true, imageUrl: true, storedInDb: true } },
-            lots: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
+            lots: {
+                orderBy: [
+                    { sortOrder: Prisma.SortOrder.asc },
+                    { id: Prisma.SortOrder.asc },
+                ],
+            },
             tags: { include: { tag: true } },
             brandRef: true,
             bulletPointRefs: true,
@@ -866,7 +863,6 @@ export async function GET(req: NextRequest) {
                     description: t.description,
                     bulletPoints: t.bulletPoints,
                     seoAiText: t.seoAiText,
-                    docDescription: t.docDescription
                 };
             });
 
@@ -928,7 +924,6 @@ export async function GET(req: NextRequest) {
                 // Maps Text (defaults to it for compatibility)
                 title: itText.title || "",
                 description: itText.description || "",
-                docDescription: itText.docDescription || "",
                 bulletPoints: itText.bulletPoints || "",
                 seoAiText: itText.seoAiText || "",
                 // Translations 

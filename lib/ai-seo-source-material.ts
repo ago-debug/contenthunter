@@ -1,5 +1,5 @@
 /**
- * Evita chiamate AI inutili quando mancano titolo, doc tecnica ed extra utili.
+ * Evita chiamate AI inutili quando mancano titolo, descrizione breve e-commerce ed extra utili.
  *
  * Env:
  * - `AI_SEO_SKIP_THIN_SOURCE` — default `true`. Imposta `false` per forzare comunque la generazione.
@@ -7,12 +7,13 @@
  * - `AI_SEO_ALLOW_THIN_SOURCE` — alias esplicito `true` come `AI_SEO_SKIP_THIN_SOURCE=false`.
  */
 
-/** Sotto questa somma (titolo+doc+extra+id) non chiamiamo il modello, salvo override env. */
+/** Sotto questa somma (titolo+breve e-commerce+extra+id) non chiamiamo il modello, salvo override env. */
 const DEFAULT_MIN = 32;
 
 export function productSeoSourceMaterialScore(input: {
     title?: string | null;
-    docDescription?: string | null;
+    /** Descrizione breve e-commerce (HTML) / ex docDescription. */
+    seoAiText?: string | null;
     extraFieldsPreview?: string | null;
     sku?: string | null;
     ean?: string | null;
@@ -20,7 +21,7 @@ export function productSeoSourceMaterialScore(input: {
     category?: string | null;
 }): number {
     const t = String(input.title ?? "").trim().length;
-    const d = String(input.docDescription ?? "").trim().length;
+    const d = String(input.seoAiText ?? "").trim().length;
     const x = String(input.extraFieldsPreview ?? "").trim().length;
     const idLen = Math.min(40, String(input.sku ?? "").trim().length + String(input.ean ?? "").trim().length);
     const bc = Math.min(
@@ -54,7 +55,7 @@ export class ThinSourceSkippedError extends Error {
     constructor(score: number) {
         const min = minSourceCharsForSeo();
         super(
-            `Origine insufficiente per SEO AI (segnale ${score}/${min}). Aggiungi titolo, descrizione tecnica o campi extra. Sul server: AI_SEO_ALLOW_THIN_SOURCE=true per forzare comunque.`
+            `Origine insufficiente per SEO AI (segnale ${score}/${min}). Aggiungi titolo, descrizione breve e-commerce o campi extra. Sul server: AI_SEO_ALLOW_THIN_SOURCE=true per forzare comunque.`
         );
         this.name = "ThinSourceSkippedError";
         this.score = score;
@@ -63,7 +64,7 @@ export class ThinSourceSkippedError extends Error {
 
 export function assertSeoSourceSufficientOrThrow(input: {
     title?: string | null;
-    docDescription?: string | null;
+    seoAiText?: string | null;
     extraFieldsPreview?: string | null;
     sku?: string | null;
     ean?: string | null;

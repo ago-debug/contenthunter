@@ -264,7 +264,7 @@ export async function POST(req: Request) {
                             update: {
                                 title: title.trim() ? title : null,
                                 description: typeof description === "string" ? description : String(description ?? ""),
-                                docDescription:
+                                seoAiText:
                                     typeof shortDescription === "string" ? shortDescription : String(shortDescription ?? ""),
                             },
                             create: {
@@ -272,7 +272,7 @@ export async function POST(req: Request) {
                                 language: "it",
                                 title: title.trim() ? title : null,
                                 description: typeof description === "string" ? description : String(description ?? ""),
-                                docDescription:
+                                seoAiText:
                                     typeof shortDescription === "string" ? shortDescription : String(shortDescription ?? ""),
                             },
                         });

@@ -70,8 +70,8 @@ export async function generateSeoBlocksForProduct(args: {
   }
 
   const docLim = fastMode
-    ? AI_PRODUCT_COPY_FAST.docDescriptionMaxChars
-    : AI_PRODUCT_COPY_FULL.docDescriptionMaxChars;
+    ? AI_PRODUCT_COPY_FAST.shortDescriptionSourceMaxChars
+    : AI_PRODUCT_COPY_FULL.shortDescriptionSourceMaxChars;
   const extraLim = fastMode
     ? AI_PRODUCT_COPY_FAST.extraFieldsMaxChars
     : AI_PRODUCT_COPY_FULL.extraFieldsMaxChars;
@@ -84,11 +84,13 @@ export async function generateSeoBlocksForProduct(args: {
           .slice(0, extraLim)
       : "";
 
-  const docDescription = String(product?.docDescription || "").slice(0, docLim);
+  const shortSourceHtml = String(
+    product?.seoAiText || product?.translations?.it?.seoAiText || ""
+  ).slice(0, docLim);
 
   assertSeoSourceSufficientOrThrow({
     title: product?.title || product?.translations?.it?.title,
-    docDescription,
+    seoAiText: shortSourceHtml,
     extraFieldsPreview,
     sku: product?.sku,
     ean: product?.ean,
@@ -108,7 +110,7 @@ DATI:
 - Titolo: ${product?.title || product?.translations?.it?.title || ""}
 - Brand: ${brandName}
 - Categoria: ${product?.category || ""}
-- Descrizione tecnica: ${docDescription}
+- Descrizione breve e-commerce (HTML): ${shortSourceHtml}
 - Campi extra: ${extraFieldsPreview}
 `.trim();
 

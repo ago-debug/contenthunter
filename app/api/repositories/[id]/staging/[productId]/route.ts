@@ -27,7 +27,6 @@ export async function PUT(
                         update: {
                             title: body.texts?.[0]?.title,
                             description: body.texts?.[0]?.description,
-                            docDescription: body.texts?.[0]?.docDescription,
                             bulletPoints: body.texts?.[0]?.bulletPoints,
                             seoAiText: body.texts?.[0]?.seoAiText,
                         },
@@ -35,7 +34,6 @@ export async function PUT(
                             language: "it",
                             title: body.texts?.[0]?.title,
                             description: body.texts?.[0]?.description,
-                            docDescription: body.texts?.[0]?.docDescription,
                             bulletPoints: body.texts?.[0]?.bulletPoints,
                             seoAiText: body.texts?.[0]?.seoAiText,
                         }

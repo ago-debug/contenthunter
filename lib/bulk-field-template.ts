@@ -19,7 +19,6 @@ export type BulkProductSnapshot = {
     texts: Array<{
         title: string | null;
         description: string | null;
-        docDescription: string | null;
         bulletPoints: string | null;
         seoAiText: string | null;
     }>;
@@ -81,7 +80,7 @@ function lookup(p: BulkProductSnapshot, key: string): string {
         case "description":
             return it?.description ?? "";
         case "docdescription":
-            return it?.docDescription ?? "";
+            return it?.seoAiText ?? "";
         case "bulletpoints":
             return it?.bulletPoints ?? "";
         case "seoaitext":

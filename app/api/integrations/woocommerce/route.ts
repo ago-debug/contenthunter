@@ -511,7 +511,7 @@ export async function POST(req: Request) {
             type: "simple",
             regular_price: regularPriceWoo,
             description: product.description || "",
-            short_description: product.docDescription || "",
+            short_description: product.seoAiText || "",
             sku: product.sku,
             categories: wooCategories,
             images: (product.images || []).map((img: any) => ({

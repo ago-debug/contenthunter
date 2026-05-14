@@ -100,7 +100,6 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
         description: null,
         bulletPoints: null,
         seoAiText: null,
-        docDescription: null,
       };
 
       // Risparmio costo: se non sovrascriviamo e tutti i campi sono già pieni, salta senza chiamare AI.
@@ -126,7 +125,7 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
         brandId: product.brandId,
         category: product.category,
         title: transIt?.title || "",
-        docDescription: transIt?.docDescription || "",
+        seoAiText: transIt?.seoAiText || "",
         extraFields: extrasObj,
         translations: { it: transIt },
       };
@@ -156,7 +155,6 @@ async function runAiBulkSeoJob(jobId: number): Promise<void> {
           description: nextDesc,
           bulletPoints: nextBullets,
           seoAiText: nextSeo,
-          docDescription: existing.docDescription,
         },
         update: {
           description: nextDesc,

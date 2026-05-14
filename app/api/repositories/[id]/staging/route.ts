@@ -204,9 +204,10 @@ export async function POST(
 
                 const newTitle = p.title ? String(p.title) : null;
                 const newDesc = p.description ? String(p.description) : null;
-                const newDoc = p.shortDescription ? String(p.shortDescription) : null;
                 const newBullets = p.bulletPoints ? String(p.bulletPoints) : null;
+                const newShort = p.shortDescription ? String(p.shortDescription) : null;
                 const newSeo = p.seoText ? String(p.seoText) : null;
+                const incomingShort = newSeo ?? newShort;
 
                 const finalTitle = overwriteOptions.texts
                     ? (newTitle ?? existingText?.title ?? null)
@@ -214,15 +215,12 @@ export async function POST(
                 const finalDesc = overwriteOptions.texts
                     ? (newDesc ?? existingText?.description ?? null)
                     : (existingText?.description ?? newDesc ?? null);
-                const finalDoc = overwriteOptions.texts
-                    ? (newDoc ?? existingText?.docDescription ?? null)
-                    : (existingText?.docDescription ?? newDoc ?? null);
                 const finalBullets = overwriteOptions.texts
                     ? (newBullets ?? existingText?.bulletPoints ?? null)
                     : (existingText?.bulletPoints ?? newBullets ?? null);
                 const finalSeo = overwriteOptions.texts
-                    ? (newSeo ?? existingText?.seoAiText ?? null)
-                    : (existingText?.seoAiText ?? newSeo ?? null);
+                    ? (incomingShort ?? existingText?.seoAiText ?? null)
+                    : (existingText?.seoAiText ?? incomingShort ?? null);
 
                 await prisma.stagingProductText.upsert({
                     where: {
@@ -234,7 +232,6 @@ export async function POST(
                     update: {
                         title: finalTitle,
                         description: finalDesc,
-                        docDescription: finalDoc,
                         bulletPoints: finalBullets,
                         seoAiText: finalSeo,
                     },
@@ -243,7 +240,6 @@ export async function POST(
                         language: "it",
                         title: finalTitle,
                         description: finalDesc,
-                        docDescription: finalDoc,
                         bulletPoints: finalBullets,
                         seoAiText: finalSeo,
                     },

@@ -24,9 +24,8 @@ const EXPORT_FIELDS: { key: string; label: string }[] = [
     { key: "image3", label: "Immagine 3 (link)" },
     { key: "image4", label: "Immagine 4 (link)" },
     { key: "image5", label: "Immagine 5 (link)" },
-    { key: "seoAiText", label: "Copywriting breve / SEO" },
+    { key: "seoAiText", label: "Descrizione breve e-commerce (HTML)" },
     { key: "description", label: "Descrizione lunga" },
-    { key: "docDescription", label: "Sorgente dati tecnici" },
     { key: "bulletPoints", label: "Punti elenco" },
     { key: "material", label: "Materiale" },
     { key: "dimensions", label: "Dimensioni / Calibro" },
@@ -213,9 +212,6 @@ export async function POST(req: NextRequest) {
                         break;
                     case "description":
                         row[label] = itText.description || "";
-                        break;
-                    case "docDescription":
-                        row[label] = itText.docDescription || "";
                         break;
                     case "bulletPoints":
                         row[label] = itText.bulletPoints || "";

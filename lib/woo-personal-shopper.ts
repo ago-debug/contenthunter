@@ -104,7 +104,6 @@ function buildWhereForTerms(companyId: number, terms: string[]): Prisma.ProductW
                         OR: [
                             { title: { contains: t } },
                             { description: { contains: t } },
-                            { docDescription: { contains: t } },
                             { seoAiText: { contains: t } },
                             { bulletPoints: { contains: t } },
                         ],

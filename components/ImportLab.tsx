@@ -1050,7 +1050,6 @@ export default function ImportLab() {
                             category: p.category,
                             title: baseText.title,
                             description: baseText.description,
-                            docDescription: baseText.docDescription,
                             bulletPoints: baseText.bulletPoints,
                             seoAiText: baseText.seoAiText,
                             price: basePrice.price,
@@ -1622,9 +1621,8 @@ export default function ImportLab() {
                         category: p.category || undefined,
                         title: p.title || undefined,
                         description: p.description || undefined,
-                        docDescription: p.shortDescription || undefined,
                         bulletPoints: p.bulletPoints || undefined,
-                        seoAiText: p.seoText || undefined,
+                        seoAiText: p.shortDescription || p.seoText || undefined,
                         price: p.price || undefined,
                         dimensions: p.dimensions || undefined,
                         weight: p.weight || undefined,
@@ -3050,24 +3048,12 @@ export default function ImportLab() {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione breve / Documentale</label>
-                                            <textarea
-                                                value={selectedProduct.texts[0]?.docDescription || ""}
-                                                rows={2}
-                                                className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold resize-none"
-                                                onChange={e => {
-                                                    const p = { ...selectedProduct };
-                                                    if (!p.texts[0]) p.texts[0] = { language: 'it' };
-                                                    p.texts[0].docDescription = e.target.value;
-                                                    setSelectedProduct(p);
-                                                }}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Testo SEO / Copywriting breve</label>
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
+                                                Descrizione breve e-commerce (HTML) — Woo short_description / Presta description_short
+                                            </label>
                                             <textarea
                                                 value={selectedProduct.texts[0]?.seoAiText || ""}
-                                                rows={2}
+                                                rows={3}
                                                 className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold resize-none"
                                                 onChange={e => {
                                                     const p = { ...selectedProduct };

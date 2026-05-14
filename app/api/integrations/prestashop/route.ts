@@ -321,10 +321,10 @@ function buildLangPayloadsForPush(
         firstTranslation(translations, ["it", "en", "de", "fr", "es"])?.description ||
         "";
     const fallShort =
-        (product.docDescription as string) ||
-        pickTr(preferIso)?.docDescription ||
-        translations?.it?.docDescription ||
-        firstTranslation(translations, ["it", "en", "de", "fr", "es"])?.docDescription ||
+        (product.seoAiText as string) ||
+        pickTr(preferIso)?.seoAiText ||
+        translations?.it?.seoAiText ||
+        firstTranslation(translations, ["it", "en", "de", "fr", "es"])?.seoAiText ||
         "";
 
     const out: PrestaLangPayload[] = [];
@@ -336,7 +336,7 @@ function buildLangPayloadsForPush(
 
         const title = String(tr?.title ?? "").trim() || fallTitle;
         const description = String(tr?.description ?? "").trim() || fallDesc;
-        const descriptionShort = String(tr?.docDescription ?? "").trim() || fallShort;
+        const descriptionShort = String(tr?.seoAiText ?? "").trim() || fallShort;
 
         out.push({
             id: lid,

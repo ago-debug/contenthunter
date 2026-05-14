@@ -49,7 +49,6 @@ interface ProductData {
     parentSku?: string;
     title: string;
     description: string;
-    docDescription: string;
     price: string;
     category: string;
     brand: string;
@@ -57,7 +56,8 @@ interface ProductData {
     weight: string;
     material: string;
     bulletPoints: string;
-    seoAiText?: string;
+    /** Breve e-commerce (HTML): Woo `short_description`, Presta `description_short`. */
+    seoAiText: string;
     categoryId?: number | null;
     subCategoryId?: number | null;
     subSubCategoryId?: number | null;
@@ -104,7 +104,7 @@ export default function WorkspaceClient() {
                 parentSku: p.parentSku || "",
                 title: p.title || p.name || "",
                 description: p.description || "",
-                docDescription: p.docDescription || "",
+                seoAiText: p.seoAiText || "",
                 price: p.price || "",
                 category: p.category || "",
                 brand: p.brand || "",
@@ -160,7 +160,7 @@ export default function WorkspaceClient() {
     const [isSyncingPages, setIsSyncingPages] = useState(false);
     const [activeField, setActiveField] = useState<keyof ProductData | null>("sku");
     const [currentProduct, setCurrentProduct] = useState<ProductData>({
-        sku: "", ean: "", parentSku: "", title: "", description: "", docDescription: "",
+        sku: "", ean: "", parentSku: "", title: "", description: "", seoAiText: "",
         price: "", category: "", brand: "", dimensions: "", weight: "", material: "",
         bulletPoints: "", images: []
     });
@@ -172,11 +172,18 @@ export default function WorkspaceClient() {
     const [extraColumns, setExtraColumns] = useState<string[]>([]);
     const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
     const [csvMapping, setCsvMapping] = useState<{ [key: string]: string }>({
-        sku: "SKU", ean: "EAN", title: "Titolo", docDescription: "Descrizione documentale",
+        sku: "SKU", ean: "EAN", title: "Titolo",
         price: "Prezzo", brand: "Brand", dimensions: "Dimensioni", weight: "Peso",
         material: "Materiale", category: "Categoria", description: "Analisi AI (Lungo)",
-        seoAiText: "Analisi AI (Breve)", image1: "Link Immagine 1", image2: "Link Immagine 2"
+        seoAiText: "Breve e-commerce (HTML)", image1: "Link Immagine 1", image2: "Link Immagine 2"
     });
+    /** Breve e-commerce: colonna mappata `seoAiText` oppure legacy `docDescription` nel CSV. */
+    const shortFromCsvRow = (row: Record<string, unknown>) => {
+        const cm = csvMapping as Record<string, string>;
+        const a = cm.seoAiText && row[cm.seoAiText] != null ? String(row[cm.seoAiText]).trim() : "";
+        const b = cm.docDescription && row[cm.docDescription] != null ? String(row[cm.docDescription]).trim() : "";
+        return a || b;
+    };
     const [showMapping, setShowMapping] = useState(false);
     const [activePicker, setActivePicker] = useState<{ type: 'text' | 'image' | 'pdf', row: number, field: string } | null>(null);
     const [isQuickPdfOpen, setIsQuickPdfOpen] = useState(false);
@@ -418,7 +425,7 @@ export default function WorkspaceClient() {
                 const erpRes = await axios.get(`/api/products?sku=${encodeURIComponent(product.sku)}`);
                 if (erpRes.data && erpRes.data.length > 0) {
                     const dbP = erpRes.data[0];
-                    const fieldsToSync = ['title', 'description', 'docDescription', 'price', 'brand', 'category', 'bulletPoints', 'seoAiText', 'dimensions', 'weight', 'material', 'ean', 'parentSku'];
+                    const fieldsToSync = ['title', 'description', 'price', 'brand', 'category', 'bulletPoints', 'seoAiText', 'dimensions', 'weight', 'material', 'ean', 'parentSku'];
 
                     fieldsToSync.forEach(f => {
                         if (dbP[f] && (!updatedProduct[f] || String(updatedProduct[f]).trim() === '' || updatedProduct[f] === '€ 0.00' || updatedProduct[f] === 0)) {
@@ -634,7 +641,16 @@ export default function WorkspaceClient() {
         // Only restore cached products when we are NOT loading a specific catalog.
         if (!targetIdStr && savedProducts) {
             try {
-                setProducts(JSON.parse(savedProducts));
+                const parsed = JSON.parse(savedProducts);
+                setProducts(
+                    Array.isArray(parsed)
+                        ? parsed.map((row: any) => {
+                              const { docDescription, ...rest } = row;
+                              const seo = rest.seoAiText ?? docDescription ?? "";
+                              return { ...rest, seoAiText: typeof seo === "string" ? seo : "" };
+                          })
+                        : []
+                );
                 toast.info(
                     isGlobalAdminUser
                         ? "Sessione ripristinata dal database locale."
@@ -688,7 +704,8 @@ export default function WorkspaceClient() {
                 material: 'Materiale',
                 category: 'Categoria',
                 bulletPoints: 'Caratteristiche principali / bullet point',
-                description: 'Analisi AI'
+                description: 'Analisi AI',
+                seoAiText: 'Breve e-commerce (HTML)'
             };
             return { key: f, label: labels[f] || f, isSystem: true };
         }),
@@ -783,7 +800,17 @@ export default function WorkspaceClient() {
                     sku: ['sku', 'codice', 'cod', 'item', 'art', 'id'],
                     ean: ['ean', 'barcode', 'codice a barre', 'gtin'],
                     title: ['titolo', 'title', 'nome', 'name', 'item name', 'prodotto', 'articolo'],
-                    docDescription: ['descrizione documentale', 'descrizione estesa', 'descrizione doc', 'estesa', 'description doc', 'descrizione'],
+                    seoAiText: [
+                        'short_description',
+                        'description_short',
+                        'descrizione breve',
+                        'breve e-commerce',
+                        'descrizione documentale',
+                        'descrizione estesa',
+                        'descrizione doc',
+                        'estesa',
+                        'description doc'
+                    ],
                     price: ['prezzo', 'price', 'listino', 'netto'],
                     brand: ['marca', 'brand', 'produttore', 'vendor'],
                     dimensions: ['dimensioni', 'dimensions', 'misura', 'formato', 'size'],
@@ -826,7 +853,7 @@ export default function WorkspaceClient() {
             for (let i = 0; i < updatedProducts.length; i++) {
                 const p = updatedProducts[i];
                 const fields = translateTargetField === 'all'
-                    ? ['title', 'docDescription', ...extraColumns]
+                    ? ['title', 'seoAiText', ...extraColumns]
                     : [translateTargetField];
 
                 for (const field of fields) {
@@ -837,7 +864,7 @@ export default function WorkspaceClient() {
                         const data = await res.json();
                         if (data && data[0]) {
                             const translated = data[0].map((x: any) => x[0]).join('');
-                            if (fields.includes(field) && field !== 'title' && field !== 'docDescription') {
+                            if (fields.includes(field) && field !== 'title' && field !== 'seoAiText') {
                                 p.extraFields = { ...p.extraFields, [field]: translated };
                             } else {
                                 (p as any)[field] = translated;
@@ -861,7 +888,7 @@ export default function WorkspaceClient() {
         const toastId = 'ai-desc-ws';
         toast.loading("L'AI sta scrivendo la descrizione...", { toastId });
         try {
-            const { images, extraFields, docDescription, ...cleanProductData } = product;
+            const { images, extraFields, ...cleanProductData } = product;
 
             const response = await fetch("/api/ai/describe", {
                 method: "POST",
@@ -873,7 +900,7 @@ export default function WorkspaceClient() {
                 body: JSON.stringify({
                     productData: {
                         ...cleanProductData,
-                        docDescription: docDescription?.substring(0, 2000) || "",
+                        seoAiText: (product.seoAiText || "").substring(0, 2000),
                         extraFieldsPreview: extraFields ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000) : ""
                     },
                     language: translateTargetLang
@@ -997,7 +1024,7 @@ export default function WorkspaceClient() {
         }
 
         const newProducts = [...products];
-        const systemFieldsKeys = ['ean', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
+        const systemFieldsKeys = ['ean', 'title', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
 
         // Map existing products
         products.forEach((p, idx) => {
@@ -1024,6 +1051,7 @@ export default function WorkspaceClient() {
                         (updated as any)[field] = val;
                     }
                 });
+                updated.seoAiText = shortFromCsvRow(match) || updated.seoAiText || "";
                 // Map extras
                 extraColumns.forEach(ex => {
                     const h = csvMapping[ex];
@@ -1069,8 +1097,7 @@ export default function WorkspaceClient() {
                     sku: rowSku,
                     title: String(row[csvMapping.title] || ""),
                     description: String(row[csvMapping.description] || ""),
-                    seoAiText: String(row[csvMapping.seoAiText] || ""),
-                    docDescription: String(row[csvMapping.docDescription] || ""),
+                    seoAiText: shortFromCsvRow(row),
                     price: pPrice,
                     category: String(row[csvMapping.category] || "Generale"),
                     brand: String(row[csvMapping.brand] || ""),
@@ -1112,7 +1139,7 @@ export default function WorkspaceClient() {
         let dataCount = 0;
         let erpMatchCount = 0;
 
-        const systemFieldsKeys = ['title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
+        const systemFieldsKeys = ['title', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
         const skuMappedField = csvMapping.sku;
 
         // Fetch all products from ERP once to match locally (more performant than individual calls)
@@ -1164,6 +1191,11 @@ export default function WorkspaceClient() {
                     dataCount++;
                     // Sync system fields
                     systemFieldsKeys.forEach(field => {
+                        if (field === "seoAiText") {
+                            const v = shortFromCsvRow(match);
+                            if (v) (updated as any).seoAiText = v;
+                            return;
+                        }
                         const h = csvMapping[field];
                         if (h && match[h]) {
                             let val = String(match[h]);
@@ -1458,7 +1490,7 @@ export default function WorkspaceClient() {
                         sku: text,
                         title: enrichedName,
                         description: `Identificato automaticamente a pagina ${pIdx + 1}`,
-                        docDescription: (extraData as any)[csvMapping.docDescription] || "",
+                        seoAiText: shortFromCsvRow(extraData as Record<string, unknown>),
                         price: enrichedPrice,
                         category: "Identificato da AI",
                         brand: (extraData as any)[csvMapping.brand] || "",
@@ -1626,7 +1658,7 @@ export default function WorkspaceClient() {
             setProducts([currentProduct, ...products]);
             toast.success(`Matrix Updated: Record ${currentProduct.sku} verified.`);
             setCurrentProduct({
-                sku: "", ean: "", parentSku: "", title: "", description: "", seoAiText: "", docDescription: "", price: "", category: "", brand: "",
+                sku: "", ean: "", parentSku: "", title: "", description: "", seoAiText: "", price: "", category: "", brand: "",
                 dimensions: "", weight: "", material: "", bulletPoints: "", images: []
             });
         } catch (err) {
@@ -1745,10 +1777,9 @@ export default function WorkspaceClient() {
                 "Prezzo": p.price,
                 "Categoria": p.category,
                 "Brand": p.brand,
-                "Descrizione Documentale": p.docDescription,
+                "Breve e-commerce (HTML) — Woo / Presta": p.seoAiText,
                 "Caratteristiche principali / bullet point": p.bulletPoints,
-                "Analisi AI (Breve)": p.seoAiText,
-                "Analisi AI (Lungo)": p.description
+                "Descrizione lunga (HTML)": p.description
             };
 
             // Add images URLs
@@ -2196,13 +2227,13 @@ export default function WorkspaceClient() {
                                         </div>
 
                                         <div className="space-y-2">
-                                            <label className="text-xs font-bold text-gray-700 ml-1">Descrizione Documentale</label>
+                                            <label className="text-xs font-bold text-gray-700 ml-1">Descrizione breve e-commerce (HTML)</label>
                                             <textarea
                                                 className="clean-input min-h-[80px]"
-                                                placeholder="Descrizione tecnica da documento..."
-                                                value={currentProduct.docDescription}
-                                                onFocus={() => setActiveField('docDescription')}
-                                                onChange={(e) => setCurrentProduct({ ...currentProduct, docDescription: e.target.value })}
+                                                placeholder="WooCommerce short_description / PrestaShop description_short…"
+                                                value={currentProduct.seoAiText}
+                                                onFocus={() => setActiveField('seoAiText')}
+                                                onChange={(e) => setCurrentProduct({ ...currentProduct, seoAiText: e.target.value })}
                                             />
                                         </div>
 
@@ -2385,7 +2416,7 @@ export default function WorkspaceClient() {
                                         >
                                             <option value="all">Tutte le colonne</option>
                                             <option value="title">Titolo</option>
-                                            <option value="docDescription">Desc. Documentale</option>
+                                            <option value="seoAiText">Breve e-commerce (HTML)</option>
                                             {extraColumns.map(c => (
                                                 <option key={c} value={c}>{c}</option>
                                             ))}
@@ -2463,7 +2494,7 @@ export default function WorkspaceClient() {
                                         <tr className="bg-gray-50/50 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
                                             <th className="px-6 py-3">SKU Code</th>
                                             <th className="px-6 py-3">Titolo</th>
-                                            <th className="px-6 py-3">Desc. Documentale</th>
+                                            <th className="px-6 py-3">Breve e-commerce (HTML)</th>
                                             {allDynamicColumns.map(col => (
                                                 <th key={col.key} className="px-6 py-3">{col.label}</th>
                                             ))}
@@ -2625,25 +2656,25 @@ export default function WorkspaceClient() {
                                                         <div className="flex items-center gap-2 group/input">
                                                             <input
                                                                 type="text"
-                                                                value={p.docDescription || ""}
+                                                                value={p.seoAiText || ""}
                                                                 onChange={(e) => {
                                                                     const newProducts = [...products];
-                                                                    newProducts[idx] = { ...p, docDescription: e.target.value };
+                                                                    newProducts[idx] = { ...p, seoAiText: e.target.value };
                                                                     setProducts(newProducts);
                                                                 }}
-                                                                onFocus={() => setActivePicker({ type: 'text', row: idx, field: 'docDescription' })}
+                                                                onFocus={() => setActivePicker({ type: 'text', row: idx, field: 'seoAiText' })}
                                                                 placeholder="Descrizione..."
                                                                 className="bg-transparent text-gray-600 border-b border-dashed border-gray-200 focus:border-orange-400 focus:outline-none text-xs w-full overflow-hidden text-ellipsis whitespace-nowrap"
                                                             />
                                                             <button
-                                                                onMouseEnter={() => setActivePicker({ type: 'text', row: idx, field: 'docDescription' })}
+                                                                onMouseEnter={() => setActivePicker({ type: 'text', row: idx, field: 'seoAiText' })}
                                                                 className="p-1 hover:bg-orange-50 rounded transition-all text-orange-400"
                                                             >
                                                                 <List className="w-3.5 h-3.5" />
                                                             </button>
 
                                                             <AnimatePresence>
-                                                                {activePicker?.type === 'text' && activePicker.row === idx && activePicker.field === 'docDescription' && (
+                                                                {activePicker?.type === 'text' && activePicker.row === idx && activePicker.field === 'seoAiText' && (
                                                                     <motion.div
                                                                         initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                                                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -2685,7 +2716,7 @@ export default function WorkspaceClient() {
                                                                                         key={`pdf-${pIdx}-${bIdx}`}
                                                                                         onClick={() => {
                                                                                             const newProducts = [...products];
-                                                                                            newProducts[idx] = { ...p, docDescription: block.str };
+                                                                                            newProducts[idx] = { ...p, seoAiText: block.str };
                                                                                             setProducts(newProducts);
                                                                                             setActivePicker(null);
                                                                                             setPickerSearch("");
@@ -3899,9 +3930,14 @@ export default function WorkspaceClient() {
                                                                                                     }
 
                                                                                                     if (match) {
-                                                                                                        const systemFieldsKeys = ['sku', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+                                                                                                        const systemFieldsKeys = ['sku', 'title', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
                                                                                                         systemFieldsKeys.forEach(f => {
                                                                                                             if (f === currentCol.key) return;
+                                                                                                            if (f === "seoAiText") {
+                                                                                                                const v = shortFromCsvRow(match as Record<string, unknown>);
+                                                                                                                if (v) (updated as any).seoAiText = v;
+                                                                                                                return;
+                                                                                                            }
                                                                                                             const h = csvMapping[f];
                                                                                                             if (h && match[h]) (updated as any)[f] = String(match[h]);
                                                                                                         });
@@ -3942,9 +3978,14 @@ export default function WorkspaceClient() {
                                                                                                     }
 
                                                                                                     if (match) {
-                                                                                                        const systemFieldsKeys = ['sku', 'title', 'docDescription', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description'];
+                                                                                                        const systemFieldsKeys = ['sku', 'title', 'price', 'category', 'brand', 'dimensions', 'weight', 'material', 'bulletPoints', 'description', 'seoAiText'];
                                                                                                         systemFieldsKeys.forEach(f => {
                                                                                                             if (f === currentCol.key) return;
+                                                                                                            if (f === "seoAiText") {
+                                                                                                                const v = shortFromCsvRow(match as Record<string, unknown>);
+                                                                                                                if (v) (updated as any).seoAiText = v;
+                                                                                                                return;
+                                                                                                            }
                                                                                                             const h = csvMapping[f];
                                                                                                             if (h && match[h]) (updated as any)[f] = String(match[h]);
                                                                                                         });
@@ -4373,11 +4414,11 @@ export default function WorkspaceClient() {
                                             </div>
 
                                             <div className="space-y-2 col-span-2">
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Descrizione Documentale</label>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-1">Descrizione breve e-commerce (HTML)</label>
                                                 <textarea
                                                     rows={3}
-                                                    value={editingProduct.docDescription || ""}
-                                                    onChange={(e) => setEditingProduct({ ...editingProduct, docDescription: e.target.value })}
+                                                    value={editingProduct.seoAiText || ""}
+                                                    onChange={(e) => setEditingProduct({ ...editingProduct, seoAiText: e.target.value })}
                                                     className="w-full px-6 py-4 bg-gray-50 border border-gray-100 focus:bg-white focus:border-slate-900 rounded-2xl text-xs leading-relaxed font-bold text-slate-700 transition-all outline-none resize-none shadow-sm"
                                                 />
                                             </div>

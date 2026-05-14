@@ -106,14 +106,14 @@ ${String(brand.aiContentGuidelines).slice(0, bgMax)}
             }
 
             const docLim = fastMode
-                ? AI_PRODUCT_COPY_FAST.docDescriptionMaxChars
-                : AI_PRODUCT_COPY_FULL.docDescriptionMaxChars;
-            const docDescription = String(baseText?.docDescription || "").slice(0, docLim);
+                ? AI_PRODUCT_COPY_FAST.shortDescriptionSourceMaxChars
+                : AI_PRODUCT_COPY_FULL.shortDescriptionSourceMaxChars;
+            const shortSourceHtml = String(baseText?.seoAiText ?? "").slice(0, docLim);
 
             try {
                 assertSeoSourceSufficientOrThrow({
                     title: baseText?.title,
-                    docDescription,
+                    seoAiText: shortSourceHtml,
                     extraFieldsPreview: extraPreview,
                     sku: product.sku,
                     ean: product.ean,
@@ -142,8 +142,8 @@ IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
 
 DATI TECNICI DI RIFERIMENTO:
 - Brand/Categoria: ${product.brand || ""} / ${product.category || ""}
-- Descrizione Tecnica/PDF originale (se presente, trattala come fonte principale, senza aggiungere fronzoli): 
-${docDescription}
+- Descrizione breve e-commerce (HTML) già presente (fonte principale se valorizzata):
+${shortSourceHtml}
 
 - Altri campi tecnici disponibili (possono essere usati per arricchire in modo aderente alla realtà, non per inventare):
 ${extraPreview || ""}
@@ -225,7 +225,6 @@ ${sections.join("\n\n")}
                         language,
                         title: baseText?.title || null,
                         description: finalDesc,
-                        docDescription: baseText?.docDescription || null,
                         bulletPoints: finalBullets,
                         seoAiText: finalShort,
                     },

@@ -72,18 +72,20 @@ ${String(brand.aiContentGuidelines).slice(0, bgMax)}
             }
         }
         const docLim = fastMode
-            ? AI_PRODUCT_COPY_FAST.docDescriptionMaxChars
-            : AI_PRODUCT_COPY_FULL.docDescriptionMaxChars;
+            ? AI_PRODUCT_COPY_FAST.shortDescriptionSourceMaxChars
+            : AI_PRODUCT_COPY_FULL.shortDescriptionSourceMaxChars;
         const extraLim = fastMode
             ? AI_PRODUCT_COPY_FAST.extraFieldsMaxChars
             : AI_PRODUCT_COPY_FULL.extraFieldsMaxChars;
-        const docDescription = String(productData.docDescription || "").slice(0, docLim);
+        const shortSourceHtml = String(
+            productData.seoAiText ?? productData.docDescription ?? ""
+        ).slice(0, docLim);
         const extraFieldsPreview = String(productData.extraFieldsPreview || "").slice(0, extraLim);
 
         try {
             assertSeoSourceSufficientOrThrow({
                 title: productData.title,
-                docDescription,
+                seoAiText: shortSourceHtml,
                 extraFieldsPreview,
                 sku: productData.sku,
                 ean: productData.ean,
@@ -118,8 +120,8 @@ IDENTIFICAZIONE PRODOTTO (da usare come riferimento chiave, senza modificarli):
 
 DATI TECNICI DI RIFERIMENTO:
 - Brand/Categoria: ${productData.brand || ''} / ${productData.category || ''}
-- Descrizione Tecnica/PDF originale (se presente, trattala come fonte principale, senza aggiungere fronzoli): 
-${docDescription}
+- Descrizione breve e-commerce (HTML) già presente (fonte principale se valorizzata; non aggiungere fronzoli):
+${shortSourceHtml}
 
 - Altri campi tecnici disponibili (possono essere usati per arricchire in modo aderente alla realtà, non per inventare):
 ${extraFieldsPreview}

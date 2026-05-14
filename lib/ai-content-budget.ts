@@ -7,13 +7,14 @@
  */
 
 export const AI_PRODUCT_COPY_FAST = {
-    docDescriptionMaxChars: 420,
+    /** Testo breve e-commerce / HTML già presente (input per AI). */
+    shortDescriptionSourceMaxChars: 420,
     brandGuidelinesMaxChars: 220,
     extraFieldsMaxChars: 220,
 } as const;
 
 export const AI_PRODUCT_COPY_FULL = {
-    docDescriptionMaxChars: 1600,
+    shortDescriptionSourceMaxChars: 1600,
     brandGuidelinesMaxChars: 900,
     extraFieldsMaxChars: 700,
 } as const;

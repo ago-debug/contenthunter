@@ -111,14 +111,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: true, count: texts.length });
         }
 
-        /** Rimuove tag HTML da descrizione lunga, doc, bullet e breve SEO (tutte le lingue dei record ProductText). */
+        /** Rimuove tag HTML da descrizione lunga, bullet e breve e-commerce (tutte le lingue dei record ProductText). */
         if (action === "strip_html_descriptions") {
             const texts = await prisma.productText.findMany({
                 where: { productId: { in: ids } },
                 select: {
                     id: true,
                     description: true,
-                    docDescription: true,
                     bulletPoints: true,
                     seoAiText: true,
                 },
@@ -130,19 +129,17 @@ export async function POST(req: NextRequest) {
 
             const updates = texts.flatMap((t) => {
                 const description = stripHtmlToPlainText(t.description);
-                const docDescription = stripHtmlToPlainText(t.docDescription);
                 const bulletPoints = stripHtmlToPlainText(t.bulletPoints);
                 const seoAiText = stripHtmlToPlainText(t.seoAiText);
                 const same =
                     description === (t.description ?? "") &&
-                    docDescription === (t.docDescription ?? "") &&
                     bulletPoints === (t.bulletPoints ?? "") &&
                     seoAiText === (t.seoAiText ?? "");
                 if (same) return [];
                 return [
                     prisma.productText.update({
                         where: { id: t.id },
-                        data: { description, docDescription, bulletPoints, seoAiText },
+                        data: { description, bulletPoints, seoAiText },
                     }),
                 ];
             });
@@ -532,7 +529,6 @@ export async function POST(req: NextRequest) {
                                 id: true,
                                 title: true,
                                 description: true,
-                                docDescription: true,
                                 bulletPoints: true,
                                 seoAiText: true,
                             },
@@ -816,16 +812,19 @@ export async function POST(req: NextRequest) {
                             });
                             updated++;
                         } else if (
-                            ["title", "description", "docdescription", "bulletpoints", "seoaitext"].includes(fpLower)
+                            ["title", "description", "bulletpoints", "seoaitext", "docdescription", "shortdescription"].includes(
+                                fpLower
+                            )
                         ) {
-                            const colMap: Record<string, "title" | "description" | "docDescription" | "bulletPoints" | "seoAiText"> =
-                                {
-                                    title: "title",
-                                    description: "description",
-                                    docdescription: "docDescription",
-                                    bulletpoints: "bulletPoints",
-                                    seoaitext: "seoAiText"
-                                };
+                            const colMap: Record<string, "title" | "description" | "bulletPoints" | "seoAiText"> = {
+                                title: "title",
+                                description: "description",
+                                bulletpoints: "bulletPoints",
+                                seoaitext: "seoAiText",
+                                /** Colonne listino legacy: mappano sulla descrizione breve e-commerce. */
+                                docdescription: "seoAiText",
+                                shortdescription: "seoAiText",
+                            };
                             const col = colMap[fpLower];
                             const textRow = p.texts[0];
                             const cur = (textRow as Record<string, unknown> | undefined)?.[col] ?? "";

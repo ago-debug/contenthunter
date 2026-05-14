@@ -25,7 +25,7 @@ const PRESET_FIELDS: { key: string; label: string }[] = [
     { key: "parentSku", label: "SKU padre" },
     { key: "title", label: "Titolo" },
     { key: "description", label: "Descrizione" },
-    { key: "docDescription", label: "Descrizione documentazione" },
+    { key: "seoAiText", label: "Descrizione breve e-commerce (HTML)" },
     { key: "bulletPoints", label: "Bullet points" },
     { key: "price", label: "Prezzo" },
     { key: "brand", label: "Brand" },

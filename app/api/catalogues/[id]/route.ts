@@ -103,7 +103,7 @@ export async function GET(
                 category: p.category,
                 title: itText.title || "",
                 description: itText.description || "",
-                docDescription: itText.docDescription || "",
+                seoAiText: itText.seoAiText || "",
                 bulletPoints: itText.bulletPoints || "",
                 price: defPrice?.price !== undefined ? String(defPrice.price) : "",
                 dimensions,

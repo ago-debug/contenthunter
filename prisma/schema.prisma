@@ -327,8 +327,8 @@ model ProductText {
   
   title          String?
   description    String?  @db.Text
-  docDescription String?  @db.Text
   bulletPoints   String?  @db.Text
+  /// Descrizione breve e-commerce (HTML): WooCommerce `short_description`, PrestaShop `description_short`.
   seoAiText      String?  @db.Text
 
   product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -739,8 +739,8 @@ model StagingProductText {
   
   title          String?
   description    String?  @db.Text
-  docDescription String?  @db.Text
   bulletPoints   String?  @db.Text
+  /// Descrizione breve e-commerce (HTML), allineata a ProductText.seoAiText.
   seoAiText      String?  @db.Text
 
   stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)

@@ -527,14 +527,14 @@ export async function POST(req: Request) {
                                 update: {
                                     title: title || null,
                                     description: description || null,
-                                    docDescription: shortDescription || null,
+                                    seoAiText: shortDescription || null,
                                 },
                                 create: {
                                     productId,
                                     language: "it",
                                     title: title || null,
                                     description: description || null,
-                                    docDescription: shortDescription || null,
+                                    seoAiText: shortDescription || null,
                                 },
                             });
                         } else {
@@ -557,14 +557,14 @@ export async function POST(req: Request) {
                                     update: {
                                         title: title || null,
                                         description: description || null,
-                                        docDescription: shortDescription || null,
+                                        seoAiText: shortDescription || null,
                                     },
                                     create: {
                                         productId,
                                         language: langCode,
                                         title: title || null,
                                         description: description || null,
-                                        docDescription: shortDescription || null,
+                                        seoAiText: shortDescription || null,
                                     },
                                 });
                             }

@@ -12,7 +12,7 @@ type ProductRow = {
     brand: string;
     category: string;
     description: string;
-    docDescription: string;
+    seoAiText: string;
     bulletPoints: string;
     images: { id: string; url: string }[];
 };
@@ -162,13 +162,13 @@ export default function ShopperProductPreviewModal({
                                 </div>
                             ) : null}
 
-                            {data.docDescription ? (
+                            {data.seoAiText ? (
                                 <div>
                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                        Descrizione documentale
+                                        Descrizione breve e-commerce (HTML)
                                     </p>
                                     <p className="mt-1 whitespace-pre-wrap text-[13px] leading-relaxed text-slate-600">
-                                        {data.docDescription}
+                                        {data.seoAiText}
                                     </p>
                                 </div>
                             ) : null}

@@ -11,6 +11,8 @@ type Body = {
     currentTitle?: string;
     bulletPoints?: string;
     description?: string;
+    /** Descrizione breve e-commerce (HTML); accetta anche docDescription in body per compat. */
+    seoAiText?: string;
     docDescription?: string;
     dimensions?: string;
     weight?: string;
@@ -58,7 +60,9 @@ export async function POST(req: Request) {
         const currentTitle = String(body.currentTitle ?? "").trim();
         const bulletPoints = String(body.bulletPoints ?? "").trim();
         const description = String(body.description ?? "").trim().slice(0, 2400);
-        const docDescription = String(body.docDescription ?? "").trim().slice(0, 2400);
+        const shortHtml = String(body.seoAiText ?? body.docDescription ?? "")
+            .trim()
+            .slice(0, 2400);
         const dimensions = String(body.dimensions ?? "").trim();
         const weight = String(body.weight ?? "").trim();
         const material = String(body.material ?? "").trim();
@@ -66,7 +70,7 @@ export async function POST(req: Request) {
         const category = String(body.category ?? "").trim();
         const extraPreview = previewExtra(body.extraFields, 1000);
 
-        if (!currentTitle && !bulletPoints && !description && !docDescription && !dimensions && !weight && !material && !extraPreview) {
+        if (!currentTitle && !bulletPoints && !description && !shortHtml && !dimensions && !weight && !material && !extraPreview) {
             return NextResponse.json(
                 { error: "Servono almeno titolo attuale o contenuti (bullet, descrizione, misure, extra) da integrare." },
                 { status: 400 }
@@ -85,8 +89,8 @@ ${bulletPoints || "—"}
 Descrizione commerciale / lunga (estratto):
 ${description ? description.slice(0, 1200) : "—"}
 
-Descrizione tecnica / da PDF (estratto):
-${docDescription ? docDescription.slice(0, 1200) : "—"}
+Descrizione breve e-commerce / HTML (estratto):
+${shortHtml ? shortHtml.slice(0, 1200) : "—"}
 
 Campi strutturati se presenti:
 - Dimensioni: ${dimensions || "—"}

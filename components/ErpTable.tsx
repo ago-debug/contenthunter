@@ -152,7 +152,6 @@ const EMPTY_SHEET_FILTERS: Record<string, string> = {
     material: "",
     colore: "",
     description: "",
-    docDescription: "",
     seoAiText: "",
     bulletContains: "",
     /** Sottostringa nel nome chiave (es. stagione, cod_fornitore) */
@@ -176,9 +175,8 @@ const BULK_SET_FIELD_OPTIONS: { value: string; label: string }[] = [
     { value: "parentSku", label: "Parent SKU" },
     { value: "title", label: "Titolo (IT)" },
     { value: "description", label: "Descrizione" },
-    { value: "docDescription", label: "Descrizione documentazione (PDF)" },
     { value: "bulletPoints", label: "Bullet points" },
-    { value: "seoAiText", label: "SEO AI" },
+    { value: "seoAiText", label: "Descrizione breve e-commerce (HTML)" },
     { value: "price", label: "Prezzo (listino default)" },
     { value: "currency", label: "Valuta prezzo (listino default)" },
     { value: "dimensions", label: "Dimensioni (extra)" },
@@ -204,9 +202,8 @@ const BULK_TEMPLATE_FIELD_KEYS: { token: string; label: string }[] = [
     { token: "vatCodeId", label: "Codice IVA ID" },
     { token: "title", label: "Titolo (IT)" },
     { token: "description", label: "Descrizione" },
-    { token: "docDescription", label: "Descrizione doc." },
     { token: "bulletPoints", label: "Bullet" },
-    { token: "seoAiText", label: "SEO AI" },
+    { token: "seoAiText", label: "Descrizione breve e-commerce (HTML)" },
     { token: "price", label: "Prezzo" },
     { token: "currency", label: "Valuta" },
     { token: "dimensions", label: "Dimensioni (extra)" },
@@ -230,7 +227,6 @@ function bulkSetFieldAllowsEmptyValue(fieldPath: string): boolean {
         "category",
         "title",
         "description",
-        "docdescription",
         "bulletpoints",
         "seoaitext",
         "currency",
@@ -273,8 +269,7 @@ const SHEET_FILTER_FIELDS: { key: string; label: string }[] = [
     { key: "material", label: "Materiale" },
     { key: "colore", label: "Colore" },
     { key: "description", label: "Descrizione" },
-    { key: "docDescription", label: "Doc. PDF" },
-    { key: "seoAiText", label: "SEO AI" },
+    { key: "seoAiText", label: "Breve e-commerce (HTML)" },
     { key: "bulletContains", label: "Bullet (contiene)" },
     { key: "extraKeyContains", label: "Extra: nome chiave" },
     { key: "extraValueContains", label: "Extra: valore" }
@@ -2467,7 +2462,12 @@ export default function ErpTable() {
         toast.loading("L'AI sta scrivendo la descrizione...", { toastId });
 
         try {
-            const { extraFields, docDescription } = selectedProduct;
+            const { extraFields } = selectedProduct;
+            const shortForAi = String(
+                selectedProduct.translations?.[editLang]?.seoAiText ||
+                    selectedProduct.seoAiText ||
+                    ""
+            );
             const aiPayload = {
                 sku: selectedProduct.sku || "",
                 ean: selectedProduct.ean || "",
@@ -2478,7 +2478,7 @@ export default function ErpTable() {
                 brand: selectedProduct.brand || "",
                 category: selectedProduct.category || "",
                 brandId: selectedProduct.brandId ?? null,
-                docDescription: aiUseExistingAsModel ? (docDescription?.substring(0, 2000) || "") : "",
+                seoAiText: aiUseExistingAsModel ? shortForAi.substring(0, 2000) : "",
                 extraFieldsPreview: extraFields
                     ? Object.entries(extraFields).map(([k, v]) => `${k}: ${v}`).join(", ").substring(0, 1000)
                     : "",
@@ -2666,7 +2666,6 @@ export default function ErpTable() {
         const stripped = {
             ...prev,
             description: stripHtmlToPlainText(prev.description),
-            docDescription: stripHtmlToPlainText(prev.docDescription),
             bulletPoints: stripHtmlToPlainText(prev.bulletPoints),
             seoAiText: stripHtmlToPlainText(prev.seoAiText),
         };
@@ -2677,13 +2676,12 @@ export default function ErpTable() {
         };
         if (lang === "it") {
             nextProduct.description = stripped.description || "";
-            nextProduct.docDescription = stripped.docDescription || "";
             nextProduct.bulletPoints = stripped.bulletPoints || "";
             nextProduct.seoAiText = stripped.seoAiText || "";
         }
         setSelectedProduct(nextProduct);
         toast.success(
-            `Tag HTML rimossi per ${lang.toUpperCase()} (descrizione, doc., bullet, breve SEO). Salva la scheda per confermare.`
+            `Tag HTML rimossi per ${lang.toUpperCase()} (descrizione lunga, bullet, breve e-commerce). Salva la scheda per confermare.`
         );
     };
 
@@ -2692,7 +2690,7 @@ export default function ErpTable() {
         if (selectedIds.length === 0) return;
         if (
             !(await appConfirm(
-                `Rimuovere i tag HTML da descrizione lunga, descrizione documentale, bullet e testo SEO breve per tutte le lingue di ${selectedIds.length} prodotti selezionati?`
+                `Rimuovere i tag HTML da descrizione lunga, descrizione breve e-commerce, bullet per tutte le lingue di ${selectedIds.length} prodotti selezionati?`
             ))
         ) {
             return;
@@ -3377,7 +3375,7 @@ export default function ErpTable() {
                     currentTitle: (t.title || "").toString(),
                     bulletPoints: (t.bulletPoints || "").toString(),
                     description: (t.description || "").toString(),
-                    docDescription: (selectedProduct.docDescription || "").toString(),
+                    seoAiText: (t.seoAiText || selectedProduct.seoAiText || "").toString(),
                     dimensions: (selectedProduct.dimensions || "").toString(),
                     weight: (selectedProduct.weight || "").toString(),
                     material: (selectedProduct.material || "").toString(),
@@ -3571,7 +3569,6 @@ export default function ErpTable() {
         if (!fieldContains(sf.material, p.material)) return false;
         if (!fieldContains(sf.colore, getExtraValue(p, "colore"))) return false;
         if (!fieldContains(sf.description, p.description)) return false;
-        if (!fieldContains(sf.docDescription, p.docDescription)) return false;
         if (!fieldContains(sf.seoAiText, p.seoAiText)) return false;
         if (!fieldContains(sf.bulletContains, p.bulletPoints)) return false;
 
@@ -5366,7 +5363,7 @@ export default function ErpTable() {
                                             <div className="space-y-6">
                                                 <div>
                                                     <div className="flex justify-between items-center mb-3">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Copywriting E-commerce (Breve & SEO) ({editLang})</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Descrizione breve e-commerce — Woo short_description / Presta description_short (HTML) ({editLang})</label>
                                                         <button
                                                             onClick={handleGenerateAIDescription}
                                                             disabled={isGeneratingAI}
@@ -5397,7 +5394,7 @@ export default function ErpTable() {
                                                         }}
                                                         minHeight={120}
                                                         className="mb-6"
-                                                        placeholder="L'estratto breve o meta description…"
+                                                        placeholder="Breve HTML per scheda prodotto (stesso campo esportato verso WooCommerce / PrestaShop)…"
                                                     />
                                                     <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -5406,7 +5403,7 @@ export default function ErpTable() {
                                                         <button
                                                             type="button"
                                                             onClick={handleStripHtmlDescriptionsSingle}
-                                                            title="Rimuove tag HTML da descrizione lunga, doc., bullet e breve SEO per questa lingua"
+                                                            title="Rimuove tag HTML da descrizione lunga, bullet e descrizione breve e-commerce per questa lingua"
                                                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-800 text-[10px] font-black uppercase tracking-widest border border-slate-200 hover:bg-slate-200 transition-all shrink-0"
                                                         >
                                                             <Eraser className="w-3.5 h-3.5" />
@@ -5423,16 +5420,6 @@ export default function ErpTable() {
                                                         }}
                                                         minHeight={300}
                                                         placeholder="Descrizione e-commerce (anche HTML)…"
-                                                    />
-                                                </div>
-                                                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-2 block">
-                                                        Sorgente dati tecnici (non modificabile) — Codice / HTML
-                                                    </label>
-                                                    <HtmlCodeToggle
-                                                        value={selectedProduct.docDescription || ""}
-                                                        readOnly
-                                                        minHeight={220}
                                                     />
                                                 </div>
                                             </div>
