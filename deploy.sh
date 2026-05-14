@@ -48,6 +48,21 @@ require_env_file() {
 # Su molti VPS la cartella httpdocs esiste già (Plesk) ma non è un clone: manca .git → collegiamo il remote e allineiamo.
 export GIT_TERMINAL_PROMPT=0
 
+# Git 2.35+: se esegui come root ma httpdocs è di un altro utente (Plesk), senza questo fallisce con "dubious ownership".
+ensure_git_trusts_target_dir() {
+    [[ -d "$TARGET_DIR" ]] || return 0
+    if [[ "$(id -u)" -ne 0 ]]; then
+        return 0
+    fi
+    if git config --global --get-all safe.directory 2>/dev/null | grep -Fxq "$TARGET_DIR"; then
+        return 0
+    fi
+    git config --global --add safe.directory "$TARGET_DIR"
+    echo "✓ Git safe.directory registrato per $TARGET_DIR (deploy come root)"
+}
+
+ensure_git_trusts_target_dir
+
 if [[ ! -d "$TARGET_DIR" ]]; then
     echo "📁 Clone repository → $TARGET_DIR"
     git clone --branch main --single-branch "$REPO_URL" "$TARGET_DIR"
@@ -56,6 +71,7 @@ elif [[ ! -d "$TARGET_DIR/.git" ]]; then
     echo "    Collegamento a $REPO_URL e allineamento forzato a main (file tracciati da Git vengono sovrascritti; .env non tracciato resta)."
     cd "$TARGET_DIR"
     git init
+    git config init.defaultBranch main
     git remote remove origin 2>/dev/null || true
     git remote add origin "$REPO_URL"
     git fetch origin main
