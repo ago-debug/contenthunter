@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "d3666fa2692a4d129875cbee7e9ff7f82b029383",
+      "at": "2026-05-14T19:06:32+02:00",
+      "description": "feat(ui): product editor folder tabs and technical sheet fields"
+    },
+    {
       "hash": "a44b1796b1821ed140e09650fa94f69f859b5721",
       "at": "2026-05-14T18:12:51+02:00",
       "description": "chore: app tree, channel sync, ERP price helpers, ESLint tooling"
