@@ -156,6 +156,11 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                 next = setExtraValue(next, technicalSheetPickIdKey(INGREDIENTS_FIELD_KEY), "");
                 setSelectedProduct(next);
             } else {
+                const k = modal.category;
+                let next = setExtraValue(selectedProduct, technicalSheetPickIdKey(k), String(data.id));
+                next = setExtraValue(next, k, String(data.description || data.name || "").trim());
+                setSelectedProduct(next);
+            }
             setModal(null);
             toast.success("Voce creata");
         } catch {
