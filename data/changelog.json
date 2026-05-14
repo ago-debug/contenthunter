@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "a44b1796b1821ed140e09650fa94f69f859b5721",
+      "at": "2026-05-14T18:12:51+02:00",
+      "description": "chore: app tree, channel sync, ERP price helpers, ESLint tooling"
+    },
+    {
       "hash": "291609ed10849585da190c7eb759ea20de35bca0",
       "at": "2026-04-23T15:57:52+02:00",
       "description": "fix(build): polyfill File globale prima di cheerio (Node 18 / collect page data)"
