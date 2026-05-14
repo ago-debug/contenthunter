@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "15a7b172cddc4711ec1e78dd75ba2aa150bc0120",
+      "at": "2026-05-14T22:00:46+02:00",
+      "description": "fix(TechnicalSheetPanel): restore submitCreatePicklist else branch and try/catch braces"
+    },
+    {
       "hash": "02cbf1c412d0d4cb73dc1c6d6e05a0f2a60bf5f5",
       "at": "2026-05-14T21:56:32+02:00",
       "description": "feat(technical-sheet): multi-line ingredients with qty/units; rich HTML editor"
