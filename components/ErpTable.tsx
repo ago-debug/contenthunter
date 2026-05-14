@@ -33,6 +33,7 @@ import { stripHtmlToPlainText } from "@/lib/strip-html-to-plain-text";
 import { useAppDialogs } from "@/components/AppDialogsProvider";
 import { TechnicalSheetPanel } from "@/components/TechnicalSheetPanel";
 import { HtmlCodeToggle } from "@/components/HtmlCodeToggle";
+import { ProductLotsPanel, type ProductLotEditorRow } from "@/components/ProductLotsPanel";
 
 /** Opzioni menù "righe in tabella": sempre 25/50/100, poi fasce fino al totale filtrato, infine Tutti. */
 function buildTablePageSizeOptions(total: number): { value: string; label: string }[] {
@@ -99,7 +100,15 @@ type PushFieldModalState =
     | { channel: "woo"; mode: "single"; product: any }
     | { channel: "woo"; mode: "bulk" };
 
-type ProductEditorTab = "info" | "images" | "seo" | "attributes" | "technical" | "woocommerce" | "history";
+type ProductEditorTab =
+    | "info"
+    | "images"
+    | "seo"
+    | "attributes"
+    | "technical"
+    | "lots"
+    | "woocommerce"
+    | "history";
 
 const PRODUCT_EDITOR_TABS: {
     id: ProductEditorTab;
@@ -111,6 +120,7 @@ const PRODUCT_EDITOR_TABS: {
     { id: "seo", label: "SEO & AI Content", icon: Sparkles },
     { id: "attributes", label: "Specifiche & Bullet", icon: List },
     { id: "technical", label: "Schede tecniche", icon: FileSpreadsheet },
+    { id: "lots", label: "Lotti", icon: Layers },
     { id: "woocommerce", label: "Omnichannel", icon: Globe },
     { id: "history", label: "Cronologia", icon: HistoryIcon },
 ];
@@ -508,6 +518,7 @@ export default function ErpTable() {
         price: true,
         extras: true,
         images: true,
+        lots: true,
     };
 
     const isGlobalAdminUser = Boolean((session?.user as any)?.isGlobalAdmin);
@@ -5630,6 +5641,27 @@ export default function ErpTable() {
                                         setExtraValue={setExtraValue}
                                         companyReq={companyReq}
                                     />
+                                )}
+
+                                {activeTab === "lots" && selectedProduct && (
+                                    <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-3 mb-6 flex items-center gap-2">
+                                                <Layers className="w-3.5 h-3.5 text-slate-500" />
+                                                Lotti e giacenze
+                                            </h4>
+                                            <ProductLotsPanel
+                                                lots={
+                                                    Array.isArray(selectedProduct.lots)
+                                                        ? (selectedProduct.lots as ProductLotEditorRow[])
+                                                        : []
+                                                }
+                                                onChange={(next) =>
+                                                    setSelectedProduct({ ...selectedProduct, lots: next })
+                                                }
+                                            />
+                                        </div>
+                                    </div>
                                 )}
 
                                 {activeTab === 'woocommerce' && (

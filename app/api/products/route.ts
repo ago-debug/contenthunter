@@ -4,6 +4,7 @@ import { requireCompanyId } from "@/lib/auth-api";
 import { isVatSchemaUnavailableError } from "@/lib/vat-schema-fallback";
 import { Prisma } from "@prisma/client";
 import { normalizeStockExtraKey } from "@/lib/stock-extra";
+import { normalizeLotsForDb } from "@/lib/product-lot";
 import { PRODUCTS_LIST_MAX_TAKE, PRODUCTS_LIST_PAGE_SIZE } from "@/lib/fetch-all-products";
 import { clientUrlForProductImage } from "@/lib/product-image-serving";
 import { assertCanCreateProduct } from "@/lib/plan-limits";
@@ -84,6 +85,9 @@ export async function POST(req: NextRequest) {
         const overwritePrice: boolean = overwrite?.price === true;
         const overwriteExtras: boolean = overwrite?.extras === true;
         const overwriteImages: boolean = overwrite?.images === true;
+        const overwriteLots: boolean = overwrite?.lots === true;
+        const hasLotsKey = Object.prototype.hasOwnProperty.call(body, "lots");
+        const lotsRaw = hasLotsKey ? (body as { lots?: unknown }).lots : undefined;
 
         // 1. Find existing product (scoped by company)
         // Priorità: SKU prima, poi EAN. Import Lab / Iris identificano la riga per SKU; se l’EAN è
@@ -590,7 +594,39 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // 8. Log modification to History (snapshot + firma elettronica salvataggio)
+        let savedLotsSnapshot: unknown = undefined;
+        stage = "sync_lots";
+        if (hasLotsKey && Array.isArray(lotsRaw) && (!existingProduct || overwriteLots)) {
+            try {
+                const rows = normalizeLotsForDb(lotsRaw);
+                await prisma.productLot.deleteMany({ where: { productId: product.id } });
+                if (rows.length > 0) {
+                    await prisma.productLot.createMany({
+                        data: rows.map((r) => ({
+                            productId: product.id,
+                            lotCode: r.lotCode,
+                            quantity: r.quantity,
+                            expiryDate: r.expiryDate,
+                            receivedAt: r.receivedAt,
+                            notes: r.notes,
+                            sortOrder: r.sortOrder,
+                        })),
+                    });
+                }
+                savedLotsSnapshot = rows.map((r) => ({
+                    lotCode: r.lotCode,
+                    quantity: r.quantity.toString(),
+                    expiryDate: r.expiryDate ? r.expiryDate.toISOString() : null,
+                    receivedAt: r.receivedAt ? r.receivedAt.toISOString() : null,
+                    notes: r.notes,
+                    sortOrder: r.sortOrder,
+                }));
+            } catch (lotErr) {
+                console.warn("[POST /api/products] Salvataggio lotti non riuscito (eseguire `npx prisma db push`):", lotErr);
+            }
+        }
+
+        // 10. Log modification to History (snapshot + firma elettronica salvataggio)
         stage = "write_history";
         const saver = await resolveSaverIdentity(session.user);
         const savedAtIso = new Date().toISOString();
@@ -610,6 +646,7 @@ export async function POST(req: NextRequest) {
                     seoAiText: clampText(seoAiText),
                     price: price, // stored as provided
                     extraFields: extraFields || {},
+                    ...(savedLotsSnapshot !== undefined ? { lots: savedLotsSnapshot } : {}),
                     timestamp: savedAtIso,
                     savedByUserId: saver.userId,
                     savedByDisplayName: saver.displayName,
@@ -765,6 +802,7 @@ export async function GET(req: NextRequest) {
             prices: { where: { listName: "default" as const } },
             extraFields: true,
             images: { select: { id: true, imageUrl: true, storedInDb: true } },
+            lots: { orderBy: [{ sortOrder: "asc" }, { id: "asc" }] },
             tags: { include: { tag: true } },
             brandRef: true,
             bulletPointRefs: true,
@@ -928,6 +966,17 @@ export async function GET(req: NextRequest) {
                 technicalPackagingNote: p.technicalPackagingNote ?? "",
                 technicalPalettId: p.technicalPalettId ?? null,
                 technicalPalettNote: p.technicalPalettNote ?? "",
+                lots: Array.isArray(p.lots)
+                    ? p.lots.map((l: any) => ({
+                          id: l.id,
+                          lotCode: l.lotCode ?? "",
+                          quantity: l.quantity != null ? String(l.quantity) : "0",
+                          expiryDate: l.expiryDate ? l.expiryDate.toISOString().slice(0, 10) : "",
+                          receivedAt: l.receivedAt ? l.receivedAt.toISOString().slice(0, 10) : "",
+                          notes: l.notes ?? "",
+                          sortOrder: typeof l.sortOrder === "number" ? l.sortOrder : 0,
+                      }))
+                    : [],
             };
         });
 
