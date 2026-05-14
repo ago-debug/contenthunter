@@ -377,7 +377,7 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                                     value={selectValue}
                                     onChange={(val) => {
                                         if (val == null) {
-                                            let next = setExtraValue(selectedProduct, technicalSheetPickIdKey(pickKey), "");
+                                            const next = setExtraValue(selectedProduct, technicalSheetPickIdKey(pickKey), "");
                                             setSelectedProduct(next);
                                             return;
                                         }
