@@ -31,6 +31,7 @@ import {
 import { fetchAllProductsPages } from "@/lib/fetch-all-products";
 import { stripHtmlToPlainText } from "@/lib/strip-html-to-plain-text";
 import { useAppDialogs } from "@/components/AppDialogsProvider";
+import { TechnicalSheetPanel } from "@/components/TechnicalSheetPanel";
 
 /** Opzioni menù "righe in tabella": sempre 25/50/100, poi fasce fino al totale filtrato, infine Tutti. */
 function buildTablePageSizeOptions(total: number): { value: string; label: string }[] {
@@ -98,50 +99,6 @@ type PushFieldModalState =
     | { channel: "woo"; mode: "bulk" };
 
 type ProductEditorTab = "info" | "images" | "seo" | "attributes" | "technical" | "woocommerce" | "history";
-
-/** Campi scheda tecnica in `extraFields` (modello tipo Zaffy BIO: certificazione, confezione, descrizione, ingredienti, sensoriale, qualità). */
-const TECH_SHEET_FIELDS: { key: string; label: string; hint?: string; rows: number; wide?: boolean }[] = [
-    {
-        key: "schedaTec_titoloProdotto",
-        label: "Titolo prodotto (in testa alla scheda)",
-        hint: "Es. Zafferano biologico Zaffy BIO — 2 buste",
-        rows: 2,
-    },
-    {
-        key: "schedaTec_certOrganismo",
-        label: "Certificazione biologica — organismo di controllo",
-        hint: "Es. IT-BIO-007",
-        rows: 2,
-    },
-    {
-        key: "schedaTec_certOperatore",
-        label: "Operatore controllato n°",
-        hint: "Codice operatore / certificazione (es. A70L…)",
-        rows: 2,
-    },
-    {
-        key: "schedaTec_confezione",
-        label: "Confezione / formato vendita",
-        hint: "Es. 2 buste da 0,13 g",
-        rows: 2,
-    },
-    {
-        key: "schedaTec_pesoTotale",
-        label: "Peso totale confezione",
-        hint: "Es. 0,26 g",
-        rows: 2,
-    },
-    { key: "schedaTec_descrizione", label: "Descrizione", rows: 8, wide: true },
-    { key: "schedaTec_ingredienti", label: "Ingredienti", rows: 4, wide: true },
-    { key: "schedaTec_profiloSensoriale", label: "Profilo sensoriale", rows: 6, wide: true },
-    {
-        key: "schedaTec_qualitaControllata",
-        label: "Qualità controllata",
-        hint: "Protocolli di controllo, laboratori, convenzioni (es. Di.S.A.A. — Università degli Studi di Milano)",
-        rows: 8,
-        wide: true,
-    },
-];
 
 const PRODUCT_EDITOR_TABS: {
     id: ProductEditorTab;
@@ -5624,46 +5581,14 @@ export default function ErpTable() {
                                     </div>
                                 )}
 
-                                {activeTab === "technical" && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
-                                            <div className="border-b border-gray-50 pb-4">
-                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
-                                                    <FileSpreadsheet className="w-4 h-4 text-amber-600 shrink-0" aria-hidden />
-                                                    Schede tecniche
-                                                </h4>
-                                                <p className="text-[11px] text-slate-500 font-semibold mt-2 max-w-3xl leading-relaxed">
-                                                    Struttura ispirata a schede tecniche alimentari (es. certificazione biologica, confezione e peso, descrizione,
-                                                    ingredienti, profilo sensoriale, qualità controllata). I valori sono salvati negli{" "}
-                                                    <span className="font-bold text-slate-700">extraFields</span> con chiavi{" "}
-                                                    <code className="text-[10px] font-mono bg-slate-100 px-1 py-0.5 rounded">schedaTec_*</code> e vanno in
-                                                    salvataggio con il resto della scheda.
-                                                </p>
-                                            </div>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                {TECH_SHEET_FIELDS.map((f) => (
-                                                    <div key={f.key} className={f.wide ? "md:col-span-2" : undefined}>
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-1.5 block">
-                                                            {f.label}
-                                                        </label>
-                                                        {f.hint ? (
-                                                            <p className="text-[9px] text-slate-400 mb-2 ml-1 leading-snug">{f.hint}</p>
-                                                        ) : null}
-                                                        <textarea
-                                                            rows={f.rows}
-                                                            value={getExtraValue(selectedProduct, f.key)}
-                                                            onChange={(e) =>
-                                                                setSelectedProduct(
-                                                                    setExtraValue(selectedProduct, f.key, e.target.value)
-                                                                )
-                                                            }
-                                                            className="w-full bg-slate-50/90 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200/80 resize-y leading-relaxed"
-                                                        />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
+                                {activeTab === "technical" && selectedProduct && (
+                                    <TechnicalSheetPanel
+                                        selectedProduct={selectedProduct}
+                                        setSelectedProduct={setSelectedProduct}
+                                        getExtraValue={getExtraValue}
+                                        setExtraValue={setExtraValue}
+                                        companyReq={companyReq}
+                                    />
                                 )}
 
                                 {activeTab === 'woocommerce' && (

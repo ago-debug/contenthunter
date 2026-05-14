@@ -266,6 +266,72 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 2.05 Schede tecniche — collegamenti logistici (picklist azienda)
+        stage = "technical_logistics_fk";
+        const bodyAny = body as Record<string, unknown>;
+        const techPatch: {
+            technicalPackagingId?: number | null;
+            technicalPackagingNote?: string | null;
+            technicalPalettId?: number | null;
+            technicalPalettNote?: string | null;
+        } = {};
+        const verifyPick = async (rowId: number, category: string): Promise<boolean> => {
+            const row = await prisma.technicalPicklistItem.findFirst({
+                where: { id: rowId, companyId, category },
+                select: { id: true },
+            });
+            return !!row;
+        };
+        if ("technicalPackagingId" in bodyAny && bodyAny.technicalPackagingId !== undefined) {
+            const raw = bodyAny.technicalPackagingId;
+            if (raw === null || raw === "") {
+                techPatch.technicalPackagingId = null;
+            } else {
+                const pid = parseInt(String(raw), 10);
+                if (!Number.isFinite(pid)) {
+                    return NextResponse.json({ error: "technicalPackagingId non valido" }, { status: 400 });
+                }
+                if (!(await verifyPick(pid, "logistics_packaging"))) {
+                    return NextResponse.json({ error: "Packaging non valido per questa azienda" }, { status: 400 });
+                }
+                techPatch.technicalPackagingId = pid;
+            }
+        }
+        if ("technicalPalettId" in bodyAny && bodyAny.technicalPalettId !== undefined) {
+            const raw = bodyAny.technicalPalettId;
+            if (raw === null || raw === "") {
+                techPatch.technicalPalettId = null;
+            } else {
+                const pid = parseInt(String(raw), 10);
+                if (!Number.isFinite(pid)) {
+                    return NextResponse.json({ error: "technicalPalettId non valido" }, { status: 400 });
+                }
+                if (!(await verifyPick(pid, "logistics_palettizzazione"))) {
+                    return NextResponse.json({ error: "Palettizzazione non valida" }, { status: 400 });
+                }
+                techPatch.technicalPalettId = pid;
+            }
+        }
+        if ("technicalPackagingNote" in bodyAny && bodyAny.technicalPackagingNote !== undefined) {
+            techPatch.technicalPackagingNote = clampText(bodyAny.technicalPackagingNote) || null;
+        }
+        if ("technicalPalettNote" in bodyAny && bodyAny.technicalPalettNote !== undefined) {
+            techPatch.technicalPalettNote = clampText(bodyAny.technicalPalettNote) || null;
+        }
+        if (Object.keys(techPatch).length > 0 && product?.id) {
+            try {
+                await prisma.product.update({
+                    where: { id: product.id },
+                    data: techPatch,
+                });
+            } catch (e: any) {
+                console.warn(
+                    "[POST /api/products] Salvataggio collegamenti scheda tecnica / logistica non riuscito (eseguire `npx prisma db push`):",
+                    e?.message
+                );
+            }
+        }
+
         // 2. Upsert Italian texts con controllo di campo per sovrascrittura
         stage = "upsert_it_text";
         if (title !== undefined || description !== undefined || docDescription !== undefined || bulletPoints !== undefined || seoAiText !== undefined) {
@@ -678,6 +744,8 @@ export async function GET(req: NextRequest) {
             brandRef: true,
             bulletPointRefs: true,
             catalogs: { select: { catalogId: true, catalog: { select: { id: true, name: true } } } },
+            technicalPackaging: { select: { id: true, name: true, description: true } },
+            technicalPalett: { select: { id: true, name: true, description: true } },
         };
 
         let total: number | undefined;
@@ -830,7 +898,11 @@ export async function GET(req: NextRequest) {
                 catalogId: catalogId ? parseInt(catalogId) : undefined,
                 brandId: p.brandId,
                 brandData: p.brandRef,
-                bullets: p.bulletPointRefs
+                bullets: p.bulletPointRefs,
+                technicalPackagingId: p.technicalPackagingId ?? null,
+                technicalPackagingNote: p.technicalPackagingNote ?? "",
+                technicalPalettId: p.technicalPalettId ?? null,
+                technicalPalettNote: p.technicalPalettNote ?? "",
             };
         });
 

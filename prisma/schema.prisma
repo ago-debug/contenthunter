@@ -83,6 +83,32 @@ model Company {
   aiCreditsBalance  Decimal  @default(0) @db.Decimal(14, 4)
 
   aiCreditLedgers AiCreditLedger[]
+
+  /// Intestazione opzionale (testo/HTML semplice) in cima alla stampa PDF scheda tecnica prodotto
+  technicalSheetPdfHeader String? @db.Text
+  /// URL pubblico o path logo per intestazione PDF scheda tecnica (es. https://…/logo.png)
+  technicalSheetPdfLogoUrl String? @db.Text
+
+  technicalPicklistItems TechnicalPicklistItem[]
+}
+
+/// Valori riutilizzabili per scheda tecnica / logistica (packaging, palettizzazione, …) con descrizione di default.
+model TechnicalPicklistItem {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  /// Es. logistics_packaging | logistics_palettizzazione
+  category    String   @db.VarChar(64)
+  name        String   @db.VarChar(512)
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  productsAsPackaging Product[] @relation("ProductTechnicalPackaging")
+  productsAsPalett    Product[] @relation("ProductTechnicalPalett")
+
+  @@unique([companyId, category, name])
+  @@index([companyId, category])
 }
 
 /// Risposte dell'assistente piattaforma: cache per domande uguali/simili (risparmio token AI).
@@ -245,6 +271,14 @@ model Product {
   vatCodeId      Int?
   vatCode        VatCode?       @relation(fields: [vatCodeId], references: [id], onDelete: SetNull)
 
+  technicalPackagingId Int?
+  technicalPackaging   TechnicalPicklistItem? @relation("ProductTechnicalPackaging", fields: [technicalPackagingId], references: [id], onDelete: SetNull)
+  technicalPackagingNote String? @db.Text
+
+  technicalPalettId Int?
+  technicalPalett   TechnicalPicklistItem? @relation("ProductTechnicalPalett", fields: [technicalPalettId], references: [id], onDelete: SetNull)
+  technicalPalettNote String? @db.Text
+
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   /// Data ultimo import esplicito (file, push da Lab, ecc.); null per prodotti creati manualmente o legacy
@@ -254,6 +288,8 @@ model Product {
   @@index([companyId])
   @@index([brandId])
   @@index([vatCodeId])
+  @@index([technicalPackagingId])
+  @@index([technicalPalettId])
 }
 
 /// Codici IVA per azienda (aliquota % configurabile)
