@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "5881a6c5c86cab6db6c64872280b67c251d890e4",
+      "at": "2026-05-14T21:06:40+02:00",
+      "description": "fix(api): PDF response body use Buffer.from for TS BlobPart compatibility"
+    },
+    {
       "hash": "62c2dff5b171f9da37c8fd19d7c381672fda4583",
       "at": "2026-05-14T20:59:29+02:00",
       "description": "fix(deploy): repair repo when .git exists but origin remote is missing"
