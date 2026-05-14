@@ -44,15 +44,29 @@ require_env_file() {
     echo "✓ .env presente (DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL)"
 }
 
-# --- 1. Codice ---
+# --- 1. Codice (Git) ---
+# Su molti VPS la cartella httpdocs esiste già (Plesk) ma non è un clone: manca .git → collegiamo il remote e allineiamo.
+export GIT_TERMINAL_PROMPT=0
+
 if [[ ! -d "$TARGET_DIR" ]]; then
     echo "📁 Clone repository → $TARGET_DIR"
-    git clone "$REPO_URL" "$TARGET_DIR"
+    git clone --branch main --single-branch "$REPO_URL" "$TARGET_DIR"
+elif [[ ! -d "$TARGET_DIR/.git" ]]; then
+    echo "⚠️  $TARGET_DIR esiste ma non è un repository Git (.git assente)."
+    echo "    Collegamento a $REPO_URL e allineamento forzato a main (file tracciati da Git vengono sovrascritti; .env non tracciato resta)."
+    cd "$TARGET_DIR"
+    git init
+    git remote remove origin 2>/dev/null || true
+    git remote add origin "$REPO_URL"
+    git fetch origin main
+    git checkout -f -B main FETCH_HEAD
+else
+    cd "$TARGET_DIR"
+    echo "🔄 git pull origin main…"
+    git pull origin main
 fi
 
 cd "$TARGET_DIR"
-echo "🔄 git pull origin main…"
-git pull origin main
 
 require_node
 require_env_file
