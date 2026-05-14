@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "c6f3b67f8d67c6094fd4a48ea855b9dedededa9f",
+      "at": "2026-05-14T23:34:55+02:00",
+      "description": "Unify short e-commerce copy in seoAiText; remove docDescription from schema and UI."
+    },
+    {
       "hash": "f8978389e3db8fb552c6d9842fb8f04a70465ebc",
       "at": "2026-05-14T23:12:09+02:00",
       "description": "feat(products): gestione lotti (DB, API, tab ERP)"
