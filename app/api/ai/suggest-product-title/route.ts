@@ -1,0 +1,260 @@
+import { NextResponse } from "next/server";
+import axios from "axios";
+import { prisma } from "@/lib/prisma";
+import { requireCompanyId } from "@/lib/auth-api";
+import { resolveIntegrationKeys } from "@/lib/company-integration-keys";
+import { CONTENT_AI_KEY_MISSING_MESSAGE, runJsonChatCompletion } from "@/lib/ai-content-provider";
+
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
+type SerpOrganic = { title?: string; snippet?: string; link?: string };
+type SerpShopping = { title?: string; source?: string; snippet?: string; product_link?: string; link?: string };
+
+async function serpGoogleSearch(args: { apiKey: string; q: string; gl: string; hl: string; num: number }) {
+    const resp = await axios.get("https://serpapi.com/search.json", {
+        timeout: 18000,
+        params: {
+            engine: "google",
+            api_key: args.apiKey,
+            q: args.q,
+            gl: args.gl,
+            hl: args.hl,
+            num: args.num,
+        },
+    });
+    return resp.data as any;
+}
+
+async function serpGoogleShoppingSearch(args: { apiKey: string; q: string; gl: string; hl: string; num: number }) {
+    const resp = await axios.get("https://serpapi.com/search.json", {
+        timeout: 18000,
+        params: {
+            engine: "google_shopping",
+            api_key: args.apiKey,
+            q: args.q,
+            gl: args.gl,
+            hl: args.hl,
+            num: args.num,
+        },
+    });
+    return resp.data as any;
+}
+
+function collectWebContext(data: any): string[] {
+    const lines: string[] = [];
+    const organic: SerpOrganic[] = Array.isArray(data?.organic_results) ? data.organic_results : [];
+    for (const o of organic.slice(0, 10)) {
+        if (o.title) lines.push(`Risultato: ${o.title}`);
+        if (o.snippet) lines.push(`Estratto: ${o.snippet}`);
+    }
+    const shop: SerpShopping[] = Array.isArray(data?.shopping_results) ? data.shopping_results : [];
+    for (const s of shop.slice(0, 8)) {
+        if (s.title) lines.push(`Shopping: ${s.title}${s.source ? ` (${s.source})` : ""}`);
+    }
+    return lines.slice(0, 40);
+}
+
+export async function POST(req: Request) {
+    try {
+        const ctx = await requireCompanyId(req);
+        if (!ctx) {
+            return NextResponse.json({ error: "Non autorizzato o azienda non specificata" }, { status: 403 });
+        }
+        const keys = await resolveIntegrationKeys(ctx.companyId);
+
+        const body = await req.json().catch(() => ({}));
+        const sku = String(body.sku ?? "").trim();
+        const ean = String(body.ean ?? "").trim();
+        const brandStr = String(body.brand ?? "").trim();
+        const producerName = String(body.producerName ?? body.brand ?? "").trim();
+        const brandId = body.brandId != null ? Number(body.brandId) : null;
+        const language = String(body.language ?? "it").slice(0, 5) || "it";
+
+        if (!sku && !ean) {
+            return NextResponse.json({ error: "Indica almeno SKU o EAN." }, { status: 400 });
+        }
+
+        let brandGuidelines = "";
+        let producerLabel = producerName || brandStr;
+        let producerDomain: string | null = null;
+
+        if (brandId && Number.isFinite(brandId)) {
+            const b = await prisma.brand.findFirst({
+                where: { id: brandId, companyId: ctx.companyId },
+            });
+            if (b) {
+                producerLabel = producerLabel || b.name;
+                producerDomain = b.producerDomain || null;
+                if (b.aiContentGuidelines) {
+                    brandGuidelines = `
+
+Linee guida brand "${b.name}" (tono titolo):
+${b.aiContentGuidelines}
+`;
+                }
+            }
+        }
+
+        const serpKey = keys.serpapi;
+        const webLines: string[] = [];
+
+        if (serpKey) {
+            const queries: string[] = [];
+            const core = [producerLabel, ean || sku].filter(Boolean).join(" ").trim();
+            if (core) queries.push(core);
+            if (producerLabel && ean) queries.push(`${producerLabel} ${ean}`);
+            if (producerLabel && sku) queries.push(`${producerLabel} ${sku}`);
+            if (producerDomain) {
+                try {
+                    const host = new URL(
+                        producerDomain.includes("://") ? producerDomain : `https://${producerDomain}`
+                    ).hostname.replace(/^www\./i, "");
+                    if (ean) queries.push(`${ean} site:${host}`);
+                    else if (sku) queries.push(`${sku} site:${host}`);
+                } catch {
+                    /* ignore */
+                }
+            }
+
+            const seen = new Set<string>();
+            const uniqueQueries = queries.filter((q) => {
+                if (!q || seen.has(q)) return false;
+                seen.add(q);
+                return true;
+            });
+            /** Max query SerpAPI per richiesta (costo SerpAPI + meno rumore nel prompt LLM). */
+            const maxSerpQueries = Math.min(5, Math.max(1, parseInt(process.env.AI_TITLE_SERP_MAX_QUERIES || "4", 10) || 4));
+            const cappedQueries = uniqueQueries.slice(0, maxSerpQueries);
+            const WEB_LINE_CAP = 28;
+
+            for (let i = 0; i < cappedQueries.length && webLines.length < WEB_LINE_CAP; i += 2) {
+                const pair = cappedQueries.slice(i, i + 2);
+                const settled = await Promise.allSettled(
+                    pair.map((q) =>
+                        serpGoogleSearch({
+                            apiKey: serpKey,
+                            q,
+                            gl: "it",
+                            hl: language,
+                            num: 8,
+                        })
+                    )
+                );
+                for (let j = 0; j < settled.length; j++) {
+                    const s = settled[j];
+                    if (s.status === "fulfilled") {
+                        webLines.push(...collectWebContext(s.value));
+                    } else {
+                        console.warn("suggest-product-title google search:", pair[j], s.reason);
+                    }
+                }
+            }
+
+            if (webLines.length < 8) {
+                const shopQueries = uniqueQueries.slice(0, 2);
+                const shopSettled = await Promise.allSettled(
+                    shopQueries.map((q) =>
+                        serpGoogleShoppingSearch({
+                            apiKey: serpKey,
+                            q,
+                            gl: "it",
+                            hl: language,
+                            num: 8,
+                        })
+                    )
+                );
+                for (let j = 0; j < shopSettled.length; j++) {
+                    const s = shopSettled[j];
+                    if (s.status !== "fulfilled") {
+                        console.warn("suggest-product-title shopping:", shopQueries[j], s.reason);
+                        continue;
+                    }
+                    const items = Array.isArray(s.value?.shopping_results) ? s.value.shopping_results : [];
+                    for (const it of items.slice(0, 8)) {
+                        const t = (it as SerpShopping)?.title;
+                        if (t) webLines.push(`Google Shopping: ${t}`);
+                    }
+                }
+            }
+        }
+
+        const webBlock =
+            webLines.length > 0
+                ? webLines
+                      .filter(Boolean)
+                      .slice(0, 36)
+                      .join("\n")
+                : "";
+        const webContextMax = Math.min(8000, Math.max(1500, parseInt(process.env.AI_TITLE_WEB_CONTEXT_MAX_CHARS || "4200", 10) || 4200));
+        const webContext =
+            webBlock.length > 0
+                ? `MATERIALE DA RICERCA WEB (usa come riferimento; non copiare alla lettera se incoerente):\n${
+                      webBlock.length > webContextMax ? `${webBlock.slice(0, webContextMax)}\n…[troncato]` : webBlock
+                  }`
+                : "Nessun risultato web automatico (configura SerpAPI in Impostazioni azienda o SERPAPI_KEY sul server).";
+
+        if (!keys.gemini && !keys.openai) {
+            return NextResponse.json(
+                {
+                    error: "Chiave AI mancante.",
+                    details: CONTENT_AI_KEY_MISSING_MESSAGE,
+                },
+                { status: 500 }
+            );
+        }
+
+        const prompt = `Sei un catalog manager B2B. Genera UN SOLO titolo prodotto in ${language}, chiaro e professionale, adatto a scheda prodotto e-commerce.
+${brandGuidelines}
+
+DATI CERTI (non inventare codici diversi):
+- SKU: ${sku || "—"}
+- EAN: ${ean || "—"}
+- Brand / produttore (nome da usare se pertinente): ${producerLabel || "—"}
+
+${webContext}
+
+REGOLE:
+1) Il titolo deve essere una sola riga, max circa 120 caratteri.
+2) Includi il nome brand/produttore se ha senso commerciale (es. all'inizio o dopo il tipo prodotto).
+3) Se il materiale web è contraddittorio o generico, privilegia SKU/EAN e un titolo tecnico sobrio.
+4) Non usare slogan, emoji, "Scopri", "Offerta", prezzi o garanzie inventate.
+5) Rispondi SOLO con JSON valido: {"title":"..."}`;
+
+        const raw = await runJsonChatCompletion(
+            { openai: keys.openai, gemini: keys.gemini },
+            {
+                system: "Rispondi solo con un oggetto JSON con chiave title (stringa). Nessun testo fuori dal JSON.",
+                user: prompt,
+                maxTokens: 120,
+                temperature: 0.35,
+            }
+        );
+        let title = "";
+        try {
+            const parsed = JSON.parse(raw) as { title?: string };
+            title = String(parsed.title ?? "").trim();
+        } catch {
+            title = raw.replace(/^\s*[\[{]|"title"\s*:\s*"|"\s*}\]\s*$/g, "").trim();
+        }
+
+        if (!title) {
+            return NextResponse.json({ error: "Il modello non ha restituito un titolo valido." }, { status: 502 });
+        }
+
+        return NextResponse.json({
+            title,
+            meta: {
+                webHintsLines: webLines.length,
+                serpConfigured: Boolean(serpKey),
+                language,
+            },
+        });
+    } catch (err: any) {
+        console.error("suggest-product-title:", err);
+        return NextResponse.json(
+            { error: err?.message || "Errore generazione titolo" },
+            { status: 500 }
+        );
+    }
+}

@@ -1,0 +1,834 @@
+{
+  "entries": [
+    {
+      "hash": "291609ed10849585da190c7eb759ea20de35bca0",
+      "at": "2026-04-23T15:57:52+02:00",
+      "description": "fix(build): polyfill File globale prima di cheerio (Node 18 / collect page data)"
+    },
+    {
+      "hash": "66553020fc29f6f06b36e29dad3135863fcab725",
+      "at": "2026-04-23T15:50:34+02:00",
+      "description": "feat: mappatura prodotti da fonti multipli (stile NotebookLM)"
+    },
+    {
+      "hash": "fd21430260249e4d3545a7fb62a08011cf010a22",
+      "at": "2026-04-23T10:14:21+02:00",
+      "description": "fix(import-lab): modal mappatura visibile anche in landing senza repository"
+    },
+    {
+      "hash": "7dc3fc33de4ff0dbde33558690b4b5cf7f5709d6",
+      "at": "2026-04-23T10:00:25+02:00",
+      "description": "fix(import-lab): report import distinto biblioteca vs staging"
+    },
+    {
+      "hash": "62b62dd9ef312522b88f83bdec69f74f72e758bd",
+      "at": "2026-04-23T09:57:36+02:00",
+      "description": "feat(prodotti): hub biblioteca+import, import diretto, cataloghi opzionali, importedAt"
+    },
+    {
+      "hash": "eaa5e64b47952fa288ee2308c10abcb9162edf88",
+      "at": "2026-04-22T22:43:32+02:00",
+      "description": "fix(bulk): transazione Prisma per strip_html_descriptions (flatMap)"
+    },
+    {
+      "hash": "dad2cf71c1260c711cb65f7717ccc7144f80c883",
+      "at": "2026-04-22T22:33:21+02:00",
+      "description": "feat(biblioteca): rimozione HTML da descrizioni (singolo + bulk)"
+    },
+    {
+      "hash": "a94d29d5f86f6bd0bbdd94e7d356276abe43ec6c",
+      "at": "2026-04-22T19:06:49+02:00",
+      "description": "Fix catalogues reload on company switch; add stripHtmlToPlainText helper"
+    },
+    {
+      "hash": "01c269fedae5a763027645693116c6349b2e5f7a",
+      "at": "2026-04-22T18:59:08+02:00",
+      "description": "Refactor sidebar: clearer sections, higher contrast, fix collapsible visibility"
+    },
+    {
+      "hash": "f5d04ab54128b65d4defa1d19b3bce599009c17c",
+      "at": "2026-04-22T18:46:40+02:00",
+      "description": "fix(types): cast Prisma InputJsonValue in user-audit details"
+    },
+    {
+      "hash": "061b12065c33c298ab6d7367271b3c4390409300",
+      "at": "2026-04-22T18:44:20+02:00",
+      "description": "feat(users): anagrafica, condizioni d'uso, audit login e CSV"
+    },
+    {
+      "hash": "a19650d07b84b4df5f4a4ac00d723f0d20b7c896",
+      "at": "2026-04-22T18:35:52+02:00",
+      "description": "fix(admin): ricarica utenti quando cambia azienda selezionata"
+    },
+    {
+      "hash": "627fa43934a7cd851dfbebbc2f4ed18e126126af",
+      "at": "2026-04-22T18:14:56+02:00",
+      "description": "fix(types): CompanyAnagraficaInput per create compatibile con Prisma"
+    },
+    {
+      "hash": "0d5acfb4fd1b097a8e9b036923a40300ddb93fbc",
+      "at": "2026-04-22T18:07:46+02:00",
+      "description": "feat: anagrafica azienda, email verify, crediti AI PDF, admin scheda"
+    },
+    {
+      "hash": "91851852da03f6e0de6e1f7cc6863b14ddbc643c",
+      "at": "2026-04-22T17:07:51+02:00",
+      "description": "feat(plans): enforcement SEO/GEO e PDF suite + GET /api/company/features"
+    },
+    {
+      "hash": "3f8c59cd0bfb59885abcf27190443f601e54b7d5",
+      "at": "2026-04-22T16:57:08+02:00",
+      "description": "feat(admin): Piattaforma & piani, registrazione tenant free, utenti attivi"
+    },
+    {
+      "hash": "8393d5d039e75bd48271fec06d5d2ed3915f336b",
+      "at": "2026-04-22T16:38:09+02:00",
+      "description": "fix(company-slug): rimuovi \\p{M} per compatibilità target ES5 (build Next)"
+    },
+    {
+      "hash": "b29922a1d81933b3a8d97984b25f9146d3e203fa",
+      "at": "2026-04-22T16:30:33+02:00",
+      "description": "feat(billing): schema piani/AI ledger, limiti prodotti/utenti e slug azienda"
+    },
+    {
+      "hash": "092740473ef86d2356e00b187c38829389b1f1bf",
+      "at": "2026-04-22T11:48:30+02:00",
+      "description": "feat(ai): riduci costi/latency e payload; rimuovi path merged duplicati"
+    },
+    {
+      "hash": "cbccb9508c461c825c839e949318364fdb1a25a8",
+      "at": "2026-04-22T09:44:15+02:00",
+      "description": "feat(woo): optional AUTO-WOO-{id} SKU when Woo product has no SKU (import + preview)"
+    },
+    {
+      "hash": "da73c8772ad6f522abec24bd4e3031028e2b99a8",
+      "at": "2026-04-22T09:34:38+02:00",
+      "description": "fix(erp): brand filter matches brandId and anagrafica name; feat(import): optional AUTO- SKU for rows without SKU"
+    },
+    {
+      "hash": "02f127930e19dbb26d48d3f2a441c793ea58e281",
+      "at": "2026-04-22T09:21:42+02:00",
+      "description": "Fix Woo import report CSV export (escaping, newlines, filename)."
+    },
+    {
+      "hash": "ff335f72717bb0cff6d1dd148a5465dd61bae8ff",
+      "at": "2026-04-21T20:46:48+02:00",
+      "description": "feat(woo): import wizard con mapping, anteprima e report"
+    },
+    {
+      "hash": "d62bb8906fb3ee7d94d83f263255d133109b44c0",
+      "at": "2026-04-21T13:03:18+02:00",
+      "description": "fix(ImportLab): toast.update — merge autoClose into options (react-toastify v11)"
+    },
+    {
+      "hash": "84979aff3201f97b55b7c959fb3b70ef4aa937f6",
+      "at": "2026-04-21T12:37:05+02:00",
+      "description": "feat(pdf-extract): batch per pagine — meno timeout 504"
+    },
+    {
+      "hash": "f4f4fbe1e592ff69fb34f3e6026d24385384b102",
+      "at": "2026-04-21T12:32:27+02:00",
+      "description": "feat(seo-geo): visibilità dominio stile Semrush — SerpAPI + euristiche homepage"
+    },
+    {
+      "hash": "6e1c41eb0940ecec81f344d0a11376cf674265f5",
+      "at": "2026-04-21T12:29:26+02:00",
+      "description": "fix: serve PDF via Blob body for NextResponse (strict BodyInit types)"
+    },
+    {
+      "hash": "1cb85b925883b0d946747f137dbd9bec97eee71e",
+      "at": "2026-04-21T12:26:53+02:00",
+      "description": "fix: PDF file route — use Buffer for NextResponse body (TS BodyInit)"
+    },
+    {
+      "hash": "cf9dba0bf524390b0f6eb4816b19d65a307c430e",
+      "at": "2026-04-21T12:23:13+02:00",
+      "description": "fix: PDF file GET — Content-Disposition ASCII, lettura disco, toast HTTP reali"
+    },
+    {
+      "hash": "fe9ca3490ce0d380266624f675b1d9d4f06155a5",
+      "at": "2026-04-21T12:16:28+02:00",
+      "description": "fix: coerce bulletPoints to string for Prisma staging text"
+    },
+    {
+      "hash": "782d22b3d1a5ad4820122f5ba3629751f8a78de5",
+      "at": "2026-04-21T12:11:26+02:00",
+      "description": "feat: PDF AI Studio — estrazione AI, ritaglio immagini da bbox, auth staging"
+    },
+    {
+      "hash": "ecf366d798b148b6f8ccdc8d1a74d695a8180b57",
+      "at": "2026-04-20T22:44:42+02:00",
+      "description": "feat(seo-geo): analisi tecnica sito vetrina e scelta come procedere"
+    },
+    {
+      "hash": "fbaacc41c9a39c6751539df32161d684154296c4",
+      "at": "2026-04-20T22:37:31+02:00",
+      "description": "fix: normalizza content-type axios in save-image storage route"
+    },
+    {
+      "hash": "37d3e1c31c2c748c590aa040e1d3fac6d6102809",
+      "at": "2026-04-20T22:34:05+02:00",
+      "description": "fix: normalizza content-type axios in upload logo brand (TypeScript build)"
+    },
+    {
+      "hash": "fb296b9ef04662db4baa9110333fd9e3fb02003b",
+      "at": "2026-04-20T22:00:14+02:00",
+      "description": "feat(seo-geo): hub UI, IndexNow/ping automatici dopo push canali, llms.txt API"
+    },
+    {
+      "hash": "d36a5372b3f1f9fd945405b5f3442d677bd3ce00",
+      "at": "2026-04-18T23:27:12+02:00",
+      "description": "feat(shopper): chip follow-up come opzioni o risposte suggerite, hint non cliccabili per domande legacy"
+    },
+    {
+      "hash": "be352d855b83f7057b3293ff8fa921c2041e7ef8",
+      "at": "2026-04-18T23:12:55+02:00",
+      "description": "fix: use Array.from(Set) for ES5-compatible dedupe in personal-shopper enrich"
+    },
+    {
+      "hash": "90ff252129c9b19c8aebdd15167dbf36e3da5ea0",
+      "at": "2026-04-18T23:00:28+02:00",
+      "description": "feat(shopper): titoli cliccanti, anteprima scheda, link Woo ed embed"
+    },
+    {
+      "hash": "e5fa6e3f66303cc0cafd49a07df0347a0cf8966d",
+      "at": "2026-04-18T22:38:21+02:00",
+      "description": "feat(shopper): ricerca su tutta la biblioteca e contesto marchi"
+    },
+    {
+      "hash": "90f7b1fdaad8fba60748704dd8f0c1db21dfcb1e",
+      "at": "2026-04-18T22:16:21+02:00",
+      "description": "feat(assistant): Personal Shopper nel flottante + embed float per Woo"
+    },
+    {
+      "hash": "52199e523d6363a44c851ca56abc6d673ab13c9e",
+      "at": "2026-04-18T21:25:24+02:00",
+      "description": "feat(woo): embed Personal Shopper pubblico per WooCommerce"
+    },
+    {
+      "hash": "b8136eec36a81c65bb08dbf34785e5de7a5d01dd",
+      "at": "2026-04-18T21:13:19+02:00",
+      "description": "feat(channels): Personal Shopper AI per WooCommerce"
+    },
+    {
+      "hash": "1c545009c3bd633bb31fd8420f6de6fa0fd38838",
+      "at": "2026-04-17T22:08:26+02:00",
+      "description": "fix(api): 403 su /api/product-images per admin globale (img senza x-company-id)"
+    },
+    {
+      "hash": "b5f69865952d58d5a85ddb3585b0ef05e5cf1a43",
+      "at": "2026-04-17T22:02:44+02:00",
+      "description": "fix(prisma): Uint8Array per campo Bytes ProductImage (compat TS)"
+    },
+    {
+      "hash": "3fbe4318fcb723060f4bd5a4201a3fc6c15e67de",
+      "at": "2026-04-17T21:45:57+02:00",
+      "description": "fix(products): immagini AI in DB (niente 404 su serverless)"
+    },
+    {
+      "hash": "6bc2c9c186dece167318d9b4e7873c3f4975632b",
+      "at": "2026-04-17T21:30:38+02:00",
+      "description": "fix(erp): anteprime immagini con imageUrl, proxy e zoom allineati"
+    },
+    {
+      "hash": "34d0319a2d44741e6bc381fa7806850ca68f527e",
+      "at": "2026-04-17T09:20:39+02:00",
+      "description": "feat(products): foto ambientate aggiuntive con Gemini (Nano Banana)"
+    },
+    {
+      "hash": "f697c00e1ac3f0af001fe9949c7055841e8dfec0",
+      "at": "2026-04-16T10:30:16+02:00",
+      "description": "fix(ui): note tecniche solo per admin globale"
+    },
+    {
+      "hash": "56efed687778cba63be6f3a87853e08645c70f24",
+      "at": "2026-04-16T10:22:06+02:00",
+      "description": "fix: tokenSetSimilarity senza for-of su Set (compat ES5/tsconfig)"
+    },
+    {
+      "hash": "02c14fa4c39e89d86b65e71308564ca66cde82e4",
+      "at": "2026-04-16T09:50:01+02:00",
+      "description": "perf(ai): riduzione costi — modelli JSON separati, token e cache"
+    },
+    {
+      "hash": "e85b11fe9c96dd8190cc68823f7f54136834c49a",
+      "at": "2026-04-16T09:42:13+02:00",
+      "description": "feat(ai): assistente piattaforma con cache Q&A e arricchimento titolo da scheda"
+    },
+    {
+      "hash": "22ca237cab15a1a19613d634ec1a71caa6768ba5",
+      "at": "2026-04-14T18:06:45+02:00",
+      "description": "fix(ErpTable): salvataggio prodotto con overwrite completo e header azienda"
+    },
+    {
+      "hash": "e265113b32759ce4b0ab01557f3f97085d3ca15d",
+      "at": "2026-04-14T17:47:36+02:00",
+      "description": "Export: anteprima prodotti 403 — companyId su fetch e header axios"
+    },
+    {
+      "hash": "133701ab119e023bfa3629b851d93ae20de7398b",
+      "at": "2026-04-09T11:26:31+02:00",
+      "description": "fix(prestashop-import): ripristina cache IVA e companyVatCodes (build TS)"
+    },
+    {
+      "hash": "de9186b8093e0ea7c8275a247552c767235f3738",
+      "at": "2026-04-09T11:18:40+02:00",
+      "description": "fix(prestashop-import): listino IVA inclusa e associazione codice IVA"
+    },
+    {
+      "hash": "65f7a090a0a2c58b8d200e3efe2b4836985fc354",
+      "at": "2026-04-09T11:02:58+02:00",
+      "description": "chore: copy Iris e Biblioteca prodotti su app, API e Import Lab"
+    },
+    {
+      "hash": "7eab802eabbf7658a94683a5c69d4c78c9f208c2",
+      "at": "2026-04-09T10:55:02+02:00",
+      "description": "feat(erp-table): colonne Immagine, Nome prodotto, Prezzo ivato e netto"
+    },
+    {
+      "hash": "525c3ce44fba625e672142888caab53a30850c72",
+      "at": "2026-04-09T10:25:04+02:00",
+      "description": "ui: tooltip a fumetto e z-index; toolbar PIM con side bottom"
+    },
+    {
+      "hash": "ddac6f53ad5976e10c59259aa1c6465babb47ec6",
+      "at": "2026-04-09T10:15:45+02:00",
+      "description": "fix(erp): badge azienda al posto del progetto; tipizza campi traduzione bulk"
+    },
+    {
+      "hash": "79ed522555bcc360cc3a461a39cdd8f72a98ddfe",
+      "at": "2026-04-09T10:08:28+02:00",
+      "description": "feat(erp): traduzioni massive, hint tooltip e titolo con brand"
+    },
+    {
+      "hash": "1fb485de98baa1d8edc3b6415e6e5a09fe6b3df3",
+      "at": "2026-04-09T09:48:04+02:00",
+      "description": "feat(erp): toolbar PIM layout e ordinamento colonne tabella"
+    },
+    {
+      "hash": "d7cdd5e5c341e33072c66cae0e4d586e7285d1be",
+      "at": "2026-04-09T09:18:59+02:00",
+      "description": "feat(erp): selettore righe tabella (default 25, fasce, Tutti)"
+    },
+    {
+      "hash": "f10af946041e7704caf8c52c077a1a9f81b3ceb1",
+      "at": "2026-04-09T09:11:37+02:00",
+      "description": "feat(ui): tooltip vignetta, toolbar PIM sticky, bulk template risolto"
+    },
+    {
+      "hash": "5a93a33d01ea4bd6104caa19c818da88fb39e630",
+      "at": "2026-04-09T08:54:44+02:00",
+      "description": "feat(import-lab): checkbox separati per extra nel push verso Master ERP"
+    },
+    {
+      "hash": "f3a8f983a38ff3bdff3b99951fce5f311ff7d981",
+      "at": "2026-04-08T19:02:26+02:00",
+      "description": "ux(erp): tooltip title su toolbar PIM e modale canali"
+    },
+    {
+      "hash": "baf278fa938bcc88c75d2a3325912887aa4e71c7",
+      "at": "2026-04-08T16:47:04+02:00",
+      "description": "refactor(erp): toolbar PIM — ricerca sopra tabella, canali in modale, export come icone"
+    },
+    {
+      "hash": "24d1e5a1a54f1b6d9afafa57545f11809254f8e2",
+      "at": "2026-04-08T14:33:58+02:00",
+      "description": "feat(prestashop): allinea immagini ERP↔PS e reset galleria da ERP"
+    },
+    {
+      "hash": "a87c4192e903b48ba6e11469e3c232c78578e0d6",
+      "at": "2026-04-08T12:42:32+02:00",
+      "description": "fix(products): tipizza paginazione findMany (Prisma + spread)"
+    },
+    {
+      "hash": "c48b554f5157dffdfd8a3c76b4063d6f4b07037d",
+      "at": "2026-04-08T12:35:13+02:00",
+      "description": "fix(associate-images): rimuovi export non valido da route (Next 15)"
+    },
+    {
+      "hash": "4938bbb98307a4940b3c2fb83a201b653040635a",
+      "at": "2026-04-08T12:22:51+02:00",
+      "description": "feat(products): GET paginato (take/skip) e caricamento a chunk nel client"
+    },
+    {
+      "hash": "0d78f4418a45df74190ff6a6cf73964010018f34",
+      "at": "2026-04-08T12:13:45+02:00",
+      "description": "fix(deploy): bind 0.0.0.0 for Passenger, add diagnose-server script"
+    },
+    {
+      "hash": "2427d90198eae54381f82bb97d1c4639e75c8ddd",
+      "at": "2026-04-08T11:04:00+02:00",
+      "description": "chore: gitignore .env.production to avoid committing deploy secrets"
+    },
+    {
+      "hash": "d96e0ad7c8c50f088a64180155dbd220618a0f90",
+      "at": "2026-04-08T10:25:49+02:00",
+      "description": "feat(import): batch associate-images to reduce proxy 504"
+    },
+    {
+      "hash": "68d03c791623145ecf72673fc1503817ba8aca6b",
+      "at": "2026-04-07T22:31:08+02:00",
+      "description": "feat(tables): categoria padre con select ricercabile e anteprima in griglia"
+    },
+    {
+      "hash": "a7b489f03b0f0bf53005cf5cbeda2ad3e45c1ee0",
+      "at": "2026-04-06T22:08:42+02:00",
+      "description": "fix(integrations): prezzo push da listino ERP (prices[]) e fallback update"
+    },
+    {
+      "hash": "0c0fa2609cff6e34010f768746780e653145e625",
+      "at": "2026-04-06T22:04:41+02:00",
+      "description": "fix(prestashop): scorporo IVA con gruppo tasse Presta; bulk codice IVA"
+    },
+    {
+      "hash": "389a3b09bdea0f30c2e32fb910aaa8129647be61",
+      "at": "2026-04-06T21:48:54+02:00",
+      "description": "feat(integrations): sync immagini e-commerce con dedupe e upload ERP"
+    },
+    {
+      "hash": "7adeccb863dafb0a62833a5d5af5b01adb497001",
+      "at": "2026-04-06T21:36:17+02:00",
+      "description": "feat(integrations): modal push overwrite per PrestaShop e WooCommerce"
+    },
+    {
+      "hash": "bca09162619c1c5cb5a16a983b048619f961cf4b",
+      "at": "2026-04-06T21:13:48+02:00",
+      "description": "fix(prestashop): rimuovi meta_title/description/keywords dal XML prodotto"
+    },
+    {
+      "hash": "9d32e87d041aed998bab138615abd333b17abda6",
+      "at": "2026-04-06T21:05:39+02:00",
+      "description": "fix(prestashop): listino IVA inclusa → imponibile nel campo price"
+    },
+    {
+      "hash": "7aec96c41386583ed83ff7d0c421d4f3d0a2b583",
+      "at": "2026-04-06T20:49:09+02:00",
+      "description": "feat(integrations): parità Woo/Presta — cache push massivo, categorie e brand"
+    },
+    {
+      "hash": "d66b2a8f021cb040e2f160585b6cdf5a38175280",
+      "at": "2026-04-06T20:06:04+02:00",
+      "description": "feat(prestashop): crea categoria e brand su PS se mancano al push"
+    },
+    {
+      "hash": "da1d1e976e0c81dd97c7717c7cbc0eab90497835",
+      "at": "2026-04-06T20:02:06+02:00",
+      "description": "feat(erp): modifiche massive — select brand/categorie da dati azienda"
+    },
+    {
+      "hash": "7681726c6f012bb8643b09c204fe85c7053461cb",
+      "at": "2026-04-06T19:56:56+02:00",
+      "description": "feat(prestashop): import — sync completo su update (categoria, brand, extra)"
+    },
+    {
+      "hash": "d91a04926629f31cafc952145b21a7d80c6e4ac6",
+      "at": "2026-04-06T19:49:20+02:00",
+      "description": "fix(prestashop): import — fallback display e messaggi 401/422"
+    },
+    {
+      "hash": "277b1ca0ce5bf9b03afed4e3f63907a9512705fd",
+      "at": "2026-04-06T19:36:09+02:00",
+      "description": "fix(prestashop): import più leggero, errori chiari e timeout client"
+    },
+    {
+      "hash": "261941c1f5c1c4678cbf14ae2a1b35097e5636aa",
+      "at": "2026-04-06T19:31:03+02:00",
+      "description": "fix(erp): modifiche massive e azioni su selezione senza filtro brand"
+    },
+    {
+      "hash": "0a702dd41ffe0d824c6859bb09dc11b435936e4b",
+      "at": "2026-04-06T19:04:58+02:00",
+      "description": "fix: allinea a ultimo comportamento stabile (AI default OpenAI, slugify TS)"
+    },
+    {
+      "hash": "dfc792532f0c8a401197d183cf4a32c21a8538f7",
+      "at": "2026-04-06T18:25:34+02:00",
+      "description": "feat: integrazione PrestaShop 9 (webservice) e provider contenuti AI"
+    },
+    {
+      "hash": "91afa4d3de3309e2604465e4ab0ffc121a55bb6e",
+      "at": "2026-04-01T18:15:17+02:00",
+      "description": "fix(erp): Materiale/Dimensioni leggono i campi dedicati prodotto"
+    },
+    {
+      "hash": "dc5b7c6d78742d3bb3f4632a442c34441bbfd5f6",
+      "at": "2026-04-01T18:01:06+02:00",
+      "description": "fix(erp): Materiale/Dimensioni legati ai campi extra Import Lab"
+    },
+    {
+      "hash": "0087fc58ac0acfa3f244630b87d0d47a483b65cf",
+      "at": "2026-04-01T17:53:20+02:00",
+      "description": "fix(import): mappa Dimensioni/Materiale dagli extra al campo dedicato"
+    },
+    {
+      "hash": "ced7ff4dce24ebf6698355783ec2dd0fc290d811",
+      "at": "2026-04-01T17:36:40+02:00",
+      "description": "feat(ai): supporto provider compatibili OpenAI (Groq, ecc.) per ridurre costi"
+    },
+    {
+      "hash": "97fe0054142b1cbde8323d816847f5d7f5a5b3f8",
+      "at": "2026-03-30T13:02:26+02:00",
+      "description": "fix(build): route search-images — cheerio dinamico e serverExternalPackages"
+    },
+    {
+      "hash": "87d40d8025189baaf2644d69abc5e33380b0c64a",
+      "at": "2026-03-30T12:55:31+02:00",
+      "description": "fix(build): Tailwind v3 al posto della v4 per build Linux senza oxide"
+    },
+    {
+      "hash": "4c5b873af274f175c0159f027e5cc5a3ab07fa11",
+      "at": "2026-03-30T12:41:12+02:00",
+      "description": "fix(deploy): Tailwind oxide in produzione — postcss in dependencies e doc"
+    },
+    {
+      "hash": "a704594c664a0401857a533786cb0590bb31b6eb",
+      "at": "2026-03-30T12:35:19+02:00",
+      "description": "Merge origin/main: conserva fix filtro brand WooCommerce e import anagrafica"
+    },
+    {
+      "hash": "6e8ab0b5bd055ba365110df80c39f7d1a23caaa3",
+      "at": "2026-03-30T12:31:36+02:00",
+      "description": "Initial commit: app PIM e fix visibilità prodotti WooCommerce in Master ERP"
+    },
+    {
+      "hash": "5151273f94672e678eb45a5bc2c69bb243ad4166",
+      "at": "2026-03-27T21:44:58+01:00",
+      "description": "Aggiunge hub PDF (/pdf) con gestione cataloghi e azioni AI sui PDF"
+    },
+    {
+      "hash": "2b60bda54831262eaa5737058965b49625b257f5",
+      "at": "2026-03-27T19:52:14+01:00",
+      "description": "Riduci costi OpenAI e salta SEO bulk già completi"
+    },
+    {
+      "hash": "04c4bc01783beb98416f22c2b86749ac07922fe1",
+      "at": "2026-03-27T18:41:05+01:00",
+      "description": "feat(scripts): bootstrap utente admin globale da env"
+    },
+    {
+      "hash": "6b44dc74c8fc5f71e2eec7d335837e6088c6cff5",
+      "at": "2026-03-27T18:38:37+01:00",
+      "description": "fix(auth): escludi /api/debug-db dal middleware e migliora diagnostica"
+    },
+    {
+      "hash": "1ca74eb872bd390844de0139aedf13702523dc90",
+      "at": "2026-03-27T18:27:51+01:00",
+      "description": "fix(auth): login con Prisma senza raw SQL su tabella User"
+    },
+    {
+      "hash": "43a607e21ed88b81949f4f8481e09edd7565b9e2",
+      "at": "2026-03-27T18:21:50+01:00",
+      "description": "fix(auth): case-insensitive email login and clearer DB errors"
+    },
+    {
+      "hash": "b0c1b48f97a4204707ffb49bc51b99fba02b4494",
+      "at": "2026-03-27T08:37:00+01:00",
+      "description": "fix(ai): refresh OpenAI key cache for SEO generation"
+    },
+    {
+      "hash": "4f7af9a31e72b3eff34cff335be822dd957c4dcb",
+      "at": "2026-03-27T00:15:25+01:00",
+      "description": "feat(erp): filtro Brand come tendina con ricerca testo libero"
+    },
+    {
+      "hash": "d89e8331bf51fd2d61dc160bd9d6edd076768680",
+      "at": "2026-03-27T00:13:36+01:00",
+      "description": "fix(gemini): normalizza chiave API e documenta endpoint v1beta"
+    },
+    {
+      "hash": "800479a2d0fc9eabc8e5b629cc5ea1d89dc04ae5",
+      "at": "2026-03-27T00:07:22+01:00",
+      "description": "fix(ai): foto ambientata da edit immagine prodotto reale"
+    },
+    {
+      "hash": "f02b4089d30f66d78ae709b9748fa06712dfc321",
+      "at": "2026-03-26T23:28:53+01:00",
+      "description": "perf(api): parallelizza bulk_set_field per batch prodotti"
+    },
+    {
+      "hash": "7fd3ae4d1246da467e8ce20e3a15f9019eba647f",
+      "at": "2026-03-26T18:29:43+01:00",
+      "description": "perf(app): riduce bundle ImportLab e centralizza normalizzazione stock"
+    },
+    {
+      "hash": "810d9b47b96004eb9ce1e9a4517277382337b606",
+      "at": "2026-03-26T17:10:08+01:00",
+      "description": "fix(stock): unifica chiavi stock tra scheda prodotto e bulk"
+    },
+    {
+      "hash": "1f66e5a85399de734bf67924e905a1bc14c34bd4",
+      "at": "2026-03-26T16:48:55+01:00",
+      "description": "feat(erp+import): semplifica bulk UI e sblocca mount Import Lab"
+    },
+    {
+      "hash": "1cd5ba13558a4483f207635cbb19098dd7cae5af",
+      "at": "2026-03-26T13:01:58+01:00",
+      "description": "perf(export): elimina freeze con anteprima server-side leggera"
+    },
+    {
+      "hash": "a115d52cbe8a16b896a2cac7bf238053cb3e8b83",
+      "at": "2026-03-26T12:49:12+01:00",
+      "description": "perf(runtime): riduce carico DB con pool limit e cache lookup AI"
+    },
+    {
+      "hash": "2e45c8c7a82dd39c023566762ea84b4fca77ea33",
+      "at": "2026-03-26T11:22:09+01:00",
+      "description": "perf(ai+ux): riduce token AI e centralizza helper tooltip"
+    },
+    {
+      "hash": "6470fdd08310dd0eef0820a94233a97b57f4ab16",
+      "at": "2026-03-26T10:52:03+01:00",
+      "description": "feat(activities+erp): resume job interrotti e filtro stato AI contenuti"
+    },
+    {
+      "hash": "6dd02fe697d1032a732db62ab7e3dd6ab85d7b89",
+      "at": "2026-03-26T10:40:53+01:00",
+      "description": "perf(ai): taglia token e forza fast single-call per ridurre costi"
+    },
+    {
+      "hash": "9c96b60737cba31d9169b9e2d6c5ef02624140b2",
+      "at": "2026-03-26T10:37:51+01:00",
+      "description": "fix(stock): allinea stock locale/fornitore tra Import Lab e Master ERP"
+    },
+    {
+      "hash": "55691b8d3efcb3df956726d7322be1c4ec33d2cb",
+      "at": "2026-03-26T10:10:39+01:00",
+      "description": "perf(ai-bulk): riduce costo/token e aumenta throughput fast mode"
+    },
+    {
+      "hash": "04022ff19ba039be6191a8acd024e26af0ca03cd",
+      "at": "2026-03-26T10:01:29+01:00",
+      "description": "perf(ai-bulk): aggiunge modalita fast alla generazione massiva SEO"
+    },
+    {
+      "hash": "3d6883651cba04f7c86b324e0027d12fbc41273f",
+      "at": "2026-03-26T09:41:45+01:00",
+      "description": "perf(ai): aggiunge modalita fast e riduce latenza generazione contenuti"
+    },
+    {
+      "hash": "7beffc96c89322fbd67ec2fbab176255fe6da8da",
+      "at": "2026-03-26T09:26:03+01:00",
+      "description": "feat(import-lab): scegli posizione inserimento nel bulk titolo"
+    },
+    {
+      "hash": "118805ccef9e4027a5fc7113d4e093c1a21a8308",
+      "at": "2026-03-26T09:23:39+01:00",
+      "description": "feat(ui): aggiunge 5 link immagine nelle schede prodotto"
+    },
+    {
+      "hash": "23e4dbfb23c8ca0319b2fa97290f3a3ce0434a70",
+      "at": "2026-03-26T09:11:02+01:00",
+      "description": "feat(import-lab): supporta fino a 5 link immagine in import"
+    },
+    {
+      "hash": "08877d0caea19fef4d0c289e01d2291302c1bd1d",
+      "at": "2026-03-26T08:49:01+01:00",
+      "description": "feat(import-lab): ripristina Import Lab con API cataloghi/repository"
+    },
+    {
+      "hash": "fba34dcc7d7c432d2b2d5f293f2bcc56d54c876a",
+      "at": "2026-03-26T00:09:14+01:00",
+      "description": "fix(activities): header x-company-id per API attività e job AI bulk"
+    },
+    {
+      "hash": "d53f3c84d831dffd1238d39a6f40cae3e301e2c2",
+      "at": "2026-03-25T20:58:18+01:00",
+      "description": "ui(sidebar): menu compatto, sezioni collassabili, versione 2.5"
+    },
+    {
+      "hash": "9a26725abf3230a5f18ae19f719cbcbfa30510ec",
+      "at": "2026-03-25T19:08:52+01:00",
+      "description": "Rimuove gestione PDF dall’app PIM; velocizza e streama generazione AI"
+    },
+    {
+      "hash": "b730f401c88e6b904c292bdf64d16b984c8a6be0",
+      "at": "2026-03-25T18:30:11+01:00",
+      "description": "feat(ui): job in corso in Attività, ClearableSearchInput e API ongoing"
+    },
+    {
+      "hash": "b858c0660da8e6f8569346af77a4c41828c10125",
+      "at": "2026-03-25T16:08:20+01:00",
+      "description": "feat(activity): coda SEO AI server-side con job persistenti e storico attività"
+    },
+    {
+      "hash": "0a6af9686e37723e0580fa12ee8c6afb12a9e592",
+      "at": "2026-03-25T13:54:50+01:00",
+      "description": "feat(activity): job AI persistente, widget globale, notifiche e pagina attività"
+    },
+    {
+      "hash": "9321573f16ded3fdbcfdbbcefccdc52b8f3a9826",
+      "at": "2026-03-25T13:42:00+01:00",
+      "description": "fix(tables): payload numerici, errori API leggibili e input IVA"
+    },
+    {
+      "hash": "a7180384c59809fe7a21eaf570f5e6c5b2d12536",
+      "at": "2026-03-25T13:25:48+01:00",
+      "description": "fix(tables): ricarica TableManager su cambio azienda e header x-company-id"
+    },
+    {
+      "hash": "3dce24f4596ded34f3516fc36e16a96b1802d618",
+      "at": "2026-03-25T13:24:15+01:00",
+      "description": "feat(settings): chiavi OpenAI/SerpAPI/Gemini e Woo per azienda + API integration-settings"
+    },
+    {
+      "hash": "83da094eb76efa4fc9fea292bf9609724a150eda",
+      "at": "2026-03-25T13:15:01+01:00",
+      "description": "fix(erp): brand e prodotti con x-company-id (admin globale + race axios)"
+    },
+    {
+      "hash": "14e03d705e8b1902979d292dcd004e63996a1b72",
+      "at": "2026-03-25T13:12:31+01:00",
+      "description": "feat(app): versione e storico modifiche in sidebar + hook post-commit"
+    },
+    {
+      "hash": "e1fc258c7844d73aec506c19f77e0c20d4e558a5",
+      "at": "2026-03-25T13:03:09+01:00",
+      "description": "feat(master-erp): genera titolo da SKU/EAN, brand e ricerca web"
+    },
+    {
+      "hash": "6c467b3f2fd27cf25a8b7097389cf0a495b6b3fc",
+      "at": "2026-03-25T12:57:29+01:00",
+      "description": "fix(images-map): più estensioni e percorsi relativi più robusti"
+    },
+    {
+      "hash": "86903d3cb499344e7d877f5aac6cb4dbd89fbd91",
+      "at": "2026-03-25T12:53:09+01:00",
+      "description": "docs: script PHP index_images.php allineato al formato PIM images_map.json"
+    },
+    {
+      "hash": "c7cea09b21c9410d6a9daebe770f496e4c3bc5dc",
+      "at": "2026-03-25T12:50:18+01:00",
+      "description": "chore: script npm run build-images-map per images_map.json"
+    },
+    {
+      "hash": "e56e68c07606acff1243746aad45654ae0e8e0b1",
+      "at": "2026-03-25T12:43:38+01:00",
+      "description": "fix(associate-images): evita 504 con URL remoto senza indice"
+    },
+    {
+      "hash": "2deb78e67a93b207618b9008b6e4f33f9a9f26a1",
+      "at": "2026-03-25T11:51:20+01:00",
+      "description": "fix(import-lab): associazione immagini più veloce (evita 504)"
+    },
+    {
+      "hash": "37f19cbc9279f2596697c5fb0e61f276cc2fc454",
+      "at": "2026-03-25T11:15:24+01:00",
+      "description": "feat(master-erp): filtro senza categoria e selezione inversa"
+    },
+    {
+      "hash": "aae71e89cdd58d2f2ff375e461e98e3f2307ba5b",
+      "at": "2026-03-25T11:10:56+01:00",
+      "description": "fix(import-lab): evita prezzo a 0 nel merge listini"
+    },
+    {
+      "hash": "eb231e421bfcb3448968b6d57adace633fd3a364",
+      "at": "2026-03-25T11:00:51+01:00",
+      "description": "feat: richiedi brand selezionato per operazioni Master ERP"
+    },
+    {
+      "hash": "7aacdbe9caffea1e5831916ba914475f73f19725",
+      "at": "2026-03-25T10:56:37+01:00",
+      "description": "feat: report per job AI massivo (vista + CSV)"
+    },
+    {
+      "hash": "33013fde8f19c2b930f648366cdccffb15202396",
+      "at": "2026-03-25T10:52:46+01:00",
+      "description": "feat: generazione SEO AI massiva in background (UI free)"
+    },
+    {
+      "hash": "22f46fa4f339833413714ba25f66bebcd0c23f18",
+      "at": "2026-03-25T10:35:14+01:00",
+      "description": "fix: AI describe no-stream + debug associazione immagini"
+    },
+    {
+      "hash": "5f71764e5067909f3743f4191e56898586163c76",
+      "at": "2026-03-25T10:18:46+01:00",
+      "description": "fix: bulk operations Master ERP compatibili con DB legacy"
+    },
+    {
+      "hash": "67829c8908d0d2b93390ff3cd767aad70aa6d610",
+      "at": "2026-03-24T10:26:13+01:00",
+      "description": "fix: export Master ERP compatibile con schema DB legacy"
+    },
+    {
+      "hash": "3b69a3c9dae2725b117bf21f6e060b9739d3ec11",
+      "at": "2026-03-24T10:11:22+01:00",
+      "description": "fix: deduplica immagini Master ERP compatibile con schema legacy"
+    },
+    {
+      "hash": "10fe8d8caf5599c2fe624c86e23ffc33c10e7700",
+      "at": "2026-03-24T10:09:22+01:00",
+      "description": "chore: migliora diagnostica errori push in Import Lab"
+    },
+    {
+      "hash": "d8005b489b084edfdfb491c5f3f924b858a8957f",
+      "at": "2026-03-24T10:06:54+01:00",
+      "description": "fix: compatibilita push prodotti con schema DB senza vatCodeId"
+    },
+    {
+      "hash": "15415c6328c6079bb566974601ea6bf267de400a",
+      "at": "2026-03-24T09:42:55+01:00",
+      "description": "chore: aggiunge stage diagnostici a POST /api/products"
+    },
+    {
+      "hash": "23406180924c35d01d51cc416e690c2549cc192b",
+      "at": "2026-03-24T09:26:19+01:00",
+      "description": "fix: deduplica immagini per filename e chiarisce errori product save"
+    },
+    {
+      "hash": "1ca5aeb7ad3232bc28bed09694b82547e68af2fc",
+      "at": "2026-03-24T09:19:22+01:00",
+      "description": "feat: deduplica immagini in Import Lab e Master ERP"
+    },
+    {
+      "hash": "b2698765c4c1f717140c7b510787c37f2f0c33a3",
+      "at": "2026-03-23T18:22:54+01:00",
+      "description": "feat: Gestione Tabelle sidebar, VAT codes API/table, Import Lab meta catalogue GET"
+    },
+    {
+      "hash": "cd562ac21796f65a5c89d074405a43e240d6ed0f",
+      "at": "2026-03-23T18:14:22+01:00",
+      "description": "fix: explicit any on forEach/map callbacks in GET /api/products (noImplicitAny)"
+    },
+    {
+      "hash": "c4d0f76fca6d9cf36c9d843744d65e2cbbaaddc7",
+      "at": "2026-03-23T18:10:11+01:00",
+      "description": "chore: rimuovi PDF di test da public/uploads + aggiungi catalog_images/images_map.json"
+    },
+    {
+      "hash": "7f34f99cacc8c121f667017e81aba6d7188f8957",
+      "at": "2026-03-23T18:08:31+01:00",
+      "description": "fix: fallback API quando schema IVA non è ancora sul DB (500 su /api/products e /vat-codes)"
+    },
+    {
+      "hash": "0f51b4ca59cd479d64734a3ce62cdcc07f2ac266",
+      "at": "2026-03-23T18:02:26+01:00",
+      "description": "fix(ImportLab): Map.forEach instead of for..of on Map (TS build)"
+    },
+    {
+      "hash": "c8dc572f4511c83b12fb7ce7f034d91716b94764",
+      "at": "2026-03-23T17:52:37+01:00",
+      "description": "fix: Map iteration in staging route (TS without downlevelIteration)"
+    },
+    {
+      "hash": "c409e4f7ccd5b8b78cfdca8d3d68a78f03c99bc1",
+      "at": "2026-03-23T17:50:47+01:00",
+      "description": "feat: codici IVA su prodotto + report import con duplicati SKU/EAN"
+    },
+    {
+      "hash": "a888ad1185bd571df249d04d1e5d0c84fd6dd1ef",
+      "at": "2026-03-23T13:30:20+01:00",
+      "description": "fix(erp): export selezionati con x-company-id + pulsanti Excel/CSV"
+    },
+    {
+      "hash": "6a2cef123999ffe5929b25f1063ea65a619cd566",
+      "at": "2026-03-20T22:07:14+01:00",
+      "description": "feat(bulk): tutti i campi prodotto in modifica massiva + API bulk_set_field estesa"
+    },
+    {
+      "hash": "33a9c994b384acd927ea849338fca406ddc7309b",
+      "at": "2026-03-20T21:23:22+01:00",
+      "description": "feat(pim): filtri extra (chiave/valore) campi scheda"
+    }
+  ]
+}

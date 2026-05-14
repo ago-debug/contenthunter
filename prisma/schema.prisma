@@ -1,0 +1,729 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Anagrafica cliente (fatturazione / contatti legali; distinta da onboarding e integrazioni tecniche)
+  legalName        String? @db.VarChar(512)
+  vatNumber        String? @db.VarChar(32)
+  fiscalCode       String? @db.VarChar(32)
+  contactEmail     String? @db.VarChar(255)
+  pecEmail         String? @db.VarChar(255)
+  phone            String? @db.VarChar(64)
+  addressLine1     String? @db.VarChar(256)
+  addressLine2     String? @db.VarChar(256)
+  city             String? @db.VarChar(128)
+  postalCode       String? @db.VarChar(16)
+  province         String? @db.VarChar(8)
+  /// Codice ISO paese (es. IT)
+  country          String? @db.VarChar(2)
+  /// Codice destinatario / SDI per fatturazione elettronica (max 10)
+  sdiRecipientCode String? @db.VarChar(10)
+
+  /// Chiavi API e WooCommerce per questa azienda (fallback: variabili ambiente server)
+  openaiApiKey       String? @db.Text
+  serpapiKey         String? @db.Text
+  geminiApiKey       String? @db.Text
+  wooDomain          String? @db.Text
+  wooConsumerKey     String? @db.Text
+  wooConsumerSecret  String? @db.Text
+  /// Segreto per widget Personal Shopper su WooCommerce (embed / endpoint pubblico). Generato da Impostazioni.
+  shopperEmbedToken  String? @unique @db.VarChar(96)
+
+  /// PrestaShop 9+ webservice: URL negozio (es. https://shop.tld) e chiave API
+  prestaShopUrl               String? @db.Text
+  prestaShopApiKey            String? @db.Text
+  /// ID categoria PrestaShop predefinita per nuovi prodotti (back office → Categorie)
+  prestaShopDefaultCategoryId Int?
+  /// ID lingua ISO contenuti (tipicamente 1 = lingua predefinito negozio)
+  prestaShopLanguageId        Int?
+  /// Multistore: ID negozio PrestaShop (webservice `id_shop`), opzionale
+  prestaShopIdShop            Int?
+  /// Gruppo regole tasse PrestaShop (default 1 se null)
+  prestaShopTaxRulesGroupId   Int?
+
+  users     User[]
+  catalogs  Catalog[]
+  products  Product[]
+  categories Category[]
+  brands    Brand[]
+  tags      Tag[]
+  bulletPoints BulletPoint[]
+  templates Template[]
+  scrapeProjects ScrapeProject[]
+  extraFieldTemplates ExtraFieldTemplate[]
+  vatCodes  VatCode[]
+  aiBulkSeoJobs AiBulkSeoJob[]
+  activities ActivityLog[]
+  assistantQaCaches AssistantQaCache[]
+
+  /// Piano SEO & Local (GEO): keyword, formula titoli, sede, schema LocalBusiness — vedi modulo /seo-geo
+  seoGeoHub Json?
+
+  /// `active` = operativo; registrazione: pending_verification → pending_approval → active | rejected
+  onboardingStatus  String   @default("active") @db.VarChar(32)
+  /// `free` (limiti 100 prodotti / 2 utenti, no SEO-GEO/PDF suite) | `standard` (clienti esistenti / full)
+  subscriptionPlan  String   @default("standard") @db.VarChar(24)
+  maxProducts       Int?
+  maxUsers          Int?
+  featureSeoGeo     Boolean  @default(true)
+  featurePdfSuite   Boolean  @default(true)
+  /// Saldo crediti AI (consumo da token + ricariche manuali admin)
+  aiCreditsBalance  Decimal  @default(0) @db.Decimal(14, 4)
+
+  aiCreditLedgers AiCreditLedger[]
+}
+
+/// Risposte dell'assistente piattaforma: cache per domande uguali/simili (risparmio token AI).
+model AssistantQaCache {
+  id                   Int      @id @default(autoincrement())
+  companyId            Int
+  company              Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  questionHash         String   @db.VarChar(64)
+  questionNormalized   String   @db.VarChar(512)
+  questionPreview      String?  @db.VarChar(200)
+  answerMarkdown       String   @db.LongText
+  guidedSteps          Json
+  hitCount             Int      @default(0)
+  createdAt            DateTime @default(now())
+  lastHitAt            DateTime @default(now())
+
+  @@unique([companyId, questionHash])
+  @@index([companyId])
+  @@index([companyId, lastHitAt])
+}
+
+model Catalog {
+  id            Int            @id @default(autoincrement())
+  companyId     Int
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  createdAt     DateTime       @default(now())
+  
+  // Catalogo associato a un brand (per cartella immagini: nomeBrand/images)
+  brandId       Int?
+  brandRef      Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  
+  // Repository Settings
+  imageFolderPath String?      @db.Text
+  status          String       @default("draft") // draft, processing, staging, completed
+  
+  templateId    Int?
+  template      Template?      @relation(fields: [templateId], references: [id])
+  
+  pdfs          CatalogPdf[]
+  entries       CatalogEntry[]
+  searchSources SearchSource[]
+  pages         PdfPage[]
+  stagingProducts StagingProduct[]
+  listinoFiles  CatalogListinoFile[]
+  extraFieldTemplates ExtraFieldTemplate[]
+
+  lastListinoName String?      @db.Text
+
+  @@index([companyId])
+  @@index([brandId])
+  @@index([templateId], map: "Catalog_templateId_fkey")
+}
+
+model CatalogPdf {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  fileName  String
+  filePath  String
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model CatalogEntry {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  productId Int
+
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, productId])
+  @@index([productId], map: "CatalogEntry_productId_fkey")
+  @@index([catalogId], map: "CatalogEntry_catalogId_fkey")
+}
+
+model SearchSource {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  url       String   @db.LongText
+  label     String?
+  createdAt DateTime @default(now())
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId], map: "SearchSource_catalogId_fkey")
+}
+
+model CatalogListinoFile {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  fileName  String
+  uploadedAt DateTime @default(now())
+
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model Template {
+  id        Int       @id @default(autoincrement())
+  companyId Int
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime  @default(now())
+  catalogs  Catalog[]
+  rules     Rule[]
+
+  @@index([companyId])
+}
+
+model Rule {
+  id         Int      @id @default(autoincrement())
+  templateId Int
+  fieldName  String
+  regex      String?
+  zoneX      Float?
+  zoneY      Float?
+  zoneWidth  Float?
+  zoneHeight Float?
+  createdAt  DateTime @default(now())
+  template   Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId], map: "Rule_templateId_fkey")
+}
+
+model Product {
+  id             Int            @id @default(autoincrement())
+  companyId      Int
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sku            String
+  parentSku      String?
+  ean            String?
+  
+  brand            String?
+  brandId          Int?
+  brandRef         Brand?    @relation(fields: [brandId], references: [id])
+  
+  category         String?
+  categoryId       Int?
+  subCategoryId    Int?
+  subSubCategoryId Int?
+  
+  categoryRef       Category? @relation("ProductCategory", fields: [categoryId], references: [id])
+  subCategoryRef    Category? @relation("ProductSubCategory", fields: [subCategoryId], references: [id])
+  subSubCategoryRef Category? @relation("ProductSubSubCategory", fields: [subSubCategoryId], references: [id])
+  
+  texts          ProductText[]
+  prices         ProductPrice[]
+  extraFields    ProductExtra[]
+  images         ProductImage[]
+  bulletPointRefs BulletPoint[]
+  catalogs       CatalogEntry[]
+  history        ProductHistory[]
+  tags           ProductTag[]
+
+  vatCodeId      Int?
+  vatCode        VatCode?       @relation(fields: [vatCodeId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  /// Data ultimo import esplicito (file, push da Lab, ecc.); null per prodotti creati manualmente o legacy
+  importedAt     DateTime?
+
+  @@unique([companyId, sku])
+  @@index([companyId])
+  @@index([brandId])
+  @@index([vatCodeId])
+}
+
+/// Codici IVA per azienda (aliquota % configurabile)
+model VatCode {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code        String
+  label       String?
+  ratePercent Decimal  @db.Decimal(6, 3)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+}
+
+model ProductHistory {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  data      Json
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductText {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  language       String   @default("it")
+  
+  title          String?
+  description    String?  @db.Text
+  docDescription String?  @db.Text
+  bulletPoints   String?  @db.Text
+  seoAiText      String?  @db.Text
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, language])
+  @@index([productId], map: "ProductText_productId_fkey")
+}
+
+model ProductPrice {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  listName       String   @default("default")
+  price          Float
+  currency       String   @default("EUR")
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, listName])
+  @@index([productId], map: "ProductPrice_productId_fkey")
+}
+
+model ProductExtra {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  key            String
+  value          String   @db.Text
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, key])
+  @@index([productId], map: "ProductExtra_productId_fkey")
+}
+
+/// Job server-side per generazione SEO AI massiva (continua anche senza client connesso)
+model AiBulkSeoJob {
+  id               Int      @id @default(autoincrement())
+  companyId        Int
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  status           String   @default("running") // running | paused | completed | stopped | failed
+  overwriteExisting Boolean @default(false)
+  total            Int      @default(0)
+  done             Int      @default(0)
+  errors           Int      @default(0)
+  brand            String?
+  catalogue        String?
+  startedAt        DateTime @default(now())
+  finishedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  items            AiBulkSeoJobItem[]
+
+  @@index([companyId, status])
+  @@index([createdAt])
+}
+
+model AiBulkSeoJobItem {
+  id         Int      @id @default(autoincrement())
+  jobId       Int
+  job         AiBulkSeoJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  productId   Int
+  sku         String
+  title       String?
+  status      String   @default("pending") // pending | processing | success | error | skipped
+  message     String?  @db.Text
+  attempts    Int      @default(0)
+  processedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobId, status])
+  @@index([productId])
+}
+
+/// Storico attività globale (sidebar Attività)
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        String   // es: ai_bulk_seo
+  status      String   // completed | stopped | failed
+  description String
+  brand       String?
+  catalogue   String?
+  total       Int      @default(0)
+  done        Int      @default(0)
+  errors      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([type, status])
+}
+
+/// Definizione di campi extra personalizzati per listini / prodotti
+model ExtraFieldTemplate {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  catalogId Int?
+
+  key       String
+  label     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  catalog   Catalog? @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, key])
+  @@index([companyId])
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  /// Path legacy (/uploads/…) o URL API `/api/product-images/{id}` se l’asset è persistito nel DB.
+  imageUrl  String   @db.LongText
+  /// Se valorizzato, servito da GET /api/product-images/[id] (ok su host senza disco persistente).
+  imageData Bytes?   @db.MediumBlob
+  mimeType  String?  @db.VarChar(128)
+  storedInDb Boolean @default(false)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId], map: "ProductImage_productId_fkey")
+}
+
+/// Scraping Hub (tipo Zyte) - progetti / spider / job / risultati
+
+model ScrapeProject {
+  id          Int           @id @default(autoincrement())
+  companyId   Int
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  description String?       @db.Text
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  spiders     ScrapeSpider[]
+
+  @@index([companyId])
+}
+
+model ScrapeSpider {
+  id          Int           @id @default(autoincrement())
+  projectId   Int
+  project     ScrapeProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  startUrl    String?       @db.LongText
+  config      Json?         // impostazioni HTTP / proxy / headers / rate limit
+  template    Json?         // schema estrazione (campi, selettori, ecc.)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  jobs        ScrapeJob[]
+
+  @@index([projectId])
+}
+
+model ScrapeJob {
+  id           Int          @id @default(autoincrement())
+  spiderId     Int
+  spider       ScrapeSpider @relation(fields: [spiderId], references: [id], onDelete: Cascade)
+  status       String       @default("pending") // pending, running, done, failed
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  totalPages   Int?
+  successCount Int?
+  errorCount   Int?
+  logSnippet   String?      @db.Text
+  createdAt    DateTime     @default(now())
+
+  results      ScrapeResult[]
+  pages        ScrapePage[]
+
+  @@index([spiderId])
+}
+
+model ScrapeResult {
+  id         Int        @id @default(autoincrement())
+  jobId      Int
+  job        ScrapeJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String     @db.LongText
+  statusCode Int?
+  rawHtml    String?    @db.LongText
+  extracted  Json?      // dati strutturati estratti (es. product schema)
+  createdAt  DateTime   @default(now())
+
+  @@index([jobId])
+}
+
+model ScrapePage {
+  id         Int        @id @default(autoincrement())
+  jobId      Int
+  job        ScrapeJob  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  url        String     @db.LongText
+  status     String     @default("pending") // pending, running, done, error, skipped
+  statusCode Int?
+  error      String?    @db.Text
+  retryCount Int        @default(0) // numero di tentativi (retry pagine in errore)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([jobId])
+  @@index([status])
+}
+
+model PdfPage {
+  id        Int      @id @default(autoincrement())
+  catalogId Int
+  pageNumber Int
+  text      String   @db.LongText
+  imageUrl  String   @db.LongText
+  subImages String?  @db.LongText // JSON array of extracted image paths
+  createdAt DateTime @default(now())
+  catalog   Catalog  @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+
+  @@index([catalogId])
+}
+
+model Profile {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?  @db.Text
+  permissions Json     @default("[]") // array di stringhe es. ["products:read", "users:write"]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  /// Nome / ragione sociale persona (come da anagrafica)
+  name      String?
+  lastName  String?  @db.VarChar(128)
+  phone     String?  @db.VarChar(64)
+  fiscalCode String? @db.VarChar(32)
+  email     String   @unique
+  password  String
+  companyId Int?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  profileId Int?
+  profile   Profile? @relation(fields: [profileId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// false = accesso disabilitato (solo admin globale può riattivare da Piattaforma)
+  isActive                   Boolean   @default(true)
+
+  emailVerifiedAt            DateTime?
+  emailVerificationToken     String?   @db.VarChar(128)
+  emailVerificationExpires   DateTime?
+  /// Dopo approvazione account: obbligo cambio password al primo accesso
+  mustChangePassword         Boolean   @default(false)
+
+  /// Accettazione condizioni d’uso (privacy / ToS)
+  termsAcceptedAt  DateTime?
+  termsVersion     String?   @db.VarChar(64)
+
+  aiCreditLedgers AiCreditLedger[]
+  auditLogs       UserAuditLog[]
+}
+
+/// Login, logout e azioni rilevanti utente (audit RGPD / sicurezza)
+model UserAuditLog {
+  id        Int       @id @default(autoincrement())
+  userId    Int?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String    @db.VarChar(64)
+  emailHint String?   @db.VarChar(255)
+  ip        String?   @db.VarChar(64)
+  userAgent String?   @db.VarChar(512)
+  details   Json?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// Movimenti crediti AI (audit + saldo)
+model AiCreditLedger {
+  id            Int      @id @default(autoincrement())
+  companyId     Int
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId        Int?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  delta         Decimal  @db.Decimal(14, 4)
+  balanceAfter  Decimal  @db.Decimal(14, 4)
+  reason        String   @db.VarChar(64)
+  meta          Json?
+  createdAt     DateTime @default(now())
+
+  @@index([companyId, createdAt])
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  companyId Int
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  parentId  Int?
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+
+  productsMain   Product[] @relation("ProductCategory")
+  productsSub    Product[] @relation("ProductSubCategory")
+  productsSubSub Product[] @relation("ProductSubSubCategory")
+
+  @@unique([companyId, name, parentId])
+  @@index([companyId])
+}
+
+model Tag {
+  id        Int          @id @default(autoincrement())
+  companyId Int
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  
+  products  ProductTag[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model ProductTag {
+  productId Int
+  tagId     Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model Brand {
+  id                  Int       @id @default(autoincrement())
+  companyId           Int
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String
+  logoUrl             String?
+  aiContentGuidelines String?   @db.Text  // Tono per generazione descrizioni AI
+  producerDomain      String?   // Dominio produttore per cercare immagini e altri dati
+  products            Product[]
+  catalogs            Catalog[] // Cataloghi PDF associati al brand
+  createdAt           DateTime  @default(now())
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model BulletPoint {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@index([companyId])
+  @@index([productId])
+}
+
+model StagingProduct {
+  id             Int            @id @default(autoincrement())
+  catalogId      Int
+  catalog        Catalog        @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  
+  sku            String         
+  parentSku      String?
+  ean            String?
+  
+  brand          String?
+  category       String?
+  
+  texts          StagingProductText[]
+  prices         StagingProductPrice[]
+  extraFields    StagingProductExtra[]
+  images         StagingProductImage[]
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([catalogId])
+  @@index([sku])
+}
+
+model StagingProductText {
+  id             Int      @id @default(autoincrement())
+  stagingProductId Int
+  language       String   @default("it")
+  
+  title          String?
+  description    String?  @db.Text
+  docDescription String?  @db.Text
+  bulletPoints   String?  @db.Text
+  seoAiText      String?  @db.Text
+
+  stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@unique([stagingProductId, language])
+}
+
+model StagingProductPrice {
+  id             Int      @id @default(autoincrement())
+  stagingProductId Int
+  listName       String   @default("default")
+  price          Float
+  currency       String   @default("EUR")
+
+  stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@unique([stagingProductId, listName])
+}
+
+model StagingProductExtra {
+  id             Int      @id @default(autoincrement())
+  stagingProductId Int
+  key            String
+  value          String   @db.Text
+
+  stagingProduct StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@unique([stagingProductId, key])
+}
+
+model StagingProductImage {
+  id               Int      @id @default(autoincrement())
+  stagingProductId Int
+  imageUrl         String   @db.LongText
+  createdAt        DateTime @default(now())
+  stagingProduct   StagingProduct @relation(fields: [stagingProductId], references: [id], onDelete: Cascade)
+
+  @@index([stagingProductId])
+}
+

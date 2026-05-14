@@ -1,0 +1,132 @@
+# Scheletro OpenAPI 3.x — Content Hunter / PDF Catalog
+# Non generato automaticamente: allineare a mano dopo modifiche alle route.
+# Uso: import in Swagger UI, Postman, o `npx @redocly/cli lint docs/openapi-skeleton.yaml`
+
+openapi: 3.0.3
+info:
+  title: Content Hunter API
+  description: |
+    API HTTP dell'app Next.js. Autenticazione tramite cookie di sessione NextAuth
+    (`credentials: include`). Per admin globale usare header `x-company-id`.
+  version: "1.0.0"
+
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: localhost:3000
+        description: Host dell'installazione (es. contenthunter.abreve.it)
+
+tags:
+  - name: auth
+    description: NextAuth (login, session, CSRF)
+  - name: products
+    description: Master ERP — prodotti
+  - name: catalogues
+    description: Cataloghi e repository PDF
+  - name: ai
+    description: Funzioni AI (chiavi per azienda lato server)
+  - name: activities
+    description: Log attività e job SEO bulk
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+      description: |
+        Cookie impostato dopo login. Nome esatto può variare (es. __Secure-next-auth.session-token in produzione HTTPS).
+    companyHeader:
+      type: apiKey
+      in: header
+      name: x-company-id
+      description: Obbligatorio per admin globale quando si opera su dati di un'azienda.
+
+  parameters:
+    CompanyIdHeader:
+      name: x-company-id
+      in: header
+      required: false
+      schema:
+        type: integer
+      description: Contesto azienda per utenti admin globali.
+
+paths:
+  /api/register:
+    post:
+      tags: [auth]
+      summary: Registrazione utente
+      security: []
+      responses:
+        "201":
+          description: Utente creato
+
+  /api/products:
+    get:
+      tags: [products]
+      summary: Lista prodotti (filtri in query — verificare route.ts)
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdHeader"
+      responses:
+        "200":
+          description: OK
+    post:
+      tags: [products]
+      summary: Crea prodotto
+      security:
+        - sessionCookie: []
+      responses:
+        "201":
+          description: Creato
+
+  /api/brands:
+    get:
+      tags: [products]
+      summary: Lista brand
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdHeader"
+      responses:
+        "200":
+          description: OK
+
+  /api/company/integration-settings:
+    get:
+      tags: [products]
+      summary: Impostazioni integrazione (WooCommerce, flag chiavi AI)
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdHeader"
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [products]
+      summary: Aggiorna impostazioni integrazione
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: OK
+
+  /api/activities:
+    get:
+      tags: [activities]
+      summary: Log attività e job in corso (aggregato)
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: "#/components/parameters/CompanyIdHeader"
+      responses:
+        "200":
+          description: OK
+
+# Estendere copiando path da docs/API-INTEGRAZIONI.md §11 o dagli export in app/api/**/route.ts
+
+security:
+  - sessionCookie: []
