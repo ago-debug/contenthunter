@@ -54,3 +54,35 @@ export const PICKLIST_CATEGORY = {
     packaging: "logistics_packaging",
     palett: "logistics_palettizzazione",
 } as const;
+
+/** Chiavi extraFields usate come categorie picklist (tabella TechnicalPicklistItem). */
+export const TECH_SHEET_TEXT_FIELD_KEYS: string[] = TECH_SHEET_TEXT_FIELDS.map((f) => f.key);
+
+const LOGISTICS_CATEGORIES = new Set<string>([PICKLIST_CATEGORY.packaging, PICKLIST_CATEGORY.palett]);
+
+/** Categorie ammesse dall'API `/api/technical-picklist` (logistica + ogni campo scheda tecnica). */
+export function isAllowedTechnicalPicklistCategory(category: string): boolean {
+    const c = String(category || "").trim();
+    if (!c) return false;
+    if (LOGISTICS_CATEGORIES.has(c)) return true;
+    return TECH_SHEET_TEXT_FIELD_KEYS.includes(c);
+}
+
+/** Chiave extraFields per ID voce picklist scheda tecnica. */
+export function technicalSheetPickIdKey(fieldKey: string): string {
+    return `${fieldKey}_pickId`;
+}
+
+/** Chiave extraFields per note prodotto sul blocco scheda tecnica. */
+export function technicalSheetNoteKey(fieldKey: string): string {
+    return `${fieldKey}_note`;
+}
+
+/** Testo effettivo per PDF/stampa: corpo principale + note prodotto. */
+export function technicalSheetSectionBody(extra: Record<string, string>, fieldKey: string): string {
+    const main = (extra[fieldKey] ?? "").trim();
+    const note = (extra[technicalSheetNoteKey(fieldKey)] ?? "").trim();
+    if (!note) return main;
+    if (!main) return note;
+    return `${main}\n\n${note}`;
+}

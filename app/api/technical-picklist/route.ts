@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
-
-const ALLOWED = new Set(["logistics_packaging", "logistics_palettizzazione"]);
+import { isAllowedTechnicalPicklistCategory } from "@/lib/technical-sheet-fields";
 
 export async function GET(req: NextRequest) {
     const ctx = await requireCompanyId(req);
@@ -11,7 +10,7 @@ export async function GET(req: NextRequest) {
     }
     const { searchParams } = new URL(req.url);
     const category = String(searchParams.get("category") || "").trim();
-    if (!ALLOWED.has(category)) {
+    if (!isAllowedTechnicalPicklistCategory(category)) {
         return NextResponse.json({ error: "Categoria non valida" }, { status: 400 });
     }
     try {
@@ -38,7 +37,7 @@ export async function POST(req: NextRequest) {
         const name = String(body?.name || "").trim().slice(0, 512);
         const description =
             body?.description != null ? String(body.description).slice(0, 65000) : null;
-        if (!ALLOWED.has(category)) {
+        if (!isAllowedTechnicalPicklistCategory(category)) {
             return NextResponse.json({ error: "Categoria non valida" }, { status: 400 });
         }
         if (!name) {

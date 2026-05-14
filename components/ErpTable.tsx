@@ -32,6 +32,7 @@ import { fetchAllProductsPages } from "@/lib/fetch-all-products";
 import { stripHtmlToPlainText } from "@/lib/strip-html-to-plain-text";
 import { useAppDialogs } from "@/components/AppDialogsProvider";
 import { TechnicalSheetPanel } from "@/components/TechnicalSheetPanel";
+import { HtmlCodeToggle } from "@/components/HtmlCodeToggle";
 
 /** Opzioni menù "righe in tabella": sempre 25/50/100, poi fasce fino al totale filtrato, infine Tutti. */
 function buildTablePageSizeOptions(total: number): { value: string; label: string }[] {
@@ -5340,16 +5341,17 @@ export default function ErpTable() {
                                                             Modalita Fast (piu veloce)
                                                         </label>
                                                     </div>
-                                                    <textarea
+                                                    <HtmlCodeToggle
                                                         value={selectedProduct.translations?.[editLang]?.seoAiText || ""}
-                                                        onChange={e => {
+                                                        onChange={(v) => {
                                                             const tt = { ...selectedProduct.translations };
                                                             if (!tt[editLang]) tt[editLang] = {};
-                                                            tt[editLang].seoAiText = e.target.value;
+                                                            tt[editLang].seoAiText = v;
                                                             setSelectedProduct({ ...selectedProduct, translations: tt });
                                                         }}
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold text-gray-800 min-h-[100px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all resize-y custom-scrollbar text-sm leading-relaxed mb-6"
-                                                        placeholder="L'estratto breve o meta description apparirà qui..."
+                                                        minHeight={120}
+                                                        className="mb-6"
+                                                        placeholder="L'estratto breve o meta description…"
                                                     />
                                                     <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
                                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">
@@ -5365,23 +5367,27 @@ export default function ErpTable() {
                                                             Rimuovi HTML
                                                         </button>
                                                     </div>
-                                                    <textarea
+                                                    <HtmlCodeToggle
                                                         value={selectedProduct.translations?.[editLang]?.description || ""}
-                                                        onChange={e => {
+                                                        onChange={(v) => {
                                                             const tt = { ...selectedProduct.translations };
                                                             if (!tt[editLang]) tt[editLang] = {};
-                                                            tt[editLang].description = e.target.value;
+                                                            tt[editLang].description = v;
                                                             setSelectedProduct({ ...selectedProduct, translations: tt });
                                                         }}
-                                                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl px-5 py-4 font-bold text-gray-800 min-h-[300px] focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all resize-y custom-scrollbar text-sm leading-relaxed"
-                                                        placeholder="La descrizione professionale apparirà qui..."
+                                                        minHeight={300}
+                                                        placeholder="Descrizione e-commerce (anche HTML)…"
                                                     />
                                                 </div>
-                                                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl">
-                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-2 block">Sorgente Dati Tecnici (Non Modificabile)</label>
-                                                    <div className="text-[11px] font-mono text-slate-500 bg-white p-4 rounded-xl border border-slate-100 italic leading-relaxed">
-                                                        {selectedProduct.docDescription || "Nessun dato sorgente rilevato dal PDF."}
-                                                    </div>
+                                                <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-2 block">
+                                                        Sorgente dati tecnici (non modificabile) — Codice / HTML
+                                                    </label>
+                                                    <HtmlCodeToggle
+                                                        value={selectedProduct.docDescription || ""}
+                                                        readOnly
+                                                        minHeight={220}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>

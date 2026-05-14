@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { buildTechnicalSheetPdf } from "@/lib/technical-sheet-pdf";
-import { TECH_SHEET_TEXT_FIELDS } from "@/lib/technical-sheet-fields";
+import { TECH_SHEET_TEXT_FIELDS, technicalSheetSectionBody } from "@/lib/technical-sheet-fields";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const ctx = await requireCompanyId(req);
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
         const sections = TECH_SHEET_TEXT_FIELDS.map((f) => ({
             title: f.label,
-            body: extraMap[f.key] || "",
+            body: technicalSheetSectionBody(extraMap, f.key),
         })).filter((s) => s.body.trim());
 
         const pdfBytes = await buildTechnicalSheetPdf({

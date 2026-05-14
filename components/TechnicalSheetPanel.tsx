@@ -5,7 +5,13 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { FileSpreadsheet, Plus, Printer, Save } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
-import { TECH_SHEET_TEXT_FIELDS, PICKLIST_CATEGORY } from "@/lib/technical-sheet-fields";
+import { HtmlCodeToggle } from "@/components/HtmlCodeToggle";
+import {
+    TECH_SHEET_TEXT_FIELDS,
+    PICKLIST_CATEGORY,
+    technicalSheetPickIdKey,
+    technicalSheetNoteKey,
+} from "@/lib/technical-sheet-fields";
 
 type PickRow = { id: number; name: string; description: string | null };
 
@@ -34,16 +40,32 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
         description: string;
     } | null>(null);
 
+    const [schedaPicklists, setSchedaPicklists] = useState<Record<string, PickRow[]>>({});
+
     const reloadPicklists = useCallback(async () => {
         try {
-            const [pkg, pal] = await Promise.all([
+            const fieldReqs = TECH_SHEET_TEXT_FIELDS.map((f) =>
+                axios
+                    .get<{ items: PickRow[] }>(
+                        `/api/technical-picklist?category=${encodeURIComponent(f.key)}`,
+                        companyReq
+                    )
+                    .then((r) => ({ key: f.key, items: Array.isArray(r.data?.items) ? r.data.items : [] }))
+            );
+            const [pkg, pal, ...fieldResults] = await Promise.all([
                 axios.get<{ items: PickRow[] }>(`/api/technical-picklist?category=${PICKLIST_CATEGORY.packaging}`, companyReq),
                 axios.get<{ items: PickRow[] }>(`/api/technical-picklist?category=${PICKLIST_CATEGORY.palett}`, companyReq),
+                ...fieldReqs,
             ]);
             setPackagingOpts(Array.isArray(pkg.data?.items) ? pkg.data.items : []);
             setPalettOpts(Array.isArray(pal.data?.items) ? pal.data.items : []);
+            const map: Record<string, PickRow[]> = {};
+            for (const fr of fieldResults) {
+                map[fr.key] = fr.items;
+            }
+            setSchedaPicklists(map);
         } catch {
-            toast.error("Impossibile caricare gli elenchi logistici");
+            toast.error("Impossibile caricare gli elenchi tecnici / logistici");
         }
     }, [companyReq]);
 
@@ -89,8 +111,13 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
             await reloadPicklists();
             if (modal.category === PICKLIST_CATEGORY.packaging) {
                 setSelectedProduct({ ...selectedProduct, technicalPackagingId: data.id });
-            } else {
+            } else if (modal.category === PICKLIST_CATEGORY.palett) {
                 setSelectedProduct({ ...selectedProduct, technicalPalettId: data.id });
+            } else {
+                const k = modal.category;
+                let next = setExtraValue(selectedProduct, technicalSheetPickIdKey(k), String(data.id));
+                next = setExtraValue(next, k, String(data.description || data.name || "").trim());
+                setSelectedProduct(next);
             }
             setModal(null);
             toast.success("Voce creata");
@@ -174,7 +201,7 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                         </h4>
                         <p className="text-[11px] text-slate-500 font-semibold mt-2 max-w-3xl leading-relaxed">
                             I dati anagrafici (titolo IT, SKU, EAN, descrizione) sono quelli della scheda principale; qui compili i blocchi tecnici e logistici.
-                            Packaging e palettizzazione usano elenchi aziendali (creabili da qui). Salva il prodotto per persistere tutto.
+                            Ogni blocco tecnico ha elenco aziendale dedicato (come packaging / palettizzazione) più testo e note sul prodotto. Salva il prodotto per persistere tutto.
                         </p>
                     </div>
                     <div className="flex flex-col gap-2 shrink-0">
@@ -252,29 +279,105 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                             <p className="font-bold text-slate-900">{titleIt || "—"}</p>
                         </div>
                         <div className="md:col-span-2">
-                            <span className="text-[9px] font-black uppercase text-slate-400">Descrizione (IT)</span>
-                            <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">{descIt || "—"}</p>
+                            <span className="text-[9px] font-black uppercase text-slate-400">Descrizione (IT) — Codice / HTML</span>
+                            <div className="mt-2">
+                                <HtmlCodeToggle value={descIt} readOnly minHeight={180} />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {TECH_SHEET_TEXT_FIELDS.map((f) => (
-                        <div key={f.key} className={f.wide ? "md:col-span-2" : undefined}>
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-1.5 block">
-                                {f.label}
-                            </label>
-                            {f.hint ? <p className="text-[9px] text-slate-400 mb-2 ml-1 leading-snug">{f.hint}</p> : null}
-                            <textarea
-                                rows={f.rows}
-                                value={getExtraValue(selectedProduct, f.key)}
-                                onChange={(e) =>
-                                    setSelectedProduct(setExtraValue(selectedProduct, f.key, e.target.value))
-                                }
-                                className="w-full bg-slate-50/90 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200/80 resize-y leading-relaxed"
-                            />
-                        </div>
-                    ))}
+                    {TECH_SHEET_TEXT_FIELDS.map((f) => {
+                        const pickKey = f.key;
+                        const rows = schedaPicklists[pickKey] || [];
+                        const selectOpts = rows.map((x) => ({
+                            value: x.id,
+                            label: x.name,
+                            subLabel: x.description || undefined,
+                        }));
+                        const pickIdRaw = getExtraValue(selectedProduct, technicalSheetPickIdKey(pickKey)).trim();
+                        const pickIdNum = pickIdRaw ? parseInt(pickIdRaw, 10) : NaN;
+                        const selectValue = Number.isFinite(pickIdNum) ? pickIdNum : null;
+
+                        return (
+                            <div key={f.key} className={f.wide ? "md:col-span-2" : undefined}>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-1.5 block">
+                                    {f.label}
+                                </label>
+                                {f.hint ? <p className="text-[9px] text-slate-400 mb-2 ml-1 leading-snug">{f.hint}</p> : null}
+
+                                <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                                    <span className="text-[9px] font-black uppercase text-slate-500">Voce da tabella dedicata</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => openCreateModal(f.key, `Nuovo: ${f.label}`)}
+                                        className="text-[9px] font-black uppercase text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-100 inline-flex items-center gap-1"
+                                    >
+                                        <Plus className="w-3 h-3" /> Crea voce
+                                    </button>
+                                </div>
+                                <SearchableSelect
+                                    options={selectOpts}
+                                    value={selectValue}
+                                    onChange={(val) => {
+                                        if (val == null) {
+                                            let next = setExtraValue(selectedProduct, technicalSheetPickIdKey(pickKey), "");
+                                            setSelectedProduct(next);
+                                            return;
+                                        }
+                                        const row = rows.find((x) => x.id === Number(val));
+                                        let next = setExtraValue(selectedProduct, technicalSheetPickIdKey(pickKey), String(val));
+                                        if (row) {
+                                            next = setExtraValue(
+                                                next,
+                                                pickKey,
+                                                String(row.description || row.name || "").trim()
+                                            );
+                                        }
+                                        setSelectedProduct(next);
+                                    }}
+                                    onAddNew={(name) => {
+                                        setModal({
+                                            category: f.key,
+                                            title: `Nuovo: ${f.label}`,
+                                            name,
+                                            description: "",
+                                        });
+                                    }}
+                                    placeholder={`Seleziona da elenco ${f.label}…`}
+                                    dropdownMinWidth={320}
+                                />
+
+                                <label className="text-[9px] font-black uppercase text-slate-400 mt-3 mb-1 block">
+                                    Testo in scheda (modificabile; usato in PDF)
+                                </label>
+                                <textarea
+                                    rows={f.rows}
+                                    value={getExtraValue(selectedProduct, f.key)}
+                                    onChange={(e) =>
+                                        setSelectedProduct(setExtraValue(selectedProduct, f.key, e.target.value))
+                                    }
+                                    className="w-full bg-slate-50/90 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-amber-50 focus:border-amber-200/80 resize-y leading-relaxed"
+                                />
+
+                                <label className="text-[9px] font-black uppercase text-slate-400 mt-2 mb-1 block">
+                                    Note aggiuntive solo su questo prodotto
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={getExtraValue(selectedProduct, technicalSheetNoteKey(pickKey))}
+                                    onChange={(e) =>
+                                        setSelectedProduct(
+                                            setExtraValue(selectedProduct, technicalSheetNoteKey(pickKey), e.target.value)
+                                        )
+                                    }
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm"
+                                    placeholder="Varianti, lotti, eccezioni…"
+                                />
+                            </div>
+                        );
+                    })}
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6">
