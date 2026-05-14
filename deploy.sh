@@ -92,8 +92,9 @@ else
             echo "⚠️  origin punta a un URL diverso: imposto $REPO_URL"
             git remote set-url origin "$REPO_URL"
         fi
-        echo "🔄 git pull origin main…"
-        git pull origin main
+        echo "🔄 fetch origin main + checkout forzato su main (FETCH_HEAD)…"
+        git fetch origin main
+        git checkout -f -B main FETCH_HEAD
     fi
 fi
 
