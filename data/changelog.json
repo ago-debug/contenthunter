@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "62c2dff5b171f9da37c8fd19d7c381672fda4583",
+      "at": "2026-05-14T20:59:29+02:00",
+      "description": "fix(deploy): repair repo when .git exists but origin remote is missing"
+    },
+    {
       "hash": "2424d0999267b44d035fdf8c7151cdbcd2d87b00",
       "at": "2026-05-14T20:58:20+02:00",
       "description": "fix(deploy): register Git safe.directory when running as root on Plesk"
