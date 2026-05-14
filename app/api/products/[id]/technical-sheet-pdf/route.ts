@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireCompanyId } from "@/lib/auth-api";
 import { buildTechnicalSheetPdf } from "@/lib/technical-sheet-pdf";
 import { TECH_SHEET_TEXT_FIELDS, technicalSheetSectionBody } from "@/lib/technical-sheet-fields";
+import { ingredientSectionBodyForPdf, INGREDIENTS_FIELD_KEY } from "@/lib/technical-sheet-ingredients";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const ctx = await requireCompanyId(req);
@@ -52,7 +53,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
         const sections = TECH_SHEET_TEXT_FIELDS.map((f) => ({
             title: f.label,
-            body: technicalSheetSectionBody(extraMap, f.key),
+            body:
+                f.key === INGREDIENTS_FIELD_KEY
+                    ? ingredientSectionBodyForPdf(extraMap)
+                    : technicalSheetSectionBody(extraMap, f.key),
         })).filter((s) => s.body.trim());
 
         const pdfBytes = await buildTechnicalSheetPdf({

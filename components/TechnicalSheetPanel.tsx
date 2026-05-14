@@ -6,12 +6,21 @@ import { toast } from "react-toastify";
 import { FileSpreadsheet, Plus, Printer, Save } from "lucide-react";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { HtmlCodeToggle } from "@/components/HtmlCodeToggle";
+import { IngredientCompositionEditor } from "@/components/IngredientCompositionEditor";
 import {
     TECH_SHEET_TEXT_FIELDS,
     PICKLIST_CATEGORY,
     technicalSheetPickIdKey,
     technicalSheetNoteKey,
 } from "@/lib/technical-sheet-fields";
+import {
+    INGREDIENTS_FIELD_KEY,
+    INGREDIENT_COMPOSITION_KEY,
+    emptyIngredientLine,
+    parseIngredientComposition,
+    serializeIngredientComposition,
+    type IngredientLine,
+} from "@/lib/technical-sheet-ingredients";
 
 type PickRow = { id: number; name: string; description: string | null };
 
@@ -124,12 +133,29 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
                 setSelectedProduct({ ...selectedProduct, technicalPackagingId: data.id });
             } else if (modal.category === PICKLIST_CATEGORY.palett) {
                 setSelectedProduct({ ...selectedProduct, technicalPalettId: data.id });
-            } else {
-                const k = modal.category;
-                let next = setExtraValue(selectedProduct, technicalSheetPickIdKey(k), String(data.id));
-                next = setExtraValue(next, k, String(data.description || data.name || "").trim());
+            } else if (modal.category === INGREDIENTS_FIELD_KEY) {
+                const cur = parseIngredientComposition(getExtraValue(selectedProduct, INGREDIENT_COMPOSITION_KEY));
+                const nm = String(data.name || "").trim();
+                const desc = String(data.description || "").trim();
+                const newLine: IngredientLine = {
+                    ...emptyIngredientLine(),
+                    picklistId: Number(data.id),
+                    label: (desc || nm).trim(),
+                };
+                const isPlaceholderOnly =
+                    cur.length === 1 &&
+                    !String(cur[0].label || "").trim() &&
+                    cur[0].picklistId == null &&
+                    !String(cur[0].qty || "").trim();
+                const nextLines = isPlaceholderOnly ? [newLine] : [...cur, newLine];
+                let next = setExtraValue(
+                    selectedProduct,
+                    INGREDIENT_COMPOSITION_KEY,
+                    serializeIngredientComposition(nextLines)
+                );
+                next = setExtraValue(next, technicalSheetPickIdKey(INGREDIENTS_FIELD_KEY), "");
                 setSelectedProduct(next);
-            }
+            } else {
             setModal(null);
             toast.success("Voce creata");
         } catch {
@@ -300,6 +326,22 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {TECH_SHEET_TEXT_FIELDS.map((f) => {
+                        if (f.key === INGREDIENTS_FIELD_KEY) {
+                            return (
+                                <IngredientCompositionEditor
+                                    key={f.key}
+                                    selectedProduct={selectedProduct}
+                                    setSelectedProduct={setSelectedProduct}
+                                    getExtraValue={getExtraValue}
+                                    setExtraValue={setExtraValue}
+                                    picklistRows={schedaPicklists[f.key] || []}
+                                    onOpenCreate={() => openCreateModal(f.key, `Nuovo: ${f.label}`)}
+                                    onAddNewName={(name) =>
+                                        setModal({ category: f.key, title: `Nuovo: ${f.label}`, name, description: "" })
+                                    }
+                                />
+                            );
+                        }
                         const pickKey = f.key;
                         const rows = schedaPicklists[pickKey] || [];
                         const selectOpts = rows.map((x) => ({
