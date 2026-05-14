@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "d907e0e449e4de6655a7187a111e46462e3410ab",
+      "at": "2026-05-14T21:40:11+02:00",
+      "description": "feat(erp): technical sheet cloud titles, CREA modal, save signature + history"
+    },
+    {
       "hash": "f1330e907ad0302d542e8912f9d859f269454f5f",
       "at": "2026-05-14T21:27:22+02:00",
       "description": "fix(deploy): use fetch + checkout -f -B main FETCH_HEAD instead of pull"
