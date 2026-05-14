@@ -78,8 +78,23 @@ elif [[ ! -d "$TARGET_DIR/.git" ]]; then
     git checkout -f -B main FETCH_HEAD
 else
     cd "$TARGET_DIR"
-    echo "🔄 git pull origin main…"
-    git pull origin main
+    # .git presente ma init interrotto / senza remote (es. dopo errore "dubious ownership" prima di remote add)
+    if ! git remote get-url origin &>/dev/null; then
+        echo "⚠️  Repository senza remote origin: collego $REPO_URL e allineo il working tree a main…"
+        git config init.defaultBranch main 2>/dev/null || true
+        git remote remove origin 2>/dev/null || true
+        git remote add origin "$REPO_URL"
+        git fetch origin main
+        git checkout -f -B main FETCH_HEAD
+    else
+        current_url="$(git remote get-url origin 2>/dev/null || true)"
+        if [[ -n "$current_url" ]] && [[ "$current_url" != "$REPO_URL" ]]; then
+            echo "⚠️  origin punta a un URL diverso: imposto $REPO_URL"
+            git remote set-url origin "$REPO_URL"
+        fi
+        echo "🔄 git pull origin main…"
+        git pull origin main
+    fi
 fi
 
 cd "$TARGET_DIR"
