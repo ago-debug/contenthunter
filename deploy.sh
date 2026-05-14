@@ -1,47 +1,104 @@
 #!/bin/bash
+# Deploy completo su VPS (Plesk / Passenger): codice, dipendenze Linux, Prisma, DB, build Next, restart.
+# Esegui dalla macchina con accesso SSH al server, oppure copia lo script sul server e lancialo lì in sudo -u UTENTE_SITO bash deploy.sh
+set -euo pipefail
 
-# Configuration
 APP_NAME="pdf-catalog"
 REPO_URL="https://github.com/ago-debug/contenthunter.git"
 TARGET_DIR="/var/www/vhosts/contenthunter.abreve.it/httpdocs"
 
-echo "🚀 Avvio Deploy Nativo Node.js (Next.js) per $APP_NAME..."
+# Opzionale: utente proprietario file (come in Plesk → dominio). Se vuoto, nessun chown.
+# es: export APP_SITE_USER="contenthunter" prima di eseguire lo script come root
+: "${APP_SITE_USER:=}"
 
-# 1. Update code
-if [ ! -d "$TARGET_DIR" ]; then
-    echo "📁 Directory non trovata. Clonazione repository in corso..."
-    git clone $REPO_URL $TARGET_DIR
-    cd $TARGET_DIR
+echo "🚀 Deploy Node.js (Next.js) — $APP_NAME → $TARGET_DIR"
+
+require_node() {
+    local v
+    v="$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)" || true
+    if [[ -z "${v:-}" ]] || [[ "$v" -lt 18 ]]; then
+        echo "❌ Serve Node.js 18+ (consigliato 20.x). Attuale: $(node -v 2>/dev/null || echo assente)"
+        exit 1
+    fi
+    echo "✓ Node $(node -v)"
+}
+
+require_env_file() {
+    if [[ ! -f "$TARGET_DIR/.env" ]]; then
+        echo "❌ Manca $TARGET_DIR/.env (DATABASE_URL, NEXTAUTH_*, ecc.)."
+        exit 1
+    fi
+    # Controlli minimi senza esportare segreti in log
+    if ! grep -qE '^[[:space:]]*DATABASE_URL=' "$TARGET_DIR/.env"; then
+        echo "❌ In .env manca DATABASE_URL="
+        exit 1
+    fi
+    if ! grep -qE '^[[:space:]]*NEXTAUTH_SECRET=' "$TARGET_DIR/.env"; then
+        echo "❌ In .env manca NEXTAUTH_SECRET="
+        exit 1
+    fi
+    if ! grep -qE '^[[:space:]]*NEXTAUTH_URL=' "$TARGET_DIR/.env"; then
+        echo "❌ In .env manca NEXTAUTH_URL= (es. https://contenthunter.abreve.it)"
+        exit 1
+    fi
+    echo "✓ .env presente (DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL)"
+}
+
+# --- 1. Codice ---
+if [[ ! -d "$TARGET_DIR" ]]; then
+    echo "📁 Clone repository → $TARGET_DIR"
+    git clone "$REPO_URL" "$TARGET_DIR"
+fi
+
+cd "$TARGET_DIR"
+echo "🔄 git pull origin main…"
+git pull origin main
+
+require_node
+require_env_file
+
+# Prisma e Next caricano .env dalla root del progetto; evitiamo source .env (valori complessi / set -u).
+
+# --- 2. Dipendenze (sempre su Linux: non copiare node_modules da Mac/Windows) ---
+echo "🧹 Rimozione node_modules (binari nativi devono essere ricompilati sul server)…"
+rm -rf node_modules
+
+if [[ -f package-lock.json ]]; then
+    echo "📦 npm ci (installazione deterministica da package-lock.json)…"
+    npm ci
 else
-    echo "🔄 Aggiornamento codice da GitHub..."
-    cd $TARGET_DIR
-    git pull origin main
+    echo "⚠️  package-lock.json assente: uso npm install (meno deterministico)."
+    npm install
 fi
 
-# 2. Controllo .env
-if [ ! -f ".env" ]; then
-    echo "❌ ERRORE CRITICO: Il file .env manca in $TARGET_DIR!"
-    echo "Prisma e Next.js richiedono il DATABASE_URL. Crealo prima di riavviare il deploy."
-    exit 1
-fi
-
-# 3. Installazione Dipendenze e Build
-echo "🧹 Pulizia cache moduli (Fix per Tailwind Oxide & SWC)..."
-rm -rf node_modules package-lock.json
-
-echo "📦 Installazione dipendenze npm pulita..."
-npm install
-
-echo "🗄️ Generazione Prisma Client e aggiornamento DB..."
+# --- 3. Prisma: client + schema DB ---
+echo "🗄️  npx prisma generate…"
 npx prisma generate
-npx prisma db push --accept-data-loss
 
-echo "🏗️ Build Next.js in produzione..."
+echo "🗄️  npx prisma db push (allinea MySQL allo schema; senza --accept-data-loss)…"
+npx prisma db push
+
+# --- 4. Metadati release (versione / changelog in data/*.json) ---
+if grep -q '"release-meta"' package.json 2>/dev/null; then
+    echo "📌 npm run release-meta…"
+    npm run release-meta || true
+fi
+
+# --- 5. Build produzione ---
+export NODE_ENV="${NODE_ENV:-production}"
+echo "🏗️  NODE_ENV=$NODE_ENV npm run build…"
 npm run build
 
-# 3. Riavvio App Node.js (Plesk / Passenger)
-echo "🔄 Riavvio applicazione tramite Phusion Passenger..."
+# --- 6. Permessi (opzionale: solo se esegui come root e imposti APP_SITE_USER, es. utente Plesk del dominio) ---
+if [[ -n "$APP_SITE_USER" ]] && id "$APP_SITE_USER" &>/dev/null; then
+    echo "👤 chown -R $APP_SITE_USER:$APP_SITE_USER $TARGET_DIR"
+    chown -R "$APP_SITE_USER:$APP_SITE_USER" "$TARGET_DIR"
+fi
+
+# --- 7. Riavvio Passenger (Node) ---
+echo "🔄 tmp/restart.txt → Passenger riavvia l’app…"
 mkdir -p tmp
 touch tmp/restart.txt
 
-echo "✅ Deploy Node.js completato con successo!"
+echo "✅ Deploy completato."
+echo "   Se l’app non parte: leggi il log Passenger (Error ID) e sul server esegui ./scripts/check-deploy.sh"

@@ -314,7 +314,7 @@ function assembleShopperPayload(brandSection: string, productLines: string[]): s
             : "";
     const overhead = headerBrands.length + 120;
     const productBudget = Math.max(2500, MAX_PAYLOAD_CHARS - overhead);
-    let lines = trimLinesToMaxChars(productLines, productBudget);
+    const lines = trimLinesToMaxChars(productLines, productBudget);
     let productsBlock = lines.join("\n");
     if (productsBlock.length > productBudget) {
         productsBlock =

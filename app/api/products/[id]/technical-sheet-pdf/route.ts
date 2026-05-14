@@ -77,7 +77,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         });
 
         const safeSku = p.sku.replace(/[^\w.-]+/g, "_").slice(0, 80);
-        return new NextResponse(pdfBytes, {
+        const body = new Blob([pdfBytes], { type: "application/pdf" });
+        return new NextResponse(body, {
             status: 200,
             headers: {
                 "Content-Type": "application/pdf",
