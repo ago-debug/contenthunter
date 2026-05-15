@@ -24,6 +24,8 @@ interface SearchableSelectProps {
     showSearch?: boolean;
     /** Larghezza minima del pannello aperto (px), utile per liste lunghe */
     dropdownMinWidth?: number;
+    /** Trigger più basso (toolbar ERP) */
+    compact?: boolean;
 }
 
 function normalizeForSearch(s: string): string {
@@ -54,7 +56,8 @@ export function SearchableSelect({
     className = "",
     disabled = false,
     showSearch = true,
-    dropdownMinWidth = 200
+    dropdownMinWidth = 200,
+    compact = false,
 }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -176,13 +179,23 @@ export function SearchableSelect({
         <>
             <div className={`relative ${className}`} ref={ref}>
                 <div
-                    className={`w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer transition-all ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-slate-400'}`}
+                    className={`w-full bg-gray-50 border border-gray-200 flex items-center justify-between cursor-pointer transition-all ${
+                        compact ? "rounded-lg px-2.5 py-1.5" : "rounded-xl px-4 py-3"
+                    } ${disabled ? "opacity-50 cursor-not-allowed" : "hover:border-slate-400"}`}
                     onClick={openDropdown}
                 >
-                    <span className={`text-sm font-bold ${selectedOption ? 'text-gray-900' : 'text-gray-400'}`}>
+                    <span
+                        className={`font-bold truncate ${compact ? "text-[11px]" : "text-sm"} ${
+                            selectedOption ? "text-gray-900" : "text-gray-400"
+                        }`}
+                    >
                         {selectedOption ? selectedOption.label : placeholder}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown
+                        className={`text-gray-400 transition-transform shrink-0 ${compact ? "w-3.5 h-3.5" : "w-4 h-4"} ${
+                            isOpen ? "rotate-180" : ""
+                        }`}
+                    />
                 </div>
             </div>
             {typeof document !== 'undefined' && dropdownContent && createPortal(dropdownContent, document.body)}

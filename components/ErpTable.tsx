@@ -3730,19 +3730,19 @@ export default function ErpTable() {
     return (
         <div className="flex flex-col flex-1 min-h-0 bg-[#F4F5F7] overflow-hidden">
             {/* Toolbar: sticky nel main layout se la pagina scrolla; sfondo opaco così non si vede la tabella sotto */}
-            <div className="flex-none p-3 sm:p-5 pb-0 sticky top-0 z-[95] overflow-visible bg-[#F4F5F7]/98 backdrop-blur-md shadow-sm border-b border-slate-200/60 space-y-3 sm:space-y-4">
-                <div className="flex flex-col gap-3 sm:gap-4">
+            <div className="flex-none p-2 sm:p-3 pb-0 sticky top-0 z-[95] overflow-visible bg-[#F4F5F7]/98 backdrop-blur-md shadow-sm border-b border-slate-200/60 space-y-1.5 sm:space-y-2">
+                <div className="flex flex-col gap-1.5 sm:gap-2">
                     {/* Riga titolo + azienda attiva */}
                     <div className="flex items-center justify-between gap-2 min-w-0">
                         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                             <HoverTooltip side="bottom" text="Iris · anagrafica e contenuti prodotti dell’azienda">
-                                <div className="p-1.5 sm:p-2 bg-[#111827] rounded-lg shadow-lg shrink-0">
-                                    <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" aria-hidden />
+                                <div className="p-1.5 bg-[#111827] rounded-lg shadow-lg shrink-0">
+                                    <Package className="w-4 h-4 text-white" aria-hidden />
                                 </div>
                             </HoverTooltip>
                             <div className="min-w-0">
-                                <h1 className="text-base sm:text-xl font-black text-gray-900 tracking-tight leading-none mb-0.5 sm:mb-1 truncate">Iris</h1>
-                                <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-sm sm:text-base font-black text-gray-900 tracking-tight leading-none truncate">Iris</h1>
+                                <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                                     {effectiveCompanyId == null ? (
                                         <span className="inline-flex items-center gap-1.5 text-[8px] sm:text-[9px] font-black px-2 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 uppercase tracking-widest">
                                             <AlertCircle className="w-3 h-3 shrink-0" aria-hidden />
@@ -3768,17 +3768,14 @@ export default function ErpTable() {
                                             </span>
                                         </span>
                                     )}
-                                    <span className="text-[8px] sm:text-[9px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline-flex items-center gap-1">
-                                        <span className="w-1 h-1 bg-gray-300 rounded-full" /> Biblioteca prodotti
-                                    </span>
                                 </div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                             <HoverTooltip side="bottom" text="Numero di prodotti nel risultato filtrato; la tabella può mostrarne di meno se scegli un limite righe.">
-                                <div className="text-center px-2 py-1 bg-white/80 rounded-lg border border-gray-100">
-                                    <p className="text-[7px] sm:text-[8px] font-black text-gray-400 uppercase leading-none">DB</p>
-                                    <p className="text-xs sm:text-sm font-black text-[#111827] leading-tight">
+                                <div className="text-center px-1.5 py-0.5 bg-white/80 rounded-md border border-gray-100">
+                                    <p className="text-[6px] font-black text-gray-400 uppercase leading-none">DB</p>
+                                    <p className="text-[11px] font-black text-[#111827] leading-tight">
                                         {filteredProducts.length}
                                     </p>
                                     {filteredProducts.length > 0 &&
@@ -3816,7 +3813,7 @@ export default function ErpTable() {
                                 <button
                                     type="button"
                                     onClick={() => setShowBrandsPanel(true)}
-                                    className="p-2 sm:p-2.5 bg-white border border-slate-200 rounded-xl shrink-0"
+                                    className="p-1.5 bg-white border border-slate-200 rounded-lg shrink-0"
                                     aria-label="Pannello brand"
                                 >
                                     <Building2 className="w-4 h-4" />
@@ -3827,7 +3824,7 @@ export default function ErpTable() {
                                     <button
                                         type="button"
                                         onClick={() => setShowWooConfig(true)}
-                                        className="p-2 sm:p-2.5 bg-[#111827] text-white rounded-xl shrink-0"
+                                        className="p-1.5 bg-[#111827] text-white rounded-lg shrink-0"
                                         aria-label="Impostazioni e integrazioni"
                                     >
                                         <Settings className="w-4 h-4" />
@@ -3839,13 +3836,11 @@ export default function ErpTable() {
                     </div>
 
                     {/* Filtri: scroll orizzontale solo sulla zona select; hint fuori da overflow-x per non ritagliare tooltip */}
-                    <div className="flex flex-wrap gap-y-2 gap-x-2 items-end min-h-[40px] min-w-0">
-                        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide min-w-0 flex-1 items-end">
-                        <div className="w-[min(100%,220px)] sm:w-[260px] shrink-0 flex flex-col gap-1">
-                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1 whitespace-nowrap">
-                                Brand
-                            </label>
+                    <div className="flex flex-wrap gap-1.5 items-center min-w-0">
+                        <div className="flex gap-1.5 overflow-x-auto scrollbar-hide min-w-0 flex-1 items-center">
+                        <div className="w-[min(100%,200px)] sm:w-[220px] shrink-0">
                             <SearchableSelect
+                                compact
                                 options={allBrands.map((brand: any) => ({
                                     value: brand.name,
                                     label: brand.name,
@@ -3864,8 +3859,9 @@ export default function ErpTable() {
                                 dropdownMinWidth={280}
                             />
                         </div>
-                        <div className="w-[130px] sm:w-[160px] shrink-0">
+                        <div className="w-[120px] sm:w-[140px] shrink-0">
                             <SearchableSelect
+                                compact
                                 options={[{ value: 'all', label: 'Categorie' }, ...allCategories.filter((c: any) => !c.parentId).map((c: any) => ({ value: c.id, label: c.name }))]}
                                 value={categoryFilter === 'all' ? 'all' : Number(categoryFilter)}
                                 onChange={(val) => {
@@ -3877,8 +3873,9 @@ export default function ErpTable() {
                                 showSearch={true}
                             />
                         </div>
-                        <div className="w-[120px] sm:w-[160px] shrink-0">
+                        <div className="w-[100px] sm:w-[120px] shrink-0">
                             <SearchableSelect
+                                compact
                                 options={[{ value: 'all', label: 'Sub' }, ...allCategories.filter((c: any) => c.parentId === Number(categoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
                                 value={subCategoryFilter === 'all' ? 'all' : Number(subCategoryFilter)}
                                 onChange={(val) => { setSubCategoryFilter(val ?? 'all'); setSubSubCategoryFilter('all'); }}
@@ -3887,8 +3884,9 @@ export default function ErpTable() {
                                 disabled={categoryFilter === 'all'}
                             />
                         </div>
-                        <div className="w-[110px] sm:w-[160px] shrink-0">
+                        <div className="w-[90px] sm:w-[110px] shrink-0">
                             <SearchableSelect
+                                compact
                                 options={[{ value: 'all', label: 'Lvl 3' }, ...allCategories.filter((c: any) => c.parentId === Number(subCategoryFilter)).map((c: any) => ({ value: c.id, label: c.name }))]}
                                 value={subSubCategoryFilter === 'all' ? 'all' : Number(subSubCategoryFilter)}
                                 onChange={(val) => setSubSubCategoryFilter(val ?? 'all')}
@@ -3900,39 +3898,35 @@ export default function ErpTable() {
                         </div>
 
                         {/* Fuori da overflow-x-auto: altrimenti HoverTooltip/InfoHint viene ritagliato (overflow ≠ visible) */}
-                        <div className="flex items-end gap-1.5 shrink-0 pl-2 ml-1 border-l border-slate-200/90">
-                            <div className="w-[min(100vw-12rem,200px)] sm:w-[220px] shrink-0 flex flex-col gap-1">
-                                <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1 whitespace-nowrap">
-                                    Contenuti AI
-                                </label>
-                                <select
-                                    value={aiContentFilter}
-                                    onChange={(e) => setAiContentFilter(e.target.value as "all" | "yes" | "no" | "partial")}
-                                    className="w-full h-10 rounded-xl border border-slate-200 bg-white px-2 sm:px-3 text-[10px] font-black uppercase tracking-widest text-slate-600"
-                                >
-                                    <option value="all">Elaborato contenuti AI: Tutti</option>
-                                    <option value="yes">Elaborato contenuti AI: SI</option>
-                                    <option value="no">Elaborato contenuti AI: NO</option>
-                                    <option value="partial">Elaborato contenuti AI: NON COMPLETO</option>
-                                </select>
-                            </div>
-                            <div className="pb-1">
+                        <div className="flex items-center gap-1 shrink-0 pl-1.5 ml-0.5 border-l border-slate-200/90">
+                            <select
+                                value={aiContentFilter}
+                                onChange={(e) => setAiContentFilter(e.target.value as "all" | "yes" | "no" | "partial")}
+                                title="Filtro contenuti AI"
+                                className="w-[min(100vw-10rem,168px)] sm:w-[180px] h-8 rounded-lg border border-slate-200 bg-white px-2 text-[9px] font-black uppercase tracking-wide text-slate-600"
+                            >
+                                <option value="all">AI: tutti</option>
+                                <option value="yes">AI: sì</option>
+                                <option value="no">AI: no</option>
+                                <option value="partial">AI: incompleto</option>
+                            </select>
+                            <div className="shrink-0">
                                 <InfoHint side="bottom" text={INFO_HINTS.erp.aiContentFilter} />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Azioni rapide */}
-                <div className="px-1 sm:px-0 mt-3 flex flex-wrap gap-2 sm:gap-3 items-center">
+                {/* Azioni rapide (compatta) */}
+                <div className="flex flex-wrap gap-1 items-center">
                     <HoverTooltip text="Import e push verso WooCommerce e PrestaShop, allineamento immagini su più prodotti selezionati">
                         <button
                             type="button"
                             onClick={() => setShowSalesChannelsModal(true)}
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#111827] to-slate-800 text-white rounded-xl font-black uppercase text-[10px] tracking-[0.12em] hover:from-slate-800 hover:to-black transition-all border border-slate-900 shadow-sm"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-gradient-to-r from-[#111827] to-slate-800 text-white rounded-lg font-black uppercase text-[9px] tracking-wide hover:from-slate-800 hover:to-black transition-all border border-slate-900"
                         >
-                            <Store className="w-4 h-4 shrink-0" aria-hidden />
-                            Pubblicazione e canali di vendita
+                            <Store className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                            Canali
                         </button>
                     </HoverTooltip>
 
@@ -3941,12 +3935,12 @@ export default function ErpTable() {
                             type="button"
                             onClick={handleBulkTranslateTitle}
                             disabled={isBulkTranslatingTitle || isBulkMassTranslating || selectedIds.length === 0}
-                            className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                            className="px-2.5 py-1.5 bg-white text-slate-900 rounded-lg font-black uppercase text-[9px] tracking-wide hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
                         >
                             {isBulkTranslatingTitle ? (
-                                <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin mx-auto" />
                             ) : (
-                                `Traduci titolo (${editLang.toUpperCase()})`
+                                `Titolo ${editLang.toUpperCase()}`
                             )}
                         </button>
                     </HoverTooltip>
@@ -3969,14 +3963,14 @@ export default function ErpTable() {
                                 setShowBulkTranslateModal(true);
                             }}
                             disabled={isBulkMassTranslating || isBulkTranslatingTitle || selectedIds.length === 0}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-indigo-100 transition-all border border-indigo-200 disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-900 rounded-lg font-black uppercase text-[9px] tracking-wide hover:bg-indigo-100 transition-all border border-indigo-200 disabled:opacity-50"
                         >
                             {isBulkMassTranslating ? (
-                                <RefreshCw className="w-4 h-4 animate-spin shrink-0" />
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0" />
                             ) : (
-                                <Languages className="w-4 h-4 shrink-0" aria-hidden />
+                                <Languages className="w-3.5 h-3.5 shrink-0" aria-hidden />
                             )}
-                            Traduzioni massive
+                            Traduzioni
                         </button>
                     </HoverTooltip>
 
@@ -3991,12 +3985,12 @@ export default function ErpTable() {
                             type="button"
                             onClick={handleDeduplicateImagesByBrand}
                             disabled={isBulkWorking || !brandFilter}
-                            className="px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
+                            className="px-2.5 py-1.5 bg-white text-slate-900 rounded-lg font-black uppercase text-[9px] tracking-wide hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-50"
                         >
                             {isBulkWorking ? (
-                                <RefreshCw className="w-4 h-4 animate-spin mx-auto" />
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin mx-auto" />
                             ) : (
-                                "Deduplica immagini brand"
+                                "Deduplica img"
                             )}
                         </button>
                     </HoverTooltip>
@@ -4012,10 +4006,10 @@ export default function ErpTable() {
                                 setShowBulkOperationsModal(true);
                             }}
                             disabled={selectedIds.length === 0}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-black transition-all border border-slate-900 disabled:opacity-40"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900 text-white rounded-lg font-black uppercase text-[9px] tracking-wide hover:bg-black transition-all border border-slate-900 disabled:opacity-40"
                         >
-                            <Layers className="w-4 h-4 shrink-0" aria-hidden />
-                            Modifiche massive
+                            <Layers className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                            Massive
                         </button>
                     </HoverTooltip>
                     <HoverTooltip text="Inverte la spunta: deseleziona ciò che è selezionato tra i risultati filtrati e seleziona il resto della lista corrente">
@@ -4023,15 +4017,15 @@ export default function ErpTable() {
                             type="button"
                             onClick={invertSelectionOnFiltered}
                             disabled={filteredProducts.length === 0}
-                            className="inline-flex items-center gap-2 px-4 py-2 bg-white text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-[0.2em] hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-40"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-slate-900 rounded-lg font-black uppercase text-[9px] tracking-wide hover:bg-slate-50 transition-all border border-slate-200 disabled:opacity-40"
                         >
-                            Selezione inversa
+                            Inv. sel.
                         </button>
                     </HoverTooltip>
                 </div>
 
                 {/* Barra ricerca + filtri avanzati + righe + esportazioni (sopra la tabella) */}
-                <div className="px-3 sm:px-5 py-2 sm:py-2.5 bg-white/40 backdrop-blur-xl border border-gray-200/60 rounded-t-2xl flex flex-row flex-wrap items-end gap-2 sm:gap-3 shadow-sm -mb-[1px] min-w-0">
+                <div className="px-2 sm:px-3 py-1.5 bg-white/40 backdrop-blur-xl border border-gray-200/60 rounded-t-xl flex flex-row flex-wrap items-center gap-1.5 shadow-sm -mb-[1px] min-w-0">
                     <div className="flex-1 min-w-[min(100%,220px)]">
                         <HoverTooltip
                             side="bottom"
@@ -4048,7 +4042,7 @@ export default function ErpTable() {
                                     placeholder="Cerca SKU, titolo, brand, EAN, campi extra…"
                                     className="w-full"
                                     iconClassName="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none"
-                                    inputClassName="w-full h-10 bg-white border border-gray-200 rounded-xl pl-9 pr-3 text-[12px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
+                                    inputClassName="w-full h-8 bg-white border border-gray-200 rounded-lg pl-9 pr-3 text-[12px] font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-300"
                                     paddingRightEmpty="pr-3"
                                     paddingRightFilled="pr-9"
                                     clearButtonClassName="absolute right-0.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 focus:outline-none focus:ring-2 focus:ring-slate-200"
@@ -4060,7 +4054,7 @@ export default function ErpTable() {
                         <button
                             type="button"
                             onClick={() => setShowAdvancedFilters((v) => !v)}
-                            className={`flex items-center gap-1 px-3 py-2 rounded-xl bg-white border text-[9px] font-black uppercase tracking-widest shrink-0 hover:bg-slate-50 h-10 ${
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white border text-[9px] font-black uppercase tracking-widest shrink-0 hover:bg-slate-50 h-8 ${
                                 hasSheetFilters
                                     ? "border-violet-400 text-violet-700 ring-1 ring-violet-200"
                                     : "border-slate-200 text-slate-500"
@@ -4072,14 +4066,12 @@ export default function ErpTable() {
                             />
                         </button>
                     </HoverTooltip>
-                    <div className="w-[118px] sm:w-[130px] shrink-0 flex flex-col gap-1">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-1 whitespace-nowrap">
-                            Righe
-                        </label>
+                    <div className="w-[100px] sm:w-[110px] shrink-0">
                         <select
                             value={tablePageSizeStr}
                             onChange={(e) => setTablePageSizeStr(e.target.value)}
-                            className="w-full h-10 rounded-xl border border-slate-200 bg-white px-2 text-[10px] font-black uppercase tracking-widest text-slate-600"
+                            title="Righe per pagina"
+                            className="w-full h-8 rounded-lg border border-slate-200 bg-white px-2 text-[9px] font-black uppercase tracking-wide text-slate-600"
                         >
                             {tablePageSizeOptions.map((o) => (
                                 <option key={o.value} value={o.value}>
@@ -4088,10 +4080,7 @@ export default function ErpTable() {
                             ))}
                         </select>
                     </div>
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 px-0.5 leading-none">
-                            Esporta
-                        </span>
+                    <div className="flex items-center gap-1 shrink-0">
                         <div className="flex items-center justify-end gap-1">
                             <HoverTooltip
                                 side="bottom"
@@ -4102,7 +4091,7 @@ export default function ErpTable() {
                                     onClick={() => void exportSelectedToFile("excel")}
                                     disabled={isExportingSelectedFile || selectedIds.length === 0}
                                     aria-label="Esporta Excel selezione"
-                                    className="p-2.5 rounded-xl bg-white border border-slate-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition disabled:opacity-40 disabled:pointer-events-none"
+                                    className="p-2 rounded-lg bg-white border border-slate-200 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-200 transition disabled:opacity-40 disabled:pointer-events-none"
                                 >
                                     {isExportingSelectedFile ? (
                                         <RefreshCw className="w-5 h-5 animate-spin" />
