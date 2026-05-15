@@ -234,7 +234,7 @@ export function TechnicalSheetPanel({ selectedProduct, setSelectedProduct, getEx
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                 <div className="border-b border-gray-50 pb-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
                         <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">

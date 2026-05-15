@@ -116,14 +116,20 @@ const PRODUCT_EDITOR_TABS: {
     icon: React.ComponentType<{ className?: string }>;
 }[] = [
     { id: "info", label: "Generale", icon: Package },
-    { id: "images", label: "Media & Asset", icon: LayoutGrid },
-    { id: "seo", label: "SEO & AI Content", icon: Sparkles },
-    { id: "attributes", label: "Specifiche & Bullet", icon: List },
-    { id: "technical", label: "Schede tecniche", icon: FileSpreadsheet },
+    { id: "images", label: "Media", icon: LayoutGrid },
+    { id: "seo", label: "SEO / AI", icon: Sparkles },
+    { id: "attributes", label: "Bullet", icon: List },
+    { id: "technical", label: "Tecniche", icon: FileSpreadsheet },
     { id: "lots", label: "Lotti", icon: Layers },
-    { id: "woocommerce", label: "Omnichannel", icon: Globe },
-    { id: "history", label: "Cronologia", icon: HistoryIcon },
+    { id: "woocommerce", label: "Canali", icon: Globe },
+    { id: "history", label: "Storico", icon: HistoryIcon },
 ];
+
+/** Classi condivise modale scheda prodotto (dimensioni compatte, contenuto scrollabile). */
+const PRODUCT_MODAL_SHELL =
+    "relative w-full max-w-[min(100%,52rem)] bg-[#F9FAFB] rounded-2xl shadow-[0_16px_40px_rgba(0,0,0,0.18)] overflow-hidden flex flex-col max-h-[min(88vh,800px)] min-h-[min(52vh,420px)] border border-gray-200";
+const PRODUCT_MODAL_BODY = "p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 bg-[#F9FAFB] custom-scrollbar";
+const PRODUCT_MODAL_CARD = "bg-white p-4 sm:p-5 rounded-2xl border border-gray-200 shadow-sm";
 
 /** Parametri push PrestaShop usabili dal modale (override rispetto al modale Omnichannel per questa esecuzione). */
 type PrestaPublishSession = {
@@ -4514,7 +4520,7 @@ export default function ErpTable() {
             {/* Modale Modifica */}
             <AnimatePresence>
                 {selectedProduct && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 pb-20 sm:pb-6 overflow-y-auto">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 pb-14 sm:pb-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -4526,17 +4532,17 @@ export default function ErpTable() {
                             initial={{ opacity: 0, scale: 0.98, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-                            className="relative w-full max-w-6xl bg-[#F9FAFB] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] overflow-hidden flex flex-col max-h-[92vh] border border-gray-200"
+                            className={PRODUCT_MODAL_SHELL}
                         >
-                            {/* Header Modale - Corporate Style */}
-                            <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-gray-200 flex items-start sm:items-center justify-between bg-white z-20 gap-2 sm:gap-4 relative">
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 pr-10 sm:pr-0">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-[10px] font-black bg-slate-900 text-white px-2 py-0.5 rounded tracking-tighter">SKU</span>
-                                            <span className="font-mono text-lg font-black text-slate-900 tracking-tight">{selectedProduct.sku}</span>
+                            {/* Header Modale */}
+                            <div className="px-3 sm:px-5 py-2.5 border-b border-gray-200 flex items-start justify-between bg-white z-20 gap-2 relative shrink-0">
+                                <div className="flex flex-col min-w-0 flex-1 gap-1 pr-9 sm:pr-0 sm:flex-row sm:items-center sm:gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                            <span className="text-[9px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded tracking-tighter shrink-0">SKU</span>
+                                            <span className="font-mono text-sm font-black text-slate-900 tracking-tight">{selectedProduct.sku}</span>
                                         </div>
-                                        <h3 className="text-sm font-bold text-slate-500 mt-0.5">{selectedProduct.title || "Record Editor"}</h3>
+                                        <h3 className="text-xs font-bold text-slate-600 mt-0.5 line-clamp-2 leading-snug">{selectedProduct.title || "Record Editor"}</h3>
                                         <div className="mt-1">
                                             {(() => {
                                                 const aiStatus = getAiContentStatus(selectedProduct);
@@ -4554,8 +4560,8 @@ export default function ErpTable() {
                                             })()}
                                         </div>
                                     </div>
-                                    <div className="h-10 w-px bg-gray-100 hidden md:block"></div>
-                                    <div className="hidden lg:flex items-center gap-4">
+                                    <div className="h-8 w-px bg-gray-100 hidden md:block shrink-0"></div>
+                                    <div className="hidden lg:flex items-center gap-3 shrink-0">
                                         <div className="text-center">
                                             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">Status</p>
                                             <p className="text-[10px] font-black text-green-600 uppercase mt-1">{selectedProduct.status || 'Active'}</p>
@@ -4566,7 +4572,7 @@ export default function ErpTable() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="absolute top-4 right-4 sm:relative sm:top-0 sm:right-0 flex items-center gap-3 shrink-0">
+                                <div className="absolute top-2.5 right-2.5 sm:relative sm:top-0 sm:right-0 flex items-center gap-2 shrink-0">
                                     <div className="hidden sm:flex items-center gap-2 mr-4">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
                                             <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
@@ -4575,9 +4581,9 @@ export default function ErpTable() {
                                     </div>
                                     <button
                                         onClick={() => setSelectedProduct(null)}
-                                        className="p-2.5 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-gray-100"
+                                        className="p-2 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all border border-gray-100"
                                     >
-                                        <X className="w-5 h-5" />
+                                        <X className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
@@ -4585,7 +4591,7 @@ export default function ErpTable() {
                             {lastProductSaveSignature ? (
                                 <div
                                     data-product-editor-banner
-                                    className="px-4 sm:px-8 py-3.5 bg-gradient-to-r from-emerald-50 via-white to-sky-50 border-b border-emerald-100/90"
+                                    className="px-3 sm:px-5 py-2 bg-gradient-to-r from-emerald-50 via-white to-sky-50 border-b border-emerald-100/90"
                                 >
                                     <p className="text-[11px] sm:text-sm font-bold text-slate-800 leading-relaxed flex flex-wrap items-center gap-x-2 gap-y-1">
                                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 border border-emerald-200 text-[9px] font-black uppercase tracking-widest text-emerald-900 shadow-sm shrink-0">
@@ -4601,7 +4607,7 @@ export default function ErpTable() {
 
                             {/* Schede a linguetta (cartella) + lingua / AI */}
                             <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 px-2 sm:px-4 pt-2 pb-0 bg-gradient-to-b from-slate-200 via-slate-200/95 to-slate-200 border-b border-slate-300/80">
-                                <div className="flex flex-wrap items-end gap-0 min-w-0 -mb-px pl-0.5">
+                                <div className="flex flex-nowrap items-end gap-0 min-w-0 -mb-px pl-0.5 overflow-x-auto custom-scrollbar">
                                     {PRODUCT_EDITOR_TABS.map((t) => {
                                         const Icon = t.icon;
                                         const active = activeTab === t.id;
@@ -4612,11 +4618,11 @@ export default function ErpTable() {
                                                 onClick={() => setActiveTab(t.id)}
                                                 className={[
                                                     "group relative flex items-center gap-1.5 sm:gap-2 shrink-0",
-                                                    "px-2.5 sm:px-4 py-2 sm:py-2.5 text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all duration-150",
+                                                    "px-2 sm:px-3 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-all duration-150",
                                                     "border border-b-0 first:rounded-tl-lg rounded-t-lg sm:rounded-t-xl",
                                                     "ml-[-1px] first:ml-0",
                                                     active
-                                                        ? "z-[2] bg-[#F9FAFB] text-slate-900 border-slate-300/90 shadow-[0_-6px_20px_rgba(15,23,42,0.06)] pb-2.5 sm:pb-3 ring-1 ring-slate-200/60"
+                                                        ? "z-[2] bg-[#F9FAFB] text-slate-900 border-slate-300/90 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] pb-2 sm:pb-2.5 ring-1 ring-slate-200/60"
                                                         : "z-[1] bg-slate-300/45 text-slate-500 border-slate-400/35 hover:bg-slate-300/70 hover:text-slate-700 hover:z-[1]",
                                                 ].join(" ")}
                                             >
@@ -4657,16 +4663,16 @@ export default function ErpTable() {
                                         ) : (
                                             <Languages className="w-3 h-3" />
                                         )}
-                                        Traduci / Correggi AI
+                                        Traduci AI
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="p-8 overflow-y-auto flex-1 bg-[#F9FAFB] custom-scrollbar">
+                            <div className={PRODUCT_MODAL_BODY}>
                                 {activeTab === 'info' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="space-y-6">
-                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="space-y-4">
+                                            <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
                                                     <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Core Information
                                                 </h4>
@@ -4857,7 +4863,7 @@ export default function ErpTable() {
                                                 </div>
                                             </div>
 
-                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                            <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
                                                     <div className="w-1 h-3 bg-orange-500 rounded-full"></div> Pricing & Identifiers
                                                 </h4>
@@ -4970,7 +4976,7 @@ export default function ErpTable() {
                                         </div>
 
                                         <div className="space-y-6">
-                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                            <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
                                                     <div className="w-1 h-3 bg-slate-400 rounded-full"></div> Inventory & Meta
                                                 </h4>
@@ -5036,7 +5042,7 @@ export default function ErpTable() {
                                                 </div>
                                             </div>
 
-                                            <div className="bg-slate-900 p-8 rounded-3xl shadow-lg text-white space-y-4">
+                                            <div className="bg-slate-900 p-4 sm:p-5 rounded-2xl shadow-lg text-white space-y-3">
                                                 <div className="flex items-center gap-3">
                                                     <RefreshCw className="w-5 h-5 text-blue-200" />
                                                     <h5 className="font-black uppercase tracking-widest text-xs">Insight</h5>
@@ -5050,8 +5056,8 @@ export default function ErpTable() {
                                 )}
 
                                 {activeTab === 'images' && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className={PRODUCT_MODAL_CARD}>
                                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 mb-6 flex items-center gap-2">
                                                 <div className="w-1 h-3 bg-slate-900 rounded-full"></div> Digital Asset Management
                                             </h4>
@@ -5231,7 +5237,7 @@ export default function ErpTable() {
                                         </div>
 
                                         {/* Preview contenuti AI (breve+lungo) direttamente nella tab Media & Asset */}
-                                        <div className="bg-white p-8 rounded-3xl border border-indigo-100 shadow-sm space-y-4">
+                                        <div className={`${PRODUCT_MODAL_CARD} border-indigo-100 space-y-3`}>
                                             <div className="flex items-center justify-between">
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-indigo-700 flex items-center gap-2">
                                                     <Sparkles className="w-3.5 h-3.5" /> Anteprima Contenuti AI ({editLang})
@@ -5254,7 +5260,7 @@ export default function ErpTable() {
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                            <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
                                                     <Plus className="w-3 h-3 text-slate-900" /> Upload Diretto
                                                 </h4>
@@ -5282,7 +5288,7 @@ export default function ErpTable() {
                                                 </div>
                                             </div>
 
-                                            <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                            <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2">
                                                     <Globe className="w-3 h-3 text-slate-900" /> Web Scraper Engine
                                                 </h4>
@@ -5297,7 +5303,7 @@ export default function ErpTable() {
                                             </div>
 
                                             {webImages.length > 0 && (
-                                                <div className="md:col-span-2 bg-white p-8 rounded-3xl border border-gray-200 shadow-sm animate-in zoom-in-95">
+                                                <div className={`md:col-span-2 ${PRODUCT_MODAL_CARD} animate-in zoom-in-95`}>
                                                     <h5 className="text-[9px] font-black uppercase tracking-widest text-slate-900 mb-6 bg-slate-50 w-max px-3 py-1 rounded-full border border-slate-200 italic">Risultati Ricerca Remota</h5>
                                                     <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-6">
                                                         {webImages.map((wImg: any, idx: number) => {
@@ -5342,8 +5348,8 @@ export default function ErpTable() {
                                 )}
 
                                 {activeTab === 'seo' && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-6">
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                             <div className="flex justify-between items-center">
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 flex items-center gap-2 w-full">
                                                     <div className="w-1 h-3 bg-indigo-600 rounded-full"></div> Content Mastery & SEO Optimization
@@ -5417,8 +5423,8 @@ export default function ErpTable() {
                                 )}
 
                                 {activeTab === 'attributes' && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm space-y-8">
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className={`${PRODUCT_MODAL_CARD} space-y-6`}>
                                             <div className="flex items-center justify-between border-b border-gray-50 pb-4">
                                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 flex items-center gap-2">
                                                     <div className="w-1 h-3 bg-emerald-600 rounded-full"></div> Caratteristiche principali / bullet point
@@ -5620,9 +5626,9 @@ export default function ErpTable() {
                                 )}
 
                                 {activeTab === "lots" && selectedProduct && (
-                                    <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
-                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-3 mb-6 flex items-center gap-2">
+                                    <div className="animate-in fade-in slide-in-from-bottom-2">
+                                        <div className={PRODUCT_MODAL_CARD}>
+                                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-slate-100 pb-2 mb-4 flex items-center gap-2">
                                                 <Layers className="w-3.5 h-3.5 text-slate-500" />
                                                 Lotti e giacenze
                                             </h4>
@@ -5641,31 +5647,31 @@ export default function ErpTable() {
                                 )}
 
                                 {activeTab === 'woocommerce' && (
-                                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-gradient-to-br from-slate-50 to-white p-10 rounded-[2.5rem] border border-slate-200 shadow-xl overflow-hidden relative group">
-                                            <div className="absolute top-0 right-0 p-10 opacity-[0.03] group-hover:opacity-[0.07] transition-all">
-                                                <RefreshCw className="w-48 h-48 rotate-12" />
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className="bg-gradient-to-br from-slate-50 to-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative group">
+                                            <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.07] transition-all pointer-events-none">
+                                                <RefreshCw className="w-24 h-24 rotate-12" />
                                             </div>
-                                            <div className="relative z-10 flex items-start gap-8">
-                                                <div className="p-5 bg-slate-900 text-white rounded-2xl shadow-2xl shadow-blue-200">
-                                                    <RefreshCw className="w-8 h-8" />
+                                            <div className="relative z-10 flex items-start gap-4">
+                                                <div className="p-3 bg-slate-900 text-white rounded-xl shadow-lg shrink-0">
+                                                    <RefreshCw className="w-5 h-5" />
                                                 </div>
-                                                <div>
-                                                    <h4 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Omnichannel Sync Engine</h4>
-                                                    <p className="text-sm font-bold text-slate-400 mt-1 max-w-sm">
+                                                <div className="min-w-0">
+                                                    <h4 className="text-base font-black text-slate-900 uppercase tracking-tight">Omnichannel Sync</h4>
+                                                    <p className="text-xs font-bold text-slate-400 mt-0.5 max-w-md">
                                                         Pubblica su WooCommerce e PrestaShop 9: lo SKU ERP = riferimento (reference) in PrestaShop.
                                                     </p>
                                                 </div>
                                             </div>
 
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 relative z-10">
-                                                <div className="bg-white border border-slate-100 p-8 rounded-3xl shadow-sm">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">WooID Association</p>
-                                                    <p className="font-mono text-2xl font-black text-slate-900 tracking-tight">{selectedProduct.wooId || "NOT_SYNCED"}</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5 relative z-10">
+                                                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">WooID</p>
+                                                    <p className="font-mono text-lg font-black text-slate-900 tracking-tight truncate">{selectedProduct.wooId || "NOT_SYNCED"}</p>
                                                 </div>
-                                                <div className="bg-white border border-slate-100 p-8 rounded-3xl shadow-sm">
-                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">PrestaShop ID</p>
-                                                    <p className="font-mono text-2xl font-black text-violet-900 tracking-tight">
+                                                <div className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm">
+                                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">PrestaShop ID</p>
+                                                    <p className="font-mono text-lg font-black text-violet-900 tracking-tight truncate">
                                                         {selectedProduct.extraFields?.prestashopProductId || "NOT_SYNCED"}
                                                     </p>
                                                 </div>
@@ -5673,7 +5679,7 @@ export default function ErpTable() {
                                                     <button
                                                         onClick={() => requestWooPushForProduct(selectedProduct)}
                                                         disabled={isPublishingWoo}
-                                                        className="bg-[#111827] text-white p-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] hover:bg-black transition-all shadow-xl disabled:opacity-50"
+                                                        className="bg-[#111827] text-white p-3.5 rounded-xl font-black uppercase text-[10px] tracking-[0.15em] hover:bg-black transition-all shadow-md disabled:opacity-50"
                                                     >
                                                         {isPublishingWoo ? (
                                                             <RefreshCw className="w-6 h-6 animate-spin mx-auto" />
@@ -5684,7 +5690,7 @@ export default function ErpTable() {
                                                     <button
                                                         onClick={() => requestPrestaPushForProduct(selectedProduct)}
                                                         disabled={isPublishingPs}
-                                                        className="bg-violet-900 text-white p-6 rounded-3xl font-black uppercase text-xs tracking-[0.2em] hover:bg-violet-950 transition-all shadow-xl disabled:opacity-50"
+                                                        className="bg-violet-900 text-white p-3.5 rounded-xl font-black uppercase text-[10px] tracking-[0.15em] hover:bg-violet-950 transition-all shadow-md disabled:opacity-50"
                                                     >
                                                         {isPublishingPs ? (
                                                             <RefreshCw className="w-6 h-6 animate-spin mx-auto" />
@@ -5748,7 +5754,7 @@ export default function ErpTable() {
                                             {/* Mass actions ora sono sotto i filtri */}
                                         </div>
 
-                                        <div className="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm">
+                                        <div className={PRODUCT_MODAL_CARD}>
                                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 border-b border-gray-50 pb-3 mb-6 flex items-center gap-2">
                                                 <Settings className="w-3 h-3 text-slate-400" /> Field Mapping Preview
                                             </h4>
@@ -5765,11 +5771,11 @@ export default function ErpTable() {
                                     </div>
                                 )}
                                 {activeTab === 'history' && (
-                                    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-                                        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-200 shadow-sm">
-                                            <div className="flex items-center justify-between mb-8 border-b border-gray-50 pb-6">
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
+                                        <div className={PRODUCT_MODAL_CARD}>
+                                            <div className="flex items-center justify-between mb-4 border-b border-gray-50 pb-3">
                                                 <div>
-                                                    <h4 className="text-xl font-black text-slate-900 uppercase tracking-tight">Audit Log & Versioning</h4>
+                                                    <h4 className="text-sm font-black text-slate-900 uppercase tracking-tight">Audit Log</h4>
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Cronologia completa delle revisioni</p>
                                                 </div>
                                                 <button
@@ -5840,26 +5846,26 @@ export default function ErpTable() {
                                 )}
                             </div>
 
-                            {/* Footer Modale - Corporate style */}
-                            <div className="p-8 border-t border-gray-200 bg-white flex items-center justify-between z-20">
-                                <div className="text-[11px] font-bold text-slate-400 flex items-center gap-2">
+                            {/* Footer Modale */}
+                            <div className="px-4 sm:px-5 py-3 border-t border-gray-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-2 z-20 shrink-0">
+                                <div className="text-[10px] font-bold text-slate-400 flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
                                     Tutti i cambiamenti sono salvati in tempo reale nel buffer.
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2 shrink-0">
                                     <button
                                         onClick={() => setSelectedProduct(null)}
-                                        className="px-8 py-3.5 bg-white border border-gray-200 text-slate-900 rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-gray-50 transition-all shadow-sm"
+                                        className="px-4 py-2 bg-white border border-gray-200 text-slate-900 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-50 transition-all shadow-sm"
                                     >
                                         Cancella
                                     </button>
                                     <button
                                         onClick={handleSave}
                                         disabled={isSaving}
-                                        className="px-10 py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase text-[11px] tracking-widest hover:bg-black transition-all shadow-xl flex items-center gap-3 disabled:opacity-50"
+                                        className="px-5 py-2 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
                                     >
-                                        {isSaving && <RefreshCw className="w-4 h-4 animate-spin" />}
-                                        Esegui Salvataggio
+                                        {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                                        Salva
                                     </button>
                                 </div>
                             </div>
