@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "f690568abdc22e7846763826b26763704c72794a",
+      "at": "2026-05-15T12:59:06+02:00",
+      "description": "Compact product editor modal for denser layout across all tabs."
+    },
+    {
       "hash": "b6c58ea6f253d9c31853ad6b9b773563dbd87f44",
       "at": "2026-05-15T11:03:26+02:00",
       "description": "Shrink Biblioteca/Import tab bar to a minimal inline segmented control."
