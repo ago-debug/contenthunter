@@ -4606,8 +4606,8 @@ export default function ErpTable() {
                             ) : null}
 
                             {/* Schede a linguetta (cartella) + lingua / AI */}
-                            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-2 px-2 sm:px-4 pt-2 pb-0 bg-gradient-to-b from-slate-200 via-slate-200/95 to-slate-200 border-b border-slate-300/80">
-                                <div className="flex flex-nowrap items-end gap-0 min-w-0 -mb-px pl-0.5 overflow-x-auto custom-scrollbar">
+                            <div className="flex flex-col gap-2 px-2 sm:px-4 pt-2 pb-0 bg-gradient-to-b from-slate-200 via-slate-200/95 to-slate-200 border-b border-slate-300/80 shrink-0">
+                                <div className="flex flex-wrap items-end gap-0 w-full min-w-0 -mb-px pl-0.5">
                                     {PRODUCT_EDITOR_TABS.map((t) => {
                                         const Icon = t.icon;
                                         const active = activeTab === t.id;
@@ -4617,8 +4617,8 @@ export default function ErpTable() {
                                                 type="button"
                                                 onClick={() => setActiveTab(t.id)}
                                                 className={[
-                                                    "group relative flex items-center gap-1.5 sm:gap-2 shrink-0",
-                                                    "px-2 sm:px-3 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase tracking-widest transition-all duration-150",
+                                                    "group relative flex items-center gap-1 sm:gap-1.5 shrink-0",
+                                                    "px-2 py-1.5 text-[8px] font-black uppercase tracking-widest transition-all duration-150",
                                                     "border border-b-0 first:rounded-tl-lg rounded-t-lg sm:rounded-t-xl",
                                                     "ml-[-1px] first:ml-0",
                                                     active
@@ -4627,15 +4627,15 @@ export default function ErpTable() {
                                                 ].join(" ")}
                                             >
                                                 <Icon
-                                                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${active ? "text-slate-800" : "text-slate-400 group-hover:text-slate-600"}`}
+                                                    className={`w-3.5 h-3.5 shrink-0 ${active ? "text-slate-800" : "text-slate-400 group-hover:text-slate-600"}`}
                                                     aria-hidden
                                                 />
-                                                <span className="whitespace-nowrap max-w-[9rem] sm:max-w-none truncate">{t.label}</span>
+                                                <span className="whitespace-nowrap">{t.label}</span>
                                             </button>
                                         );
                                     })}
                                 </div>
-                                <div className="flex items-center gap-3 pb-2 md:pb-2.5 pt-1 md:pt-0 overflow-x-auto shrink-0 w-full md:w-auto justify-end">
+                                <div className="flex items-center gap-2 pb-2 overflow-x-auto shrink-0 w-full justify-end border-t border-slate-300/50 pt-2 sm:border-t-0 sm:pt-0">
                                     <div className="flex shrink-0 bg-white/90 p-1 rounded-xl border border-slate-300/60 shadow-sm">
                                         {["it", "en", "fr", "de", "es"].map((lang: string) => (
                                             <button
