@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "c263c237991f453324fd506d53645e33a930b21c",
+      "at": "2026-05-15T16:41:44+02:00",
+      "description": "Show all product editor tabs by giving tabs a full-width row."
+    },
+    {
       "hash": "f690568abdc22e7846763826b26763704c72794a",
       "at": "2026-05-15T12:59:06+02:00",
       "description": "Compact product editor modal for denser layout across all tabs."
