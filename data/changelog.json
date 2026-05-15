@@ -1,6 +1,11 @@
 {
   "entries": [
     {
+      "hash": "ac5c0bc2325bb448fd5fae5e608b5d00f6b3ad4d",
+      "at": "2026-05-15T10:40:42+02:00",
+      "description": "Compact product library toolbar to give more space to the product table."
+    },
+    {
       "hash": "c6f3b67f8d67c6094fd4a48ea855b9dedededa9f",
       "at": "2026-05-14T23:34:55+02:00",
       "description": "Unify short e-commerce copy in seoAiText; remove docDescription from schema and UI."
